@@ -117,7 +117,9 @@ const seedData = {
         { sender: "cacau", text: "Olá! Seja muito bem-vinda ao **ConfeitaAI**! Eu sou a **Cacau**, sua assistente inteligente. 🍰", time: "18:50" },
         { sender: "cacau", text: "Estou conectada ao seu banco de dados na nuvem com o **Supabase**! Agora tudo o que você me pedir ficará salvo online de verdade. 🌐", time: "18:51" }
     ],
-    users: [],
+    users: [
+        { id: "admin_local", name: "Super Admin", username: "admin", email: "naturamixrepresentacoes@gmail.com", password: "123", role: "Super Admin", status: "Ativo", plan: "PRO" }
+    ],
     storeConfig: {
         name: "Doces da Ju",
         slug: "docesdaju",
@@ -4057,7 +4059,9 @@ async function handleSeedDatabaseClick() {
                     usuario_id: loggedInUserId
                 })));
             } else {
+                const existingUsers = state.users; // Preserva usuários locais
                 state = JSON.parse(JSON.stringify(seedData));
+                state.users = existingUsers && existingUsers.length > 0 ? existingUsers : state.users;
                 saveToLocalStorage();
             }
 
@@ -4065,7 +4069,7 @@ async function handleSeedDatabaseClick() {
             alert("Base de teste restaurada com sucesso! 🌱🍰");
         } catch (err) {
             console.error("Erro ao rodar seed:", err);
-            alert("Erro ao realizar o seed na nuvem. Verifique a estrutura do banco e conexões.");
+            alert("Erro ao realizar o seed. Verifique o console.");
         } finally {
             hideLoadingIndicator();
             renderAdm();
@@ -4094,6 +4098,7 @@ async function handleWipeDatabaseClick() {
                     await supabaseClient.from('clientes').delete().eq('usuario_id', loggedInUserId);
                     await supabaseClient.from('estoque').delete().eq('usuario_id', loggedInUserId);
                 } else {
+                    const existingUsers = state.users; // Preserva usuários locais
                     state = {
                         products: [],
                         ingredients: [],
