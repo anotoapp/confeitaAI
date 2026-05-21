@@ -1627,10 +1627,14 @@ function renderCardapio(searchQuery = "") {
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
-    const filtered = state.products.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = state.products.filter(p => {
+        // Enforce strict business rule: product MUST have a valid associated recipe
+        const hasValidRecipe = state.recipes.some(r => r.id === p.recipeId);
+        if (!hasValidRecipe) return false;
+        
+        return p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+               p.category.toLowerCase().includes(searchQuery.toLowerCase());
+    });
 
     if (filtered.length === 0) {
         list.innerHTML = `
@@ -3119,7 +3123,10 @@ function renderStorefrontProducts() {
     container.innerHTML = "";
     
     // Filter products
-    let filtered = state.products;
+    let filtered = state.products.filter(p => {
+        // Enforce strict business rule: product MUST have a valid associated recipe
+        return state.recipes.some(r => r.id === p.recipeId);
+    });
     if (activeCategoryFilter !== "all") {
         filtered = filtered.filter(p => p.category === activeCategoryFilter);
     }
