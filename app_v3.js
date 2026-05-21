@@ -277,6 +277,7 @@ async function loadState() {
                     phone: configData.phone || state.storeConfig.phone,
                     hours: configData.hours || state.storeConfig.hours,
                     logo: configData.logo || state.storeConfig.logo,
+                    banner: configData.banner || state.storeConfig.banner,
                     desc: configData.desc || state.storeConfig.desc
                 };
 
@@ -496,6 +497,7 @@ async function loadState() {
                 phone: sc.phone || state.storeConfig.phone,
                 hours: sc.hours || state.storeConfig.hours,
                 logo: sc.logo || state.storeConfig.logo,
+                banner: sc.banner || state.storeConfig.banner,
                 desc: sc.desc || state.storeConfig.desc
             };
         }
@@ -3011,7 +3013,7 @@ function openMenuPreview() {
     phoneBody.innerHTML = `
         <div class="phone-shop-header-container">
             <div class="phone-shop-cover">
-                <img src="${state?.storeConfig?.logo || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop'}" class="phone-shop-cover-img" alt="Capa da Loja">
+                <img src="${state?.storeConfig?.banner || state?.storeConfig?.logo || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop'}" class="phone-shop-cover-img" alt="Capa da Loja">
                 <div class="phone-shop-avatar-container">
                     <img src="${state?.storeConfig?.logo || 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop'}" class="phone-shop-avatar" alt="Logo da Loja">
                 </div>
@@ -4300,6 +4302,19 @@ function renderUsersTable() {
             </td>`;
         listEl.appendChild(row);
     });
+
+    // Approximate Storage Usage update
+    const storageEl = document.getElementById("saas-storage-usage");
+    if (storageEl) {
+        const stateStr = JSON.stringify(state);
+        let approxBytes = Math.floor(stateStr.length * 1.1); // Add ~10% for DB overhead
+        let displaySize = "";
+        if (approxBytes < 1024) displaySize = approxBytes + " B";
+        else if (approxBytes < 1024 * 1024) displaySize = (approxBytes / 1024).toFixed(2) + " KB";
+        else displaySize = (approxBytes / (1024 * 1024)).toFixed(2) + " MB";
+        
+        storageEl.innerText = displaySize;
+    }
 }
 
 async function adminUpgradeToPro(userId) {
