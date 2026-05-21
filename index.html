@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfeitaAI - O assistente inteligente das confeiteiras</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase JS Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="diag-bar" style="background: #ef4444; color: white; padding: 12px; text-align: center; font-weight: 600; font-family: system-ui, -apple-system, sans-serif; z-index: 99999; position: fixed; top: 0; left: 0; width: 100vw; display: none; font-size: 13px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+        ⚠️ ConfeitaAI Diagnóstico: O script principal não foi carregado ou travou ao iniciar. Tente recarregar a página com Ctrl+F5.
+    </div>
+    <script>
+        window.confeitaAiHasError = false;
+        window.addEventListener('error', (e) => {
+            window.confeitaAiHasError = true;
+            const diag = document.getElementById('diag-bar');
+            if (diag) {
+                const filename = e.filename ? e.filename.split('/').pop() : 'script.js';
+                diag.innerHTML = '⚠️ Erro de Execução: ' + e.message + ' (' + filename + ':' + e.lineno + ')';
+                diag.style.backgroundColor = '#ef4444';
+                diag.style.display = 'block';
+            }
+        });
+        window.addEventListener('unhandledrejection', (e) => {
+            window.confeitaAiHasError = true;
+            const diag = document.getElementById('diag-bar');
+            if (diag) {
+                diag.innerHTML = '⚠️ Rejeição de Promessa Assíncrona: ' + (e.reason ? (e.reason.message || e.reason) : 'Erro desconhecido');
+                diag.style.backgroundColor = '#ef4444';
+                diag.style.display = 'block';
+            }
+        });
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const diag = document.getElementById('diag-bar');
+                if (diag && !window.confeitaAiHasError) {
+                    if (window.confeitaAiLoaded) {
+                        diag.style.display = 'none';
+                    } else {
+                        diag.innerHTML = '⚠️ Diagnóstico: O script principal está presente, mas a inicialização falhou ou travou.';
+                        diag.style.backgroundColor = '#f59e0b';
+                    }
+                }
+            }, 1000);
+        });
+    </script>
+    <!-- Login Overlay -->
+    <div id="login-container" class="login-wrapper">
+        <script>
+            if (localStorage.getItem("confeitaai_session")) {
+                document.getElementById("login-container").style.display = "none";
+            }
+        </script>
+        <div class="login-card glass">
+            <div class="login-header">
+                <div class="logo-container" style="justify-content: center; margin-bottom: 8px;">
+                    <span class="logo-icon" style="font-size: 32px;">🍰</span>
+                    <span class="logo-text" style="font-size: 28px;">Confeita<span class="highlight">AI</span></span>
+                </div>
+                <p class="login-subtitle">O assistente inteligente das confeiteiras profissionais</p>
+            </div>
+
+            <!-- LOGIN FORM (default view) -->
+            <div id="login-form-panel">
+                <form id="form-login" class="login-form">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label for="login-email" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">E-mail</label>
+                        <input type="email" id="login-email" placeholder="Digite seu e-mail..." required autocomplete="email" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label for="login-password" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Senha</label>
+                        <input type="password" id="login-password" placeholder="Digite sua senha..." required autocomplete="current-password" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div id="login-error-msg" class="login-error" style="display: none; color: var(--color-danger); font-size: 12px; font-weight: 600; margin-bottom: 15px; text-align: center;">
+                        ❌ Usuário ou senha incorretos, ou colaborador inativo!
+                    </div>
+                    <button type="submit" class="btn btn-purple btn-block" id="btn-login-submit" style="width: 100%; padding: 12px; font-weight: 600; border-radius: var(--border-radius-sm);">
+                        Entrar no Sistema 🚀
+                    </button>
+                </form>
+                <div class="login-footer" style="text-align: center; margin-top: 20px; font-size: 11px; color: var(--color-text-muted);">
+                    <p>Equipe ConfeitaAI © 2026</p>
+                    <button type="button" id="btn-show-setup" style="background:none; border:none; color: var(--color-primary-hover); font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 10px; text-decoration: underline;">
+                        🍰 Ainda não tem conta? Cadastre-se aqui
+                    </button>
+                </div>
+            </div>
+
+            <!-- SETUP FORM (criar conta normal) -->
+            <div id="setup-form-panel" style="display: none;">
+                <div style="background: linear-gradient(135deg, var(--color-primary-light), #fff); border-radius: var(--border-radius-md); padding: 14px 16px; margin-bottom: 20px; border: 1px solid rgba(255,126,185,0.2);">
+                    <p style="font-size: 13px; color: var(--color-primary-hover); font-weight: 600; margin-bottom: 4px;">🍰 Criar minha conta</p>
+                    <p style="font-size: 11px; color: var(--color-text-muted); line-height: 1.5;">Crie seu acesso ao ConfeitaAI. Após o cadastro, o administrador do sistema poderá definir seu cargo e permissões.</p>
+                </div>
+                <form id="form-setup" class="login-form">
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="setup-fullname" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Seu Nome Completo *</label>
+                        <input type="text" id="setup-fullname" placeholder="Ex: Amanda Lima" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="setup-email" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Seu E-mail (login) *</label>
+                        <input type="email" id="setup-email" placeholder="Ex: amanda@email.com" required autocomplete="email" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="setup-username" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Nome de Usuário (login) *</label>
+                        <input type="text" id="setup-username" placeholder="Ex: amanda (sem espaços)" required autocomplete="off" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="setup-password" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Senha *</label>
+                        <input type="password" id="setup-password" placeholder="Mínimo 6 caracteres..." required autocomplete="new-password" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="setup-password-confirm" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Confirmar Senha *</label>
+                        <input type="password" id="setup-password-confirm" placeholder="Repita a senha..." required autocomplete="new-password" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div id="setup-error-msg" style="display: none; color: var(--color-danger); font-size: 12px; font-weight: 600; margin-bottom: 14px; text-align: center; padding: 8px; background: var(--color-danger-light); border-radius: var(--border-radius-sm);">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" style="width: 100%; padding: 12px; font-weight: 600; border-radius: var(--border-radius-sm);">
+                        Criar Minha Conta
+                    </button>
+                </form>
+                <div style="text-align: center; margin-top: 16px;">
+                    <button type="button" id="btn-back-to-login" style="background:none; border:none; color: var(--color-text-muted); font-size: 12px; cursor: pointer; text-decoration: underline;">
+                        ← Voltar para o login
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <span class="logo-icon">🍰</span>
+                    <span class="logo-text">Confeita<span class="highlight">AI</span></span>
+                </div>
+                <p class="sidebar-tagline">Exclusivo Confeitaria</p>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active" data-tab="dashboard">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
+                    Painel Geral
+                </a>
+                <a href="#" class="menu-item" data-tab="calendario">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Calendário
+                </a>
+                <a href="#" class="menu-item" data-tab="cardapio">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    Cardápio Digital
+                </a>
+                <a href="#" class="menu-item" data-tab="encomendas">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Encomendas
+                </a>
+                <a href="#" class="menu-item" data-tab="estoque">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    Estoque Inteligente
+                </a>
+                <a href="#" class="menu-item" data-tab="receitas">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Receitas
+                </a>
+                <a href="#" class="menu-item" data-tab="precificacao">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Precificação
+                </a>
+                <a href="#" class="menu-item" data-tab="clientes">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Gestão de Clientes
+                </a>
+                <a href="#" class="menu-item" data-tab="adm" style="margin-top: 15px; background: linear-gradient(135deg, var(--color-purple-light), #fff); border: 1px solid rgba(139,92,246,0.3); border-left: 4px solid var(--color-purple); color: var(--color-purple); font-weight: 700; border-radius: var(--border-radius-sm); box-shadow: 0 4px 12px rgba(139,92,246,0.1);">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: var(--color-purple);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Painel Super ADM
+                </a>
+            </nav>
+            
+            <!-- WhatsApp Cacau AI Widget Link -->
+            <div class="sidebar-footer">
+                <a href="#" class="cacau-shortcut-btn" data-tab="cacau-chat">
+                    <span class="pulse-indicator"></span>
+                    <span class="cacau-avatar">🤖</span>
+                    <div class="cacau-info">
+                        <span class="cacau-name">Fale com a Cacau</span>
+                        <span class="cacau-status">Sua IA no WhatsApp</span>
+                    </div>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-workspace">
+            <header class="top-bar">
+                <div class="page-title-area">
+                    <h1 id="workspace-title">Painel Geral</h1>
+                    <p id="workspace-subtitle" class="text-muted">Acompanhe o desempenho da sua confeitaria hoje</p>
+                </div>
+                <div class="user-profile" style="display: flex; align-items: center; gap: 12px;">
+                    <!-- Theme Selector Selection -->
+                    <div class="theme-selector-container" style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 13px; color: var(--color-text-muted);">🎨 Tema:</span>
+                        <select id="theme-selector" style="padding: 6px 10px; border-radius: var(--border-radius-sm); border: 1px solid rgba(255, 126, 185, 0.2); outline: none; font-size: 13px; background-color: var(--color-card-bg); color: var(--color-text-main); cursor: pointer; transition: all 0.2s ease;">
+                            <option value="warm-cream">Creme Quente 🍰</option>
+                            <option value="dark">Luxury Dark 🌙</option>
+                            <option value="rosegold">Rose Gold ✨</option>
+                        </select>
+                    </div>
+                    <span class="user-greeting" id="logged-user-greeting">Olá, <strong>Confeiteira</strong>!</span>
+                    <button class="btn btn-outline" id="btn-logout" style="padding: 8px 12px; font-size: 13px; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);">Sair</button>
+                </div>
+            </header>
+
+            <!-- Dynamic Views Container -->
+            <div class="content-container">
+                
+                <!-- SECTION: DASHBOARD -->
+                <section id="section-dashboard" class="tab-content active">
+                    <!-- Month Selector Row -->
+                    <div class="dashboard-month-selector">
+                        <button type="button" id="btn-prev-month-dash" class="btn-month-nav" title="Mês Anterior">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <div class="selected-month-container">
+                            <span class="calendar-icon">📅</span>
+                            <span id="dash-selected-month-label" class="selected-month-label">Maio 2026</span>
+                        </div>
+                        <button type="button" id="btn-next-month-dash" class="btn-month-nav" title="Próximo Mês">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                        <button type="button" id="btn-dash-current-month" class="btn btn-outline btn-sm btn-current-month">Ir para Hoje</button>
+                    </div>
+
+                    <!-- Metrics Row: filtered to current month -->
+                    <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr);">
+                        <!-- Card 1: Receitas -->
+                        <div class="metric-card">
+                            <div class="metric-icon income">💵</div>
+                            <div class="metric-details">
+                                <span class="metric-label">Receitas</span>
+                                <span id="dash-month-label" style="display:none"></span>
+                                <h3 class="metric-value text-success" id="dash-month-income">R$ 0,00</h3>
+                                <span class="metric-sub text-muted" id="dash-income-count">0 entradas</span>
+                            </div>
+                        </div>
+                        <!-- Card 2: Despesas -->
+                        <div class="metric-card">
+                            <div class="metric-icon expense">💸</div>
+                            <div class="metric-details">
+                                <span class="metric-label">Despesas</span>
+                                <span id="dash-month-label-2" style="display:none"></span>
+                                <h3 class="metric-value text-danger" id="dash-month-expense">R$ 0,00</h3>
+                                <span class="metric-sub text-muted" id="dash-expense-count">0 saídas</span>
+                            </div>
+                        </div>
+                        <!-- Card 3: Saldo Líquido -->
+                        <div class="metric-card profit-highlighted-card">
+                            <div class="metric-icon orders">📈</div>
+                            <div class="metric-details">
+                                <span class="metric-label">Saldo</span>
+                                <h3 class="metric-value" id="dash-month-profit">R$ 0,00</h3>
+                                <span class="metric-sub text-muted">Receitas − Despesas</span>
+                            </div>
+                        </div>
+                        <!-- Card 4: Pedidos -->
+                        <div class="metric-card">
+                            <div class="metric-icon orders">🧁</div>
+                            <div class="metric-details">
+                                <span class="metric-label">Pedidos</span>
+                                <h3 class="metric-value" id="dash-orders-count">0</h3>
+                                <span class="metric-sub text-muted" id="dash-orders-pending">0 pendentes</span>
+                            </div>
+                        </div>
+                        <!-- Hidden compatibility IDs used elsewhere in JS -->
+                        <span id="dash-billing" style="display:none">0</span>
+                        <span id="dash-clients-count" style="display:none">0</span>
+                        <span id="fin-income" style="display:none">0</span>
+                        <span id="fin-expense" style="display:none">0</span>
+                        <span id="fin-profit" style="display:none">0</span>
+                        <span id="dash-stock-alerts" style="display:none">0</span>
+                        <span id="dash-stock-msg" style="display:none"></span>
+                        <span id="dash-stock-alert-card" style="display:none"></span>
+                        <span id="btn-tip-list-compras" style="display:none"></span>
+                    </div>
+
+                    <!-- Encomendas Ativas + Grafico -->
+                    <div class="dashboard-details-grid" style="margin-top: 24px;">
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <h3>Encomendas Ativas</h3>
+                                <button class="btn-text" onclick="switchTab('pedidos')">Ver Kanban →</button>
+                            </div>
+                            <div class="panel-body">
+                                <div class="orders-list-compact" id="dash-urgent-orders">
+                                    <div class="empty-state">
+                                        <p>Nenhuma encomenda ativa este mês!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grafico -->
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <h3>Gráfico — <span id="dash-chart-month">Maio</span></h3>
+                            </div>
+                            <div class="panel-body flex-center">
+                                <div class="svg-chart-container" id="svg-chart-box"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fluxo de Caixa -->
+                    <div style="margin-top: 24px;">
+                        <div class="panel-card glass">
+                            <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                <h3>Fluxo de Caixa — <span id="dash-cashflow-month">Maio</span></h3>
+                                <div style="display:flex;gap:8px;">
+                                    <button class="btn btn-outline btn-sm" id="btn-export-csv" style="border-color:rgba(255,126,185,0.3);color:var(--color-primary-hover);padding:8px 12px;">📥 Exportar CSV</button>
+                                    <button class="btn btn-outline btn-sm" id="btn-print-report" style="border-color:rgba(139,92,246,0.3);color:var(--color-purple);padding:8px 12px;">🖨️ Relatório</button>
+                                    <button class="btn btn-primary btn-sm" id="btn-add-transaction">+ Lançamento</button>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <div class="table-container">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Data</th>
+                                                <th>Descrição</th>
+                                                <th>Tipo</th>
+                                                <th>Categoria</th>
+                                                <th>Valor</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="transactions-list"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: CALENDÁRIO -->
+                <section id="section-calendario" class="tab-content">
+                    <div class="dashboard-calendar-row" style="height: 100%;">
+                        <div class="panel-card glass calendar-card" style="height: 100%; display: flex; flex-direction: column;">
+                            <div class="panel-header">
+                                <div class="calendar-title-area">
+                                    <h3 style="display: inline-block;">Calendário de Encomendas</h3>
+                                </div>
+                                <div class="calendar-nav-buttons" style="display: flex; align-items: center; gap: 12px;">
+                                    <button type="button" class="btn btn-outline btn-sm" id="btn-prev-month">◀</button>
+                                    <span id="calendar-current-month" class="calendar-month-label" style="font-weight: 700; font-size: 14px; min-width: 120px; text-align: center;">Maio 2026</span>
+                                    <button type="button" class="btn btn-outline btn-sm" id="btn-next-month">▶</button>
+                                </div>
+                            </div>
+                            <div class="panel-body split-calendar-body" style="flex: 1;">
+                                <div class="calendar-grid-container" style="height: 100%;">
+                                    <div class="calendar-weekdays">
+                                        <div>Dom</div>
+                                        <div>Seg</div>
+                                        <div>Ter</div>
+                                        <div>Qua</div>
+                                        <div>Qui</div>
+                                        <div>Sex</div>
+                                        <div>Sáb</div>
+                                    </div>
+                                    <div class="calendar-days" id="calendar-days-grid">
+                                        <!-- Days populated by JS -->
+                                    </div>
+                                </div>
+                                <div class="calendar-day-details-panel">
+                                    <h4 id="calendar-details-title">Selecione um dia no calendário</h4>
+                                    <div class="calendar-day-orders-list" id="calendar-details-list">
+                                        <div class="empty-state">
+                                            <p>Selecione um dia com encomendas para ver os detalhes da entrega!</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: CARDAPIO DIGITAL -->
+                <section id="section-cardapio" class="tab-content">
+                    <!-- CARD: STORE PROFILE SHOWCASE -->
+                    <div id="store-profile-showcase">
+                        <div class="store-showcase-cover"></div>
+                        <div class="store-showcase-content">
+                            <div class="store-showcase-header">
+                                <div class="store-showcase-logo-wrapper">
+                                    <img id="showcase-logo-img" src="" alt="Logo da Loja" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                                    <span id="showcase-logo-placeholder">🍰</span>
+                                </div>
+                                <div class="store-showcase-title-area">
+                                    <div class="store-showcase-title">
+                                        <span id="showcase-name">Doces da Ju</span>
+                                        <span class="badge badge-success">🟢 Ativo & Online</span>
+                                    </div>
+                                    <div class="store-showcase-hours" id="showcase-hours">Seg a Sex, 09h às 18h</div>
+                                </div>
+                            </div>
+                            <div class="store-showcase-body">
+                                <p class="store-showcase-description" id="showcase-desc">Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais.</p>
+                                <div class="store-showcase-link-wrapper">
+                                    <span class="store-showcase-url" id="store-showcase-url">index.html?loja=docesdaju</span>
+                                    <button type="button" class="btn-copy-url" id="btn-copy-store-link" title="Copiar Link do Cardápio">📋 Copiar Link</button>
+                                </div>
+                                <div class="store-showcase-actions">
+                                    <button type="button" class="btn btn-purple btn-sm" id="btn-visit-store-link">✨ Ver Loja</button>
+                                    <button type="button" class="btn btn-outline btn-sm" id="btn-edit-store">⚙️ Editar Loja</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COLLAPSIBLE SETTINGS DRAWER -->
+                    <div class="panel-card glass" id="store-config-panel" style="display: none;">
+                        <div class="panel-header">
+                            <h3>Editar Configurações da Loja</h3>
+                            <button type="button" class="btn btn-text btn-sm" id="btn-close-store-config" style="color: var(--color-text-muted);">Fechar X</button>
+                        </div>
+                        <div class="panel-body">
+                            <form id="form-store-config">
+                                <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                                    <div class="form-group">
+                                        <label for="store-name" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Nome da Loja</label>
+                                        <input type="text" id="store-name" placeholder="Ex: Doces da Ju" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="store-slug" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Link Personalizado (Slug)</label>
+                                        <input type="text" id="store-slug" placeholder="ex: docesdaju" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-top: 16px;">
+                                    <label style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Dias e Horários de Funcionamento</label>
+                                    <div class="days-toggle-container" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                                        <button type="button" class="btn-day-toggle active" data-day="Seg">Seg</button>
+                                        <button type="button" class="btn-day-toggle active" data-day="Ter">Ter</button>
+                                        <button type="button" class="btn-day-toggle active" data-day="Qua">Qua</button>
+                                        <button type="button" class="btn-day-toggle active" data-day="Qui">Qui</button>
+                                        <button type="button" class="btn-day-toggle active" data-day="Sex">Sex</button>
+                                        <button type="button" class="btn-day-toggle" data-day="Sáb">Sáb</button>
+                                        <button type="button" class="btn-day-toggle" data-day="Dom">Dom</button>
+                                    </div>
+                                    <div style="display: flex; gap: 12px; align-items: center;">
+                                        <input type="time" id="store-time-start" value="09:00" style="padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                        <span style="font-size: 14px; font-weight: 600; color: var(--color-text-muted);">às</span>
+                                        <input type="time" id="store-time-end" value="18:00" style="padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                    </div>
+                                </div>
+
+                                <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-top: 16px;">
+                                    <!-- Logo Upload -->
+                                    <div class="form-group image-upload-group" style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: var(--border-radius-md); border: 1px solid rgba(255, 126, 185, 0.1);">
+                                        <label style="display: block; font-size: 12px; margin-bottom: 8px; font-weight: 600;">Logo da Loja</label>
+                                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                                            <div id="store-logo-preview" style="width: 50px; height: 50px; border-radius: 50%; background-color: #f1f5f9; background-size: cover; background-position: center; border: 2px solid var(--color-purple);"></div>
+                                            <div style="flex: 1;">
+                                                <input type="file" id="store-logo-file" accept="image/*" style="display: none;">
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('store-logo-file').click()" style="width: 100%; margin-bottom: 6px;">📁 Escolher Arquivo</button>
+                                                <input type="url" id="store-logo" placeholder="Ou cole a URL da imagem..." style="width: 100%; padding: 8px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 12px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Banner Upload -->
+                                    <div class="form-group image-upload-group" style="background: rgba(255,255,255,0.5); padding: 12px; border-radius: var(--border-radius-md); border: 1px solid rgba(255, 126, 185, 0.1);">
+                                        <label style="display: block; font-size: 12px; margin-bottom: 8px; font-weight: 600;">Banner / Capa da Loja</label>
+                                        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                                            <div id="store-banner-preview" style="width: 80px; height: 50px; border-radius: var(--border-radius-sm); background-color: #f1f5f9; background-size: cover; background-position: center; border: 1px solid #e2e8f0;"></div>
+                                            <div style="flex: 1;">
+                                                <input type="file" id="store-banner-file" accept="image/*" style="display: none;">
+                                                <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('store-banner-file').click()" style="width: 100%; margin-bottom: 6px;">🖼️ Escolher Capa</button>
+                                                <input type="url" id="store-banner" placeholder="Ou cole a URL..." style="width: 100%; padding: 8px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 12px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group" style="margin-top: 16px;">
+                                    <label for="store-desc" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Descrição Breve da Loja</label>
+                                    <textarea id="store-desc" rows="2" placeholder="Uma breve introdução sobre seus doces incríveis..." style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;"></textarea>
+                                </div>
+                                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                                    <button type="submit" class="btn btn-purple">Salvar Configurações</button>
+                                    <button type="button" class="btn btn-outline" id="btn-cancel-store-config">Cancelar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="action-bar">
+                        <div class="search-box">
+                            <input type="text" id="search-product" placeholder="Procurar doce ou bolo...">
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-outline" id="btn-preview-menu">📱 Ver Cardápio do Cliente</button>
+                        </div>
+                    </div>
+
+                    <div class="products-grid" id="products-list">
+                        <!-- Products will be dynamically populated here -->
+                    </div>
+                </section>
+
+                <!-- SECTION: ENCOMENDAS -->
+                <section id="section-encomendas" class="tab-content">
+                    <div class="action-bar">
+                        <div class="filter-box">
+                            <button class="btn btn-outline btn-sm active" data-kanban-filter="all">Todos</button>
+                            <button class="btn btn-outline btn-sm" data-kanban-filter="urgente">Mais Urgentes</button>
+                        </div>
+                        <button class="btn btn-primary" id="btn-new-order">+ Novo Pedido</button>
+                    </div>
+
+                    <!-- Kanban Board -->
+                    <div class="kanban-board">
+                        <div class="kanban-column" id="col-recebido">
+                            <div class="column-header">
+                                <h3>Recebidos <span class="badge" id="badge-recebido">0</span></h3>
+                            </div>
+                            <div class="kanban-cards-container" id="cards-recebido" ondragover="allowDrop(event)" ondrop="drop(event, 'Recebido')">
+                                <!-- Cards populated by JS -->
+                            </div>
+                        </div>
+                        <div class="kanban-column" id="col-producao">
+                            <div class="column-header">
+                                <h3>Em Produção <span class="badge badge-warning" id="badge-producao">0</span></h3>
+                            </div>
+                            <div class="kanban-cards-container" id="cards-producao" ondragover="allowDrop(event)" ondrop="drop(event, 'Em Produção')">
+                                <!-- Cards populated by JS -->
+                            </div>
+                        </div>
+                        <div class="kanban-column" id="col-pronto">
+                            <div class="column-header">
+                                <h3>Pronto para Entrega <span class="badge badge-success" id="badge-pronto">0</span></h3>
+                            </div>
+                            <div class="kanban-cards-container" id="cards-pronto" ondragover="allowDrop(event)" ondrop="drop(event, 'Pronto')">
+                                <!-- Cards populated by JS -->
+                            </div>
+                        </div>
+                        <div class="kanban-column" id="col-entregue">
+                            <div class="column-header">
+                                <h3>Entregues <span class="badge badge-purple" id="badge-entregue">0</span></h3>
+                            </div>
+                            <div class="kanban-cards-container" id="cards-entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'Entregue')">
+                                <!-- Cards populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: ESTOQUE INTELIGENTE -->
+                <section id="section-estoque" class="tab-content">
+                    <div class="action-bar">
+                        <div class="search-box">
+                            <input type="text" id="search-ingredient" placeholder="Procurar ingrediente...">
+                        </div>
+                        <div class="action-buttons" style="display: flex; gap: 10px;">
+                            <button class="btn btn-purple" id="btn-generate-shopping-list">Gerar Lista de Compras</button>
+                            <button class="btn btn-outline" id="btn-scan-receipt" style="display: flex; align-items: center; gap: 5px;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                Ler Nota Fiscal (IA)
+                            </button>
+                            <button class="btn btn-primary" id="btn-add-ingredient">+ Novo Ingrediente</button>
+                        </div>
+                    </div>
+
+                    <div class="panel-card glass">
+                        <div class="table-container">
+                            <table class="table" id="table-estoque">
+                                <thead>
+                                    <tr>
+                                        <th>Ingrediente</th>
+                                        <th>Qtd. Atual</th>
+                                        <th>Unidade</th>
+                                        <th>Status</th>
+                                        <th>Preço/Un. (Custo)</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stock-list">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: PRECIFICAÇÃO -->
+                <section id="section-precificacao" class="tab-content">
+                    <div class="action-bar">
+                        <div class="search-box">
+                            <input type="text" id="search-recipe" placeholder="Procurar receita...">
+                        </div>
+                        <button class="btn btn-primary" id="btn-create-recipe">+ Criar Precificação</button>
+                    </div>
+
+                    <div class="recipes-grid" id="recipes-list">
+                        <!-- Recipe Cards will be populated here -->
+                    </div>
+                </section>
+
+                <!-- SECTION: RECEITAS -->
+                <section id="section-receitas" class="tab-content">
+                    <div class="section-header">
+                        <div>
+                            <h2>📖 Minhas Receitas</h2>
+                            <p class="section-subtitle">Gerencie suas fichas técnicas e veja quanto consegue produzir com o estoque atual.</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-create-recipe-tab">+ Nova Receita</button>
+                    </div>
+
+                    <!-- Painel de Capacidade de Produção -->
+                    <div id="production-capacity-panel" style="margin-bottom: 24px;"></div>
+
+                    <!-- Grid de receitas -->
+                    <div class="action-bar" style="margin-bottom:12px;">
+                        <div class="search-box">
+                            <input type="text" id="search-recipe-tab" placeholder="Procurar receita...">
+                        </div>
+                    </div>
+                    <div class="recipes-grid" id="recipes-list-tab">
+                        <!-- Recipe Cards -->
+                    </div>
+                </section>
+
+                <!-- SECTION: GESTAO DE CLIENTES -->
+                <section id="section-clientes" class="tab-content">
+                    <div class="action-bar">
+                        <div class="search-box">
+                            <input type="text" id="search-client" placeholder="Procurar cliente por nome ou celular...">
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-client">+ Novo Cliente</button>
+                    </div>
+
+                    <div class="panel-card glass">
+                        <div class="table-container">
+                            <table class="table" id="table-clientes">
+                                <thead>
+                                    <tr>
+                                        <th>Cliente</th>
+                                        <th>WhatsApp / Contato</th>
+                                        <th>Pedidos Feitos</th>
+                                        <th>Total Gasto</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clients-list">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+
+
+                <!-- SECTION: CACAU WHATSAPP SIMULATOR -->
+                <section id="section-cacau-chat" class="tab-content">
+                    <div class="whatsapp-layout">
+                        <!-- Sidebar mockup list -->
+                        <div class="wa-sidebar">
+                            <div class="wa-sidebar-header">
+                                <div class="wa-user-avatar">🧁</div>
+                                <h3>WhatsApp Web (Simulado)</h3>
+                            </div>
+                            <div class="wa-search">
+                                <input type="text" placeholder="Pesquisar ou começar conversa" disabled>
+                            </div>
+                            <div class="wa-chats-list">
+                                <div class="wa-chat-item active">
+                                    <div class="wa-chat-avatar">🤖</div>
+                                    <div class="wa-chat-details">
+                                        <div class="wa-chat-title">
+                                            <h4>Cacau ConfeitaAI</h4>
+                                            <span class="wa-time">Agora</span>
+                                        </div>
+                                        <div class="wa-last-msg">Online</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chat container mockup -->
+                        <div class="wa-chat-window">
+                            <!-- Top Info bar -->
+                            <div class="wa-chat-header">
+                                <div class="wa-chat-avatar">🤖</div>
+                                <div class="wa-chat-meta">
+                                    <h4>Cacau ConfeitaAI</h4>
+                                    <span class="wa-status-text">online (Sua IA Inteligente de Confeitaria)</span>
+                                </div>
+                                <div class="wa-actions">
+                                    <span class="badge badge-purple">IA Ativa</span>
+                                </div>
+                            </div>
+
+                            <!-- Messages Area -->
+                            <div class="wa-messages-area" id="wa-messages-container">
+                                <!-- Messages will be dynamically rendered here -->
+                            </div>
+
+                            <!-- Fast Suggestion Prompts -->
+                            <div class="wa-suggestions">
+                                <button class="btn-suggestion" data-prompt="Cacau, quais ingredientes estão em estoque baixo?">⚠️ Alertas de estoque</button>
+                                <button class="btn-suggestion" data-prompt="Cacau, cadastra a cliente Amanda Silva com WhatsApp 11988887777">👥 Cadastrar cliente</button>
+                                <button class="btn-suggestion" data-prompt="Cacau, quanto eu facturei esse mês?">💵 Ver faturamento</button>
+                                <button class="btn-suggestion" data-prompt="Cacau, cadastra um pedido de Bolo Red Velvet para o dia 28/05 no valor de 150 reais">🎂 Cadastrar pedido</button>
+                            </div>
+
+                            <!-- Input Bar -->
+                            <div class="wa-input-bar">
+                                <input type="text" id="wa-message-input" placeholder="Digite uma mensagem para a Cacau cadastrar dados ou tirar dúvidas...">
+                                <button class="btn btn-purple" id="wa-send-btn">Enviar</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: PAINEL ADM -->
+                <section id="section-adm" class="tab-content">
+                    <!-- SaaS Management Area -->
+                    <div class="panel-card glass" style="margin-bottom: 24px;">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div class="panel-title-area" style="display: flex; align-items: center;">
+                                <span style="font-size: 24px; margin-right: 8px;">👑</span>
+                                <h3 style="display: inline-block; font-size: 18px;">Painel SaaS (Dono do App)</h3>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 15px;">
+                                Visão global de todos os ateliês (tenants) que utilizam o ConfeitaAI. Acompanhe assinaturas e acessos.
+                            </p>
+                            <div class="table-container">
+                                <table class="table" id="table-users">
+                                    <thead>
+                                        <tr>
+                                            <th>Loja / Usuário</th>
+                                            <th>E-mail</th>
+                                            <th>Último Acesso</th>
+                                            <th>Plano</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-list">
+                                        <!-- Will be dynamically populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Section Button to reveal/collapse System Settings -->
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <button type="button" class="btn btn-outline" id="btn-toggle-tech-configs" style="padding: 10px 20px; font-size: 13px; font-weight: 600;">
+                            ⚙️ Exibir Configurações do Sistema e Banco de Dados
+                        </button>
+                    </div>
+
+                    <!-- Technical Settings Area (Initially Hidden) -->
+                    <div id="tech-configs-area" class="admin-grid" style="display: none; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
+                        
+                        <!-- Card 1: Supabase Connection Credentials -->
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <div class="panel-title-area" style="display: flex; align-items: center;">
+                                    <span style="font-size: 20px; margin-right: 8px;">🌐</span>
+                                    <h3 style="display: inline-block; font-size: 16px;">Conexão Supabase Cloud</h3>
+                                </div>
+                                <span class="badge badge-purple" id="adm-connection-status">Verificando...</span>
+                            </div>
+                            <div class="panel-body">
+                                <form id="form-adm-supabase">
+                                    <div class="form-group" style="margin-bottom: 15px;">
+                                        <label for="adm-sb-url" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Supabase API URL</label>
+                                        <input type="url" id="adm-sb-url" placeholder="https://xxxx.supabase.co" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 15px;">
+                                        <label for="adm-sb-key" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Supabase Anon Key</label>
+                                        <input type="password" id="adm-sb-key" placeholder="Sua chave anônima pública..." required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary btn-block">Salvar Credenciais</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Operating Mode Hibrido -->
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <div class="panel-title-area" style="display: flex; align-items: center;">
+                                    <span style="font-size: 20px; margin-right: 8px;">⚙️</span>
+                                    <h3 style="display: inline-block; font-size: 16px;">Modo de Operação</h3>
+                                </div>
+                            </div>
+                            <div class="panel-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+                                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 16px;">
+                                    Defina se o ConfeitaAI deve sincronizar na nuvem do Supabase ou funcionar de forma 100% isolada no seu navegador (LocalStorage).
+                                </p>
+                                <div class="toggle-mode-container" style="display: flex; flex-direction: column; gap: 10px;">
+                                    <button type="button" class="btn btn-outline btn-block" id="btn-mode-online" style="text-align: left; justify-content: flex-start; padding: 12px;">🌐 Supabase Cloud (Online)</button>
+                                    <button type="button" class="btn btn-outline btn-block" id="btn-mode-offline" style="text-align: left; justify-content: flex-start; padding: 12px;">💾 Armazenamento Local (Offline)</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Global Business Parameters -->
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <div class="panel-title-area" style="display: flex; align-items: center;">
+                                    <span style="font-size: 20px; margin-right: 8px;">💰</span>
+                                    <h3 style="display: inline-block; font-size: 16px;">Parâmetros de Precificação</h3>
+                                </div>
+                            </div>
+                            <div class="panel-body">
+                                <form id="form-adm-pricing">
+                                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                        <div class="form-group">
+                                            <label for="adm-def-markup" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Markup Padrão (%)</label>
+                                            <input type="number" id="adm-def-markup" placeholder="Ex: 200" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="adm-def-packaging" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Embalagem Padrão (R$)</label>
+                                            <input type="number" id="adm-def-packaging" step="0.01" placeholder="Ex: 5.00" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 15px;">
+                                        <label for="adm-def-hourly" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Valor da Hora de Trabalho (R$)</label>
+                                        <input type="number" id="adm-def-hourly" step="0.01" placeholder="Ex: 15.00" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                    </div>
+                                    <button type="submit" class="btn btn-purple btn-block">Salvar Parâmetros</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Database Maintenance -->
+                        <div class="panel-card glass">
+                            <div class="panel-header">
+                                <div class="panel-title-area" style="display: flex; align-items: center;">
+                                    <span style="font-size: 20px; margin-right: 8px;">🛠️</span>
+                                    <h3 style="display: inline-block; font-size: 16px;">Manutenção de Dados</h3>
+                                </div>
+                            </div>
+                            <div class="panel-body" style="display: flex; flex-direction: column; justify-content: space-between;">
+                                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 16px;">
+                                    Essas operações alteram permanentemente seus dados do sistema (produtos, clientes, pedidos e finanças). Use com atenção.
+                                </p>
+                                <div class="maintenance-buttons" style="display: flex; flex-direction: column; gap: 10px;">
+                                    <button type="button" class="btn btn-outline btn-block" id="btn-adm-seed" style="padding: 12px; justify-content: flex-start;">🌱 Restaurar Banco de Teste (Seed)</button>
+                                    <button type="button" class="btn btn-outline btn-block" id="btn-adm-wipe" style="padding: 12px; justify-content: flex-start; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);">⚠️ Apagar Tudo (Zerar Dados)</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 5: Analytical Sales Breakdown (Wide Card) -->
+                        <div class="panel-card glass" style="grid-column: 1 / -1; margin-top: 10px;">
+                            <div class="panel-header">
+                                <div class="panel-title-area" style="display: flex; align-items: center;">
+                                    <span style="font-size: 20px; margin-right: 8px;">📊</span>
+                                    <h3 style="display: inline-block; font-size: 16px;">Vendas Totais por Categoria de Produto</h3>
+                                </div>
+                                <span class="badge badge-purple" style="font-size: 11px;">Métricas Reais (Pedidos)</span>
+                            </div>
+                            <div class="panel-body">
+                                <div class="analytics-layout" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; align-items: center;">
+                                    <div class="analytics-chart-container" id="category-chart-box" style="width: 100%; min-height: 180px;">
+                                        <!-- Dynamic SVG category bars here -->
+                                    </div>
+                                    <div class="analytics-legend" id="category-chart-legend" style="display: flex; flex-direction: column; gap: 10px; justify-content: center;">
+                                        <!-- Dynamic details listing -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- MODAL: ADD PRODUCT -->
+    <div class="modal" id="modal-product">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-product">&times;</span>
+            <h2 id="product-modal-title">Adicionar Novo Produto</h2>
+            <form id="form-product">
+                <input type="hidden" id="prod-id">
+                <div class="form-group">
+                    <label for="prod-name">Nome do Produto *</label>
+                    <input type="text" id="prod-name" required placeholder="Ex: Bolo de Cenoura com Brigadeiro">
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="prod-price">Preço de Venda (R$) *</label>
+                        <input type="number" id="prod-price" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="prod-category">Categoria</label>
+                        <select id="prod-category">
+                            <option value="Bolos">Bolos</option>
+                            <option value="Docinhos">Docinhos Goumert</option>
+                            <option value="Tortas">Tortas</option>
+                            <option value="Cupcakes">Cupcakes & Brownies</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="prod-desc">Descrição / Detalhes</label>
+                    <textarea id="prod-desc" rows="3" placeholder="Ingredientes principais, peso padrão, alergênicos..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="prod-image">Emoji Representativo 🧁 (Para visualização rápida)</label>
+                    <select id="prod-image">
+                        <option value="🎂">🎂 Bolo Decorado</option>
+                        <option value="🧁">🧁 Cupcake</option>
+                        <option value="🍫">🍫 Chocolate / Brigadeiro</option>
+                        <option value="🍩">🍩 Rosquinha / Torta</option>
+                        <option value="🍓">🍓 Torta de Morango</option>
+                        <option value="🍪">🍪 Cookie</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="prod-recipe">🔗 Receita Vinculada <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(opcional — para desconto automático de estoque)</span></label>
+                    <select id="prod-recipe" disabled>
+                        <option value="">Nenhuma receita vinculada</option>
+                        <!-- populated by JS -->
+                    </select>
+                </div>
+                <input type="hidden" id="prod-recipe-id">
+                <button type="submit" class="btn btn-primary btn-block">Salvar Produto</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD INGREDIENT -->
+    <div class="modal" id="modal-ingredient">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-ingredient">&times;</span>
+            <h2>Adicionar Novo Ingrediente</h2>
+            <form id="form-ingredient">
+                <div class="form-group">
+                    <label for="ing-name">Nome do Ingrediente *</label>
+                    <input type="text" id="ing-name" required placeholder="Ex: Farinha de Trigo">
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ing-qty">Quantidade Atual *</label>
+                        <input type="number" id="ing-qty" step="0.01" required placeholder="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="ing-unit">Unidade *</label>
+                        <select id="ing-unit">
+                            <option value="g">Gramas (g)</option>
+                            <option value="kg">Quilos (kg)</option>
+                            <option value="ml">Mililitros (ml)</option>
+                            <option value="L">Litros (L)</option>
+                            <option value="un">Unidade (un)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ing-min">Mínimo para Alerta *</label>
+                        <input type="number" id="ing-min" step="0.01" required placeholder="200">
+                    </div>
+                    <div class="form-group">
+                        <label for="ing-price">Preço Pago (Custo) R$ *</label>
+                        <input type="number" id="ing-price" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Ingrediente</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD CLIENT -->
+    <div class="modal" id="modal-client">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-client">&times;</span>
+            <h2>Cadastrar Novo Cliente</h2>
+            <form id="form-client">
+                <div class="form-group">
+                    <label for="cli-name">Nome Completo *</label>
+                    <input type="text" id="cli-name" required placeholder="Ex: Amanda Lima">
+                </div>
+                <div class="form-group">
+                    <label for="cli-phone">WhatsApp / Celular *</label>
+                    <input type="tel" id="cli-phone" required placeholder="Ex: 11988887777">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Cliente</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD ORDER -->
+    <div class="modal" id="modal-order">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-order">&times;</span>
+            <h2>Nova Encomenda</h2>
+            <form id="form-order">
+                <div class="form-group">
+                    <label for="ord-client">Cliente *</label>
+                    <select id="ord-client" required>
+                        <option value="">Selecione um cliente...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ord-product">Doce / Produto Encomendado *</label>
+                    <select id="ord-product" required>
+                        <option value="">Selecione um produto...</option>
+                    </select>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ord-qty">Quantidade Encomendada *</label>
+                        <input type="number" id="ord-qty" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ord-price">Valor Total (R$) *</label>
+                        <input type="number" id="ord-price" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ord-date">Data de Entrega *</label>
+                        <input type="date" id="ord-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ord-time">Horário de Entrega *</label>
+                        <input type="time" id="ord-time" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ord-notes">Observações Especiais (Recheio, escritas, alergias...)</label>
+                    <textarea id="ord-notes" rows="2" placeholder="Ex: Sem glúten, escrever 'Parabéns Maria!' em chocolate..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Registrar Encomenda</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREATE RECIPE -->
+    <div class="modal" id="modal-recipe">
+        <div class="modal-content glass modal-large">
+            <span class="close-btn" data-modal="modal-recipe">&times;</span>
+            <h2>Criador de Receita Inteligente & Custos</h2>
+            <form id="form-recipe">
+                <div class="form-group">
+                    <label for="rec-name">Nome da Receita *</label>
+                    <input type="text" id="rec-name" required placeholder="Ex: Bolo de Casamento Simples">
+                </div>
+                <div class="form-group">
+                    <label for="rec-yield">Rendimento Padrão (Porções/Fatias) *</label>
+                    <input type="number" id="rec-yield" value="10" required>
+                </div>
+                
+                <!-- Recipe Ingredients section -->
+                <div class="recipe-ingredients-section">
+                    <h3>Ingredientes da Receita</h3>
+                    <div id="recipe-ingredients-list-inputs">
+                        <!-- Row template created by JS -->
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" id="btn-recipe-add-row">+ Adicionar Linha de Ingrediente</button>
+                </div>
+
+                <div class="recipe-additional-costs" style="margin-top: 20px; padding: 16px; background: rgba(255, 255, 255, 0.5); border-radius: var(--border-radius-md); border: 1px solid rgba(255, 126, 185, 0.08);">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: var(--color-text-main);">Custos Operacionais Adicionais</h3>
+                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                            <label for="rec-prep-time" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Tempo de Preparo (Horas)</label>
+                            <input type="number" id="rec-prep-time" step="0.1" value="1.0" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                        </div>
+                        <div class="form-group">
+                            <label for="rec-packaging-cost" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Custo de Embalagem (R$)</label>
+                            <input type="number" id="rec-packaging-cost" step="0.01" value="5.00" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recipe-pricing-card" style="margin-top: 20px;">
+                    <h4>Cálculo de Custos e Vendas</h4>
+                    <div class="pricing-flex" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <div class="price-box" style="flex: 1; min-width: 120px;">
+                            <span class="label">Custo Ingredientes</span>
+                            <strong id="rec-cost-calculated">R$ 0,00</strong>
+                        </div>
+                        <div class="price-box text-danger" style="flex: 1; min-width: 120px; color: var(--color-danger);">
+                            <span class="label">Custo Produção Total</span>
+                            <strong id="rec-total-cost-calculated">R$ 0,00</strong>
+                        </div>
+                        <div class="price-box" style="flex: 1; min-width: 120px;">
+                            <span class="label">Markup Margem (%)</span>
+                            <input type="number" id="rec-margin" value="200" style="width: 80px; text-align: center; padding: 6px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px; font-weight: 700;">
+                        </div>
+                        <div class="price-box text-purple" style="flex: 1; min-width: 120px;">
+                            <span class="label">Venda Sugerida (Fatia)</span>
+                            <strong id="rec-suggested-slice">R$ 0,00</strong>
+                        </div>
+                        <div class="price-box text-success" style="flex: 1; min-width: 120px; color: var(--color-success);">
+                            <span class="label">Venda Sugerida (Inteiro)</span>
+                            <strong id="rec-suggested-whole">R$ 0,00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">Salvar Receita</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DIGITAL MENU PREVIEW (FOR CUSTOMERS) -->
+    <div class="modal" id="modal-menu-preview">
+        <div class="modal-content glass phone-preview-modal">
+            <span class="close-btn" data-modal="modal-menu-preview">&times;</span>
+            <div class="phone-screen">
+                <div class="phone-header">
+                    <div class="phone-camera"></div>
+                    <div class="phone-app-bar">
+                        <span class="phone-logo" id="phone-shop-logo-title">🍰 ConfeitaAI</span>
+                        <span class="phone-tag" id="phone-shop-hours-tag">Cardápio Oficial</span>
+                    </div>
+                </div>
+                
+                <div class="phone-body" id="phone-menu-body">
+                    <!-- Loaded dynamically via JS -->
+                </div>
+
+                <!-- Floating Bag Bar -->
+                <div class="phone-bag-bar" id="phone-bag-bar" style="display: none;">
+                    <div class="phone-bag-left">
+                        <span class="phone-bag-icon">🛍️</span>
+                        <span>Ver Sacola</span>
+                        <span class="phone-bag-qty" id="phone-bag-qty-val">0</span>
+                    </div>
+                    <div class="phone-bag-total" id="phone-bag-total-val">R$ 0,00</div>
+                </div>
+
+                <!-- Backdrop mask for drawer -->
+                <div class="phone-cart-backdrop" id="phone-cart-backdrop"></div>
+
+                <!-- Sliding Checkout Drawer Sheet -->
+                <div class="phone-cart-drawer" id="phone-cart-drawer">
+                    <div class="phone-cart-header">
+                        <span class="phone-cart-title">🛍️ Sacola de Compras</span>
+                        <button type="button" class="phone-cart-close" id="btn-close-phone-cart">&times;</button>
+                    </div>
+                    <div class="phone-cart-content">
+                        <!-- Items list -->
+                        <div class="phone-cart-items-list" id="phone-cart-items-list">
+                            <!-- Items added dynamically -->
+                        </div>
+
+                        <!-- Summary -->
+                        <div class="phone-cart-summary">
+                            <div class="phone-summary-row">
+                                <span>Subtotal</span>
+                                <span id="phone-summary-subtotal">R$ 0,00</span>
+                            </div>
+                            <div class="phone-summary-row">
+                                <span>Taxa de Entrega</span>
+                                <span id="phone-summary-delivery">Grátis</span>
+                            </div>
+                            <div class="phone-summary-row phone-summary-total">
+                                <span>Total</span>
+                                <strong id="phone-summary-total-val">R$ 0,00</strong>
+                            </div>
+                        </div>
+
+                        <!-- Checkout Form -->
+                        <div class="phone-checkout-form">
+                            <div>
+                                <label class="phone-form-label" for="phone-cust-name">Seu Nome *</label>
+                                <input type="text" id="phone-cust-name" class="phone-form-input" placeholder="Ex: Amanda Lima" required>
+                            </div>
+                            <div>
+                                <label class="phone-form-label" for="phone-cust-phone">Seu Telefone *</label>
+                                <input type="tel" id="phone-cust-phone" class="phone-form-input" placeholder="Ex: (11) 98888-7777" required>
+                            </div>
+                            <div>
+                                <label class="phone-form-label">Como deseja receber seu pedido? *</label>
+                                <div class="phone-delivery-toggle">
+                                    <button type="button" class="phone-toggle-btn active" id="btn-toggle-delivery-pickup" data-type="Retirada">🏪 Retirar na Loja</button>
+                                    <button type="button" class="phone-toggle-btn" id="btn-toggle-delivery-home" data-type="Entrega">🛵 Entrega em Casa</button>
+                                </div>
+                            </div>
+                            <div id="phone-delivery-address-group" style="display: none;">
+                                <label class="phone-form-label" for="phone-cust-address">Endereço de Entrega *</label>
+                                <input type="text" id="phone-cust-address" class="phone-form-input" placeholder="Rua, número, bairro e apto">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="phone-cart-footer">
+                        <button type="button" class="phone-btn-checkout" id="btn-phone-submit-order">
+                            Enviar Pedido pelo WhatsApp 💬
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD TRANSACTION -->
+    <div class="modal" id="modal-transaction">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-transaction">&times;</span>
+            <h2>Lançamento Financeiro</h2>
+            <form id="form-transaction">
+                <div class="form-group">
+                    <label for="fin-desc">Descrição *</label>
+                    <input type="text" id="fin-desc" required placeholder="Ex: Compra de formas de silicone, Venda bolo da Maria...">
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fin-type">Tipo *</label>
+                        <select id="fin-type" required>
+                            <option value="Entrada">Receita (Entrada)</option>
+                            <option value="Saída">Despesa (Saída)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fin-val">Valor (R$) *</label>
+                        <input type="number" id="fin-val" step="0.01" required placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fin-cat">Categoria</label>
+                        <select id="fin-cat">
+                            <option value="Vendas">Venda de Doces/Bolos</option>
+                            <option value="Ingredientes">Compra de Ingredientes</option>
+                            <option value="Utensílios">Utensílios e Formas</option>
+                            <option value="Marketing">Marketing / Divulgação</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="fin-date">Data *</label>
+                        <input type="date" id="fin-date" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Registrar Lançamento</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD/EDIT USER -->
+    <div class="modal" id="modal-user">
+        <div class="modal-content glass">
+            <span class="close-btn" data-modal="modal-user">&times;</span>
+            <h2 id="user-modal-title">Cadastrar Novo Colaborador</h2>
+            <form id="form-user">
+                <input type="hidden" id="user-id">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="user-name" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Nome do Colaborador *</label>
+                    <input type="text" id="user-name" required placeholder="Ex: Ana Souza" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="user-email" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">E-mail do Colaborador *</label>
+                    <input type="email" id="user-email" required placeholder="Ex: ana@email.com" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                </div>
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label for="user-username" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Apelido (Username) *</label>
+                        <input type="text" id="user-username" required placeholder="Ex: anasouza" autocomplete="username" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                    <div class="form-group">
+                        <label for="user-password" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Senha *</label>
+                        <input type="password" id="user-password" required placeholder="Digite a senha..." autocomplete="new-password" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                    </div>
+                </div>
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label for="user-role" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Cargo *</label>
+                        <select id="user-role" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                            <option value="Super Admin">Super Admin (Acesso Total)</option>
+                            <option value="Confeiteira">Confeiteira (Sem Painel ADM)</option>
+                            <option value="Auxiliar">Auxiliar (Acesso Limitado)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-status" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Status *</label>
+                        <select id="user-status" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                            <option value="Ativo">🟢 Ativo</option>
+                            <option value="Inativo">🔴 Inativo</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="width: 100%; padding: 12px; font-weight: 600; margin-top: 15px; border-radius: var(--border-radius-sm);">Salvar Colaborador</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RESCHEDULE ORDER -->
+    <div class="modal" id="modal-reschedule">
+        <div class="modal-content glass" style="max-width: 400px;">
+            <span class="close-btn" data-modal="modal-reschedule">&times;</span>
+            <h2>Reagendar Encomenda</h2>
+            <form id="form-reschedule">
+                <input type="hidden" id="reschedule-order-id">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="reschedule-date" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Nova Data *</label>
+                    <input type="date" id="reschedule-date" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="reschedule-time" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Novo Horário *</label>
+                    <input type="time" id="reschedule-time" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                </div>
+                <button type="submit" class="btn btn-purple btn-block" style="width: 100%; padding: 12px; font-weight: 600; border-radius: var(--border-radius-sm);">Confirmar Reagendamento 📅</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Core App Logic -->
+    <script src="app_v3.js?v=20260520_auth_v2"></script>
+</body>
+</html>

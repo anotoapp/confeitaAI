@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConfeitaAI - A Inteligência da sua Confeitaria</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Landing Page Specific Overrides */
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fafafa;
+            color: var(--color-text-main, #2d3142);
+            min-height: 100vh;
+            height: auto;
+            overflow: auto;
+            overflow-x: hidden;
+        }
+
+        /* Glass Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 5%;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-sizing: border-box;
+            border-bottom: 1px solid rgba(255, 126, 185, 0.15);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--color-text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo .highlight {
+            color: var(--color-primary, #ff7eb9);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 160px 20px 100px;
+            text-align: center;
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: var(--color-purple-light, #f5f3ff);
+            color: var(--color-purple, #8b5cf6);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 800;
+            margin-bottom: 24px;
+            color: var(--color-text-main);
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+        }
+
+        .hero h1 span {
+            color: var(--color-primary, #ff7eb9);
+        }
+
+        .hero p {
+            font-size: 22px;
+            color: var(--color-text-muted, #6e768e);
+            margin-bottom: 45px;
+            line-height: 1.6;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn-large {
+            padding: 18px 36px;
+            font-size: 18px;
+            border-radius: 40px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+        
+        .btn-large:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 126, 185, 0.4);
+        }
+
+        /* Removed floating elements */
+
+        /* Comparison Section */
+        .comparison {
+            padding: 80px 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 42px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            color: var(--color-text-main);
+        }
+        
+        .section-subtitle {
+            text-align: center;
+            font-size: 18px;
+            color: var(--color-text-muted);
+            margin-bottom: 60px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .compare-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 24px;
+            padding: 40px;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .compare-card.bad {
+            background: linear-gradient(180deg, #ffffff 0%, var(--color-danger-light, #fef2f2) 100%);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .compare-card.good {
+            background: linear-gradient(180deg, #ffffff 0%, var(--color-primary-light, #fce7f3) 100%);
+            border: 2px solid var(--color-primary, #ff7eb9);
+            box-shadow: 0 20px 50px rgba(255, 126, 185, 0.2);
+            transform: scale(1.02);
+        }
+
+        .compare-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .compare-card.bad h3 { color: var(--color-text-main); }
+        .compare-card.good h3 { color: var(--color-primary, #ff7eb9); }
+
+        .compare-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .compare-list li {
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            font-size: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            line-height: 1.5;
+            color: var(--color-text-main);
+        }
+        
+        .compare-list li:last-child { border: none; }
+
+        .compare-card.bad .compare-list li::before {
+            content: '❌';
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .compare-card.good .compare-list li::before {
+            content: '✅';
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        /* Features */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            padding: 80px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(186, 73, 118, 0.08);
+            border: 1px solid rgba(255, 255, 255, 1);
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 45px rgba(186, 73, 118, 0.15);
+            border-color: var(--color-primary, #ff7eb9);
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            background: var(--color-primary-light, #fce7f3);
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--color-text-main);
+        }
+        
+        .feature-card p {
+            font-size: 16px;
+            color: var(--color-text-muted);
+            line-height: 1.6;
+        }
+
+        /* Pricing */
+        .pricing {
+            padding: 100px 20px;
+            text-align: center;
+        }
+
+        .pricing-grid {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            max-width: 1000px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+        }
+
+        .price-card {
+            background: rgba(255,255,255,0.9);
+            border-radius: 30px;
+            padding: 50px 40px;
+            flex: 1;
+            min-width: 320px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 126, 185, 0.2);
+            position: relative;
+            text-align: left;
+        }
+
+        .price-card.pro {
+            background: #ffffff;
+            border: 2px solid var(--color-primary, #ff7eb9);
+            box-shadow: 0 30px 60px rgba(255, 126, 185, 0.2);
+            transform: scale(1.05);
+            z-index: 2;
+        }
+
+        .badge-popular {
+            position: absolute;
+            top: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--color-primary, #ff7eb9) 0%, var(--color-purple, #8b5cf6) 100%);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px rgba(255, 126, 185, 0.4);
+        }
+
+        .price-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--color-text-main);
+            margin-bottom: 10px;
+        }
+
+        .price {
+            font-size: 56px;
+            font-weight: 800;
+            margin: 15px 0;
+            color: var(--color-text-main);
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+        
+        .price span {
+            font-size: 18px;
+            color: var(--color-text-muted);
+            font-weight: 500;
+        }
+
+        ul.features-list {
+            list-style: none;
+            padding: 0;
+            margin: 40px 0;
+        }
+
+        ul.features-list li {
+            padding: 12px 0;
+            color: var(--color-text-main);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        ul.features-list li::before {
+            content: '✓';
+            color: var(--color-success, #10b981);
+            font-weight: bold;
+            font-size: 18px;
+            background: var(--color-success-light, #ecfdf5);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        
+        /* Footer CTA */
+        .cta-bottom {
+            background: linear-gradient(135deg, var(--color-primary, #ff7eb9) 0%, var(--color-purple, #8b5cf6) 100%);
+            padding: 80px 20px;
+            text-align: center;
+            color: white;
+            border-radius: 40px 40px 0 0;
+            margin-top: 50px;
+        }
+        
+        .cta-bottom h2 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 20px;
+        }
+        
+        .cta-bottom p {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+        
+        .btn-white {
+            background: white;
+            color: var(--color-primary, #ff7eb9);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .btn-white:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+            background: #fafafa;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 42px; }
+            .hero p { font-size: 18px; }
+            .price-card.pro { transform: scale(1); }
+            .hero-buttons { flex-direction: column; }
+            .navbar { padding: 15px 20px; }
+            .compare-grid { grid-template-columns: 1fr; }
+            .floating-emoji { display: none; }
+            .cta-bottom h2 { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="logo">🧁 Confeita<span class="highlight">AI</span></div>
+        <div class="nav-buttons">
+            <a href="index.html?action=login" class="btn btn-outline" style="border-radius: 30px; padding: 10px 20px; font-weight: 600;">Entrar</a>
+            <a href="index.html?action=signup" class="btn btn-primary" style="border-radius: 30px; padding: 10px 20px; font-weight: 600;">Testar Grátis</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-badge">✨ O Aplicativo das Confeiteiras de Sucesso</div>
+        <h1>Chega de perder dinheiro anotando pedidos no <span>caderno</span>.</h1>
+        <p>Automatize seu estoque, precifique com exatidão e tenha seu próprio cardápio digital no WhatsApp. O ConfeitaAI é a ferramenta que toda confeiteira precisa para lucrar mais e trabalhar menos.</p>
+        
+        <div class="hero-buttons">
+            <a href="index.html?action=signup" class="btn btn-primary btn-large">Começar a Lucrar Agora</a>
+            <span style="font-size: 14px; color: var(--color-text-muted); font-weight: 500;">🎁 7 Dias Grátis &bull; Sem cartão</span>
+        </div>
+    </section>
+
+    <section class="comparison">
+        <h2 class="section-title">O impacto da tecnologia no seu lucro</h2>
+        <p class="section-title" style="font-size: 20px; color: var(--color-primary); margin-top: -15px; margin-bottom: 50px;">Tempo é dinheiro. Pare de desperdiçar os dois.</p>
+        
+        <div class="compare-grid">
+            <div class="compare-card bad">
+                <h3>📖 Anotar no Caderno</h3>
+                <ul class="compare-list">
+                    <li>Precificação no "olhômetro" (risco alto de tomar prejuízo nos ingredientes).</li>
+                    <li>Estoque desorganizado, vencendo ou faltando ingrediente no meio da encomenda.</li>
+                    <li>Perda de tempo respondendo aos clientes um a um no WhatsApp.</li>
+                    <li>Pedidos esquecidos em mensagens antigas ou no meio de planilhas.</li>
+                </ul>
+            </div>
+            
+            <div class="compare-card good">
+                <h3>🧁 Usando o ConfeitaAI</h3>
+                <ul class="compare-list">
+                    <li><strong>Precificação Exata:</strong> Ficha técnica calcula margem e custo por você.</li>
+                    <li><strong>Estoque Inteligente:</strong> Dá baixa automática nos ingredientes a cada entrega.</li>
+                    <li><strong>Vitrine Digital Própria:</strong> Seu cliente escolhe e o pedido cai direto no painel.</li>
+                    <li><strong>Quadro Kanban:</strong> Organização visual das encomendas para nunca atrasar.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="feature-card">
+            <div class="feature-icon">📦</div>
+            <h3>Estoque Automático</h3>
+            <p>Os ingredientes são descontados sozinhos a cada bolo entregue, baseado na sua Ficha Técnica. Saiba exatamente quando ir às compras e nunca mais perca produtos vencidos.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>Seu Cardápio Digital</h3>
+            <p>Tenha seu próprio link bonito para mandar no Instagram e WhatsApp. Seu cliente escolhe os doces e você recebe o pedido organizado, sem precisar ficar anotando.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>Inteligência Artificial</h3>
+            <p>A Cacau, nossa assistente virtual, escaneia notas fiscais para lançar compras e ajuda a gerenciar suas finanças com relatórios inteligentes a qualquer hora.</p>
+        </div>
+    </section>
+
+    <section class="pricing" id="planos">
+        <h2 class="section-title">Planos feitos para o seu sucesso</h2>
+        <p class="section-subtitle">Escolha o plano ideal para o tamanho do seu negócio e comece a escalar suas vendas.</p>
+        
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Teste Grátis</h3>
+                <p style="color: var(--color-text-muted); font-size: 15px; margin-top: 5px;">Para conhecer o app.</p>
+                <div class="price">R$ 0<span>/7 dias</span></div>
+                <ul class="features-list">
+                    <li>Todos os recursos PRO liberados</li>
+                    <li>Cardápio Digital no WhatsApp</li>
+                    <li>Controle de Estoque</li>
+                    <li>Até 50 pedidos no período</li>
+                </ul>
+                <a href="index.html?action=signup" class="btn btn-outline btn-large" style="width: 100%; display: block; box-sizing: border-box; text-align: center;">Testar Agora</a>
+            </div>
+
+            <div class="price-card pro">
+                <div class="badge-popular">RECOMENDADO PARA LUCRAR</div>
+                <h3>Plano PRO</h3>
+                <p style="color: var(--color-text-muted); font-size: 15px; margin-top: 5px;">Para confeitarias profissionais.</p>
+                <div class="price">R$ 29,90<span>/mês</span></div>
+                <ul class="features-list">
+                    <li><strong>Pedidos Ilimitados</strong></li>
+                    <li>Baixa Automática no Estoque</li>
+                    <li>Fichas Técnicas Ilimitadas</li>
+                    <li>Inteligência Artificial Cacau</li>
+                </ul>
+                <a href="index.html?action=signup" class="btn btn-primary btn-large" style="width: 100%; display: block; box-sizing: border-box; text-align: center;">Assinar Plano PRO</a>
+            </div>
+        </div>
+    </section>
+
+    <footer class="cta-bottom">
+        <h2>Pronta para profissionalizar sua confeitaria?</h2>
+        <p>Junte-se a dezenas de confeiteiras que estão lucrando mais com o ConfeitaAI.</p>
+        <a href="index.html?action=signup" class="btn btn-white btn-large">Criar Conta Grátis Agora</a>
+        
+        <div style="margin-top: 60px; font-size: 14px; opacity: 0.7;">
+            &copy; 2026 ConfeitaAI. Feito com 💖 para confeiteiras de sucesso.
+        </div>
+    </footer>
+
+</body>
+</html>
