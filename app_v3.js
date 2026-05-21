@@ -71,10 +71,10 @@ let customerCart = [];
 // Seed Data definition for Local fallback or fresh loads
 const seedData = {
     products: [
-        { id: "p1", name: "Bolo Red Velvet", price: 150.00, category: "Bolos", desc: "Massa leve de cacau vermelho, recheio cremoso de cream cheese e geleia artesanal de morango.", emoji: "🎂" },
-        { id: "p2", name: "Cento de Brigadeiros Gourmet", price: 120.00, category: "Docinhos", desc: "Brigadeiros enrolados na hora com chocolate belga e confeitos nobres.", emoji: "🍫" },
-        { id: "p3", name: "Torta de Limão Merengada", price: 85.00, category: "Tortas", desc: "Base de biscoito amanteigado, creme de limão siciliano aveludado e merengue suíço maçaricado.", emoji: "🍓" },
-        { id: "p4", name: "Cupcake de Baunilha Frutas Vermelhas", price: 12.00, category: "Cupcakes", desc: "Cupcake macio de baunilha recheado com compota de frutas vermelhas e cobertura de buttercream.", emoji: "🧁" }
+        { id: "p1", name: "Bolo Red Velvet", price: 150.00, category: "Bolos", desc: "Massa leve de cacau vermelho, recheio cremoso de cream cheese e geleia artesanal de morango.", emoji: "🎂", recipeId: "r1" },
+        { id: "p2", name: "Cento de Brigadeiros Gourmet", price: 120.00, category: "Docinhos", desc: "Brigadeiros enrolados na hora com chocolate belga e confeitos nobres.", emoji: "🍫", recipeId: "r2" },
+        { id: "p3", name: "Torta de Limão Merengada", price: 85.00, category: "Tortas", desc: "Base de biscoito amanteigado, creme de limão siciliano aveludado e merengue suíço maçaricado.", emoji: "🍓", recipeId: "r3" },
+        { id: "p4", name: "Cupcake de Baunilha Frutas Vermelhas", price: 12.00, category: "Cupcakes", desc: "Cupcake macio de baunilha recheado com compota de frutas vermelhas e cobertura de buttercream.", emoji: "🧁", recipeId: "r4" }
     ],
     ingredients: [
         { id: "i1", name: "Farinha de Trigo", qty: 3000, unit: "g", min: 1000, price: 6.50 },
@@ -102,7 +102,7 @@ const seedData = {
         {
             id: "r1",
             name: "Massa Base de Bolo Red Velvet",
-            yield: 12,
+            yield: 1,
             ingredients: [
                 { ingId: "i1", amount: 350 },
                 { ingId: "i2", amount: 300 },
@@ -110,6 +110,27 @@ const seedData = {
                 { ingId: "i4", amount: 30 },
                 { ingId: "i5", amount: 4 }
             ],
+            margin: 200
+        },
+        {
+            id: "r2",
+            name: "Massa de Brigadeiro Gourmet",
+            yield: 1,
+            ingredients: [],
+            margin: 200
+        },
+        {
+            id: "r3",
+            name: "Torta de Limão Merengada",
+            yield: 1,
+            ingredients: [],
+            margin: 200
+        },
+        {
+            id: "r4",
+            name: "Cupcake de Baunilha",
+            yield: 1,
+            ingredients: [],
             margin: 200
         }
     ],
@@ -1812,7 +1833,7 @@ function buildRecipeCardHTML(r, showExport = true) {
         return `<li style="font-size:12px;color:var(--color-text-muted);">${ing.name}: <strong>${ri.amount}${ing.unit}</strong></li>`;
     }).join('');
 
-    const exportBtn = ''; // Funcionalidade de enviar ao cardápio foi reestruturada para ser controlada a partir do Produto.
+    const exportBtn = `<button class="btn btn-purple btn-sm" style="width: 100%; margin-bottom: 8px; font-weight: 600;" onclick="exportToMenu('${r.id}')">✨ Colocar no Cardápio</button>`;
 
     return `
         <div class="recipe-card glass" style="border: 1px solid rgba(139,92,246,0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.05); overflow: hidden; position: relative;">
@@ -1859,6 +1880,7 @@ function buildRecipeCardHTML(r, showExport = true) {
             </div>
 
             <div style="padding: 0 20px 20px 20px;">
+                ${exportBtn}
                 <button class="btn btn-outline" style="width: 100%; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600;" onclick="deleteRecipe('${r.id}')">Excluir Ficha Técnica</button>
             </div>
         </div>
@@ -2377,7 +2399,40 @@ async function deleteClient(id) {
     }
 }
 
-// D. Order CRUD
+// B. Global Functions (Export to Menu)
+window.exportToMenu = function(recipeId) {
+    const r = state.recipes.find(rec => rec.id === recipeId);
+    if (!r) return;
+
+    // Calculate suggested price
+    let totalCost = 0;
+    r.ingredients.forEach(ri => {
+        const ing = state.ingredients.find(i => i.id === ri.ingId);
+        if (ing) {
+            totalCost += ing.unit === 'un' ? ing.price * ri.amount : (ing.price / 1000) * ri.amount;
+        }
+    });
+    const suggestedPrice = (totalCost * (1 + (r.margin || 200) / 100)) / (r.yield || 1);
+
+    // Populate Modal
+    document.getElementById("prod-id").value = ""; // Force new product
+    document.getElementById("prod-name").value = r.name;
+    document.getElementById("prod-price").value = suggestedPrice.toFixed(2);
+    document.getElementById("prod-desc").value = `Produzido a partir da ficha técnica: ${r.name}`;
+    
+    // Ensure the recipe dropdown has the options populated first
+    populateRecipeSelect(document.getElementById("prod-recipe"), recipeId);
+    
+    const recipeSelect = document.getElementById("prod-recipe");
+    if (recipeSelect) {
+        recipeSelect.value = recipeId;
+    }
+
+    document.getElementById("product-modal-title").innerText = "Adicionar ao Cardápio";
+    openModal("modal-product");
+};
+
+// C. Order CRUD
 async function handleOrderSubmit(e) {
     e.preventDefault();
     const clientId = document.getElementById("ord-client").value;
