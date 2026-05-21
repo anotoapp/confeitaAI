@@ -138,6 +138,17 @@ function getLoggedInUserId() {
     }
 }
 
+function getLoggedInUserEmail() {
+    const session = localStorage.getItem("confeitaai_session");
+    if (!session) return null;
+    try {
+        const sessionData = JSON.parse(session);
+        return sessionData.email || null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Local storage backup utilities with safety checks
 function saveToLocalStorage() {
     try {
@@ -3791,6 +3802,18 @@ async function renderAdm() {
     if (packagingInput) packagingInput.value = DEFAULT_PACKAGING.toFixed(2);
     if (hourlyInput) hourlyInput.value = DEFAULT_HOURLY_RATE.toFixed(2);
 
+    // Hide Data Maintenance for non-Super Admins
+    const wipeBtn = document.getElementById("btn-adm-wipe");
+    const seedBtn = document.getElementById("btn-adm-seed");
+    if (wipeBtn && seedBtn) {
+        const userEmail = getLoggedInUserEmail();
+        const isSuperAdmin = userEmail === "naturamixrepresentacoes@gmail.com";
+        const maintenanceCard = wipeBtn.closest('.panel-card');
+        if (maintenanceCard) {
+            maintenanceCard.style.display = isSuperAdmin ? "block" : "none";
+        }
+    }
+
     // Update connection badge status
     const statusBadge = document.getElementById("adm-connection-status");
     if (statusBadge) {
@@ -3944,6 +3967,12 @@ async function handleModeChange(offline) {
 }
 
 async function handleSeedDatabaseClick() {
+    const userEmail = getLoggedInUserEmail();
+    if (userEmail !== "naturamixrepresentacoes@gmail.com") {
+        alert("Acesso negado. Apenas o Super Admin (NaturaMix) pode gerar dados de teste fictícios.");
+        return;
+    }
+    
     if (confirm("Atenção: Esta ação irá reescrever todos os produtos, ingredientes, clientes, receitas e mensagens com os dados de teste padrão da Cacau. Deseja prosseguir?")) {
         showLoadingIndicator();
         try {
@@ -4045,6 +4074,12 @@ async function handleSeedDatabaseClick() {
 }
 
 async function handleWipeDatabaseClick() {
+    const userEmail = getLoggedInUserEmail();
+    if (userEmail !== "naturamixrepresentacoes@gmail.com") {
+        alert("Acesso negado. Apenas o Super Admin (NaturaMix) pode apagar dados do sistema.");
+        return;
+    }
+    
     if (confirm("⚠️ CUIDADO: Esta ação apagará permanentemente todos os registros do seu sistema de forma irreversível. Digite OK para confirmar.")) {
         if (confirm("Tem absoluta certeza disso? Seus dados serão perdidos.")) {
             showLoadingIndicator();
