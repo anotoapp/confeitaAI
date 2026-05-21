@@ -185,8 +185,10 @@
                     Gestão de Clientes
                 </a>
                 <a href="#" class="menu-item" data-tab="adm" style="margin-top: 15px; background: linear-gradient(135deg, var(--color-purple-light), #fff); border: 1px solid rgba(139,92,246,0.3); border-left: 4px solid var(--color-purple); color: var(--color-purple); font-weight: 700; border-radius: var(--border-radius-sm); box-shadow: 0 4px 12px rgba(139,92,246,0.1);">
-                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="color: var(--color-purple);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Painel Super ADM
+                    <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Painel SaaS
                 </a>
             </nav>
             
@@ -739,14 +741,18 @@
                     </div>
                 </section>
 
-                <!-- SECTION: PAINEL ADM -->
+                <!-- SECTION: PAINEL SAAS -->
                 <section id="section-adm" class="tab-content">
+                    <div class="page-title-area" style="margin-bottom: 24px;">
+                        <h1>Painel SaaS</h1>
+                        <p>Gerencie todos os ateliês e assinaturas da plataforma ConfeitaAI</p>
+                    </div>
                     <!-- SaaS Management Area -->
                     <div class="panel-card glass" style="margin-bottom: 24px;">
                         <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                             <div class="panel-title-area" style="display: flex; align-items: center;">
                                 <span style="font-size: 24px; margin-right: 8px;">👑</span>
-                                <h3 style="display: inline-block; font-size: 18px;">Painel SaaS (Dono do App)</h3>
+                                <h3 style="display: inline-block; font-size: 18px;">Usuários e Acessos</h3>
                             </div>
                         </div>
                         <div class="panel-body">
@@ -773,108 +779,6 @@
                         </div>
                     </div>
 
-                    <!-- Toggle Section Button to reveal/collapse System Settings -->
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <button type="button" class="btn btn-outline" id="btn-toggle-tech-configs" style="padding: 10px 20px; font-size: 13px; font-weight: 600;">
-                            ⚙️ Exibir Configurações do Sistema e Banco de Dados
-                        </button>
-                    </div>
-
-                    <!-- Technical Settings Area (Initially Hidden) -->
-                    <div id="tech-configs-area" class="admin-grid" style="display: none; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px;">
-                        
-                        <!-- Card 1: Supabase Connection Credentials -->
-                        <div class="panel-card glass">
-                            <div class="panel-header">
-                                <div class="panel-title-area" style="display: flex; align-items: center;">
-                                    <span style="font-size: 20px; margin-right: 8px;">🌐</span>
-                                    <h3 style="display: inline-block; font-size: 16px;">Conexão Supabase Cloud</h3>
-                                </div>
-                                <span class="badge badge-purple" id="adm-connection-status">Verificando...</span>
-                            </div>
-                            <div class="panel-body">
-                                <form id="form-adm-supabase">
-                                    <div class="form-group" style="margin-bottom: 15px;">
-                                        <label for="adm-sb-url" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Supabase API URL</label>
-                                        <input type="url" id="adm-sb-url" placeholder="https://xxxx.supabase.co" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
-                                    </div>
-                                    <div class="form-group" style="margin-bottom: 15px;">
-                                        <label for="adm-sb-key" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Supabase Anon Key</label>
-                                        <input type="password" id="adm-sb-key" placeholder="Sua chave anônima pública..." required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
-                                    </div>
-                                    <button type="submit" class="btn btn-primary btn-block">Salvar Credenciais</button>
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- Card 2: Operating Mode Hibrido -->
-                        <div class="panel-card glass">
-                            <div class="panel-header">
-                                <div class="panel-title-area" style="display: flex; align-items: center;">
-                                    <span style="font-size: 20px; margin-right: 8px;">⚙️</span>
-                                    <h3 style="display: inline-block; font-size: 16px;">Modo de Operação</h3>
-                                </div>
-                            </div>
-                            <div class="panel-body" style="display: flex; flex-direction: column; justify-content: space-between;">
-                                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 16px;">
-                                    Defina se o ConfeitaAI deve sincronizar na nuvem do Supabase ou funcionar de forma 100% isolada no seu navegador (LocalStorage).
-                                </p>
-                                <div class="toggle-mode-container" style="display: flex; flex-direction: column; gap: 10px;">
-                                    <button type="button" class="btn btn-outline btn-block" id="btn-mode-online" style="text-align: left; justify-content: flex-start; padding: 12px;">🌐 Supabase Cloud (Online)</button>
-                                    <button type="button" class="btn btn-outline btn-block" id="btn-mode-offline" style="text-align: left; justify-content: flex-start; padding: 12px;">💾 Armazenamento Local (Offline)</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 3: Global Business Parameters -->
-                        <div class="panel-card glass">
-                            <div class="panel-header">
-                                <div class="panel-title-area" style="display: flex; align-items: center;">
-                                    <span style="font-size: 20px; margin-right: 8px;">💰</span>
-                                    <h3 style="display: inline-block; font-size: 16px;">Parâmetros de Precificação</h3>
-                                </div>
-                            </div>
-                            <div class="panel-body">
-                                <form id="form-adm-pricing">
-                                    <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                                        <div class="form-group">
-                                            <label for="adm-def-markup" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Markup Padrão (%)</label>
-                                            <input type="number" id="adm-def-markup" placeholder="Ex: 200" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="adm-def-packaging" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Embalagem Padrão (R$)</label>
-                                            <input type="number" id="adm-def-packaging" step="0.01" placeholder="Ex: 5.00" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
-                                        </div>
-                                    </div>
-                                    <div class="form-group" style="margin-bottom: 15px;">
-                                        <label for="adm-def-hourly" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--color-text-main);">Valor da Hora de Trabalho (R$)</label>
-                                        <input type="number" id="adm-def-hourly" step="0.01" placeholder="Ex: 15.00" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
-                                    </div>
-                                    <button type="submit" class="btn btn-purple btn-block">Salvar Parâmetros</button>
-                                </form>
-                            </div>
-                        </div>
-
-                        <!-- Card 4: Database Maintenance -->
-                        <div class="panel-card glass">
-                            <div class="panel-header">
-                                <div class="panel-title-area" style="display: flex; align-items: center;">
-                                    <span style="font-size: 20px; margin-right: 8px;">🛠️</span>
-                                    <h3 style="display: inline-block; font-size: 16px;">Manutenção de Dados</h3>
-                                </div>
-                            </div>
-                            <div class="panel-body" style="display: flex; flex-direction: column; justify-content: space-between;">
-                                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.5; margin-bottom: 16px;">
-                                    Essas operações alteram permanentemente seus dados do sistema (produtos, clientes, pedidos e finanças). Use com atenção.
-                                </p>
-                                <div class="maintenance-buttons" style="display: flex; flex-direction: column; gap: 10px;">
-                                    <button type="button" class="btn btn-outline btn-block" id="btn-adm-seed" style="padding: 12px; justify-content: flex-start;">🌱 Restaurar Banco de Teste (Seed)</button>
-                                    <button type="button" class="btn btn-outline btn-block" id="btn-adm-wipe" style="padding: 12px; justify-content: flex-start; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);">⚠️ Apagar Tudo (Zerar Dados)</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card 5: Analytical Sales Breakdown (Wide Card) -->
                         <div class="panel-card glass" style="grid-column: 1 / -1; margin-top: 10px;">
                             <div class="panel-header">
                                 <div class="panel-title-area" style="display: flex; align-items: center;">

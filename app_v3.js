@@ -525,8 +525,14 @@ async function checkSession() {
         applyPermissions(profile.role);
 
         // Update last_login silently
+        const nowStr = new Date().toISOString();
         if (isSupabaseActive && profile.id) {
-            supabaseClient.from('usuarios').update({ last_login: new Date().toISOString() }).eq('id', profile.id).then(() => {});
+            supabaseClient.from('usuarios').update({ last_login: nowStr }).eq('id', profile.id).then(() => {});
+        }
+        const localUser = state.users.find(u => u.id === profile.id);
+        if (localUser) {
+            localUser.last_login = nowStr;
+            saveToLocalStorage();
         }
 
         // Check trial expiry (skip for Super Admin)
