@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div id="diag-bar" style="background: #ef4444; color: white; padding: 12px; text-align: center; font-weight: 600; font-family: system-ui, -apple-system, sans-serif; z-index: 99999; position: fixed; top: 0; left: 0; width: 100vw; display: none; font-size: 13px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
@@ -444,6 +446,10 @@
                                     <div class="form-group">
                                         <label for="store-slug" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Link Personalizado (Slug)</label>
                                         <input type="text" id="store-slug" placeholder="ex: docesdaju" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="store-phone" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">WhatsApp da Loja (DDI+DDD+Num)</label>
+                                        <input type="text" id="store-phone" placeholder="ex: 5511999999999" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
                                     </div>
                                 </div>
 
@@ -1197,22 +1203,18 @@
                                 <label class="phone-form-label" for="phone-cust-phone">Seu Telefone *</label>
                                 <input type="tel" id="phone-cust-phone" class="phone-form-input" placeholder="Ex: (11) 98888-7777" required>
                             </div>
-                            <div>
-                                <label class="phone-form-label">Como deseja receber seu pedido? *</label>
-                                <div class="phone-delivery-toggle">
-                                    <button type="button" class="phone-toggle-btn active" id="btn-toggle-delivery-pickup" data-type="Retirada">🏪 Retirar na Loja</button>
-                                    <button type="button" class="phone-toggle-btn" id="btn-toggle-delivery-home" data-type="Entrega">🛵 Entrega em Casa</button>
-                                </div>
-                            </div>
-                            <div id="phone-delivery-address-group" style="display: none;">
-                                <label class="phone-form-label" for="phone-cust-address">Endereço de Entrega *</label>
-                                <input type="text" id="phone-cust-address" class="phone-form-input" placeholder="Rua, número, bairro e apto">
-                            </div>
+                            <!-- Delivery options removed as per request (focused on ordering/encomendas) -->
                         </div>
                     </div>
-                    <div class="phone-cart-footer">
+                    <div class="phone-cart-footer" id="phone-cart-footer-actions">
                         <button type="button" class="phone-btn-checkout" id="btn-phone-submit-order">
-                            Enviar Pedido pelo WhatsApp 💬
+                            Confirmar Encomenda ✨
+                        </button>
+                    </div>
+                    <div class="phone-cart-footer" id="phone-cart-success-actions" style="display: none; text-align: center;">
+                        <p style="margin-bottom: 12px; color: var(--color-success); font-weight: 600;">✅ Pedido Enviado para a Loja!</p>
+                        <button type="button" class="phone-btn-checkout" id="btn-phone-whatsapp-success" style="background: #25D366; color: white;">
+                            Falar com a Confeiteira no WhatsApp 💬
                         </button>
                     </div>
                 </div>

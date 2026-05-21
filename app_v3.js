@@ -3,8 +3,8 @@
    ========================================================================== */
 
 // 1. Connection Configurations & Feature Flags
-let SUPABASE_URL = localStorage.getItem("confeitaai_supabase_url") || "https://ckppwmneicuxtlektrqi.supabase.co";
-let SUPABASE_KEY = localStorage.getItem("confeitaai_supabase_key") || "sb_publishable_cuEIKbE7HdzXmnrIp2546Q_ru5aInHr";
+let SUPABASE_URL = localStorage.getItem("confeitaai_supabase_url");
+let SUPABASE_KEY = localStorage.getItem("confeitaai_supabase_key");
 
 let supabaseClient = null;
 let isSupabaseActive = false;
@@ -19,8 +19,19 @@ let DEFAULT_MARKUP = parseFloat(localStorage.getItem("confeitaai_default_markup"
 let DEFAULT_PACKAGING = parseFloat(localStorage.getItem("confeitaai_default_packaging")) || 5.00;
 let DEFAULT_HOURLY_RATE = parseFloat(localStorage.getItem("confeitaai_default_hourly_rate")) || 15.00;
 
-function initSupabaseClient() {
+async function initSupabaseClient() {
     try {
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                SUPABASE_URL = SUPABASE_URL || config.SUPABASE_URL;
+                SUPABASE_KEY = SUPABASE_KEY || config.SUPABASE_KEY;
+            } catch(e) {
+                console.warn('Could not fetch config API, using local storage values only.');
+            }
+        }
+
         if (window.supabase && !forcedOffline && SUPABASE_URL && SUPABASE_KEY) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             isSupabaseActive = true;
@@ -36,9 +47,6 @@ function initSupabaseClient() {
         isSupabaseActive = false;
     }
 }
-
-// Initial client boot
-initSupabaseClient();
 
 // Memory Cache State
 let state = {
@@ -232,6 +240,7 @@ async function loadState() {
                 state.storeConfig = {
                     name: configData.name || state.storeConfig.name,
                     slug: configData.slug || state.storeConfig.slug,
+                    phone: configData.phone || state.storeConfig.phone,
                     hours: configData.hours || state.storeConfig.hours,
                     logo: configData.logo || state.storeConfig.logo,
                     desc: configData.desc || state.storeConfig.desc
@@ -450,6 +459,7 @@ async function loadState() {
             state.storeConfig = {
                 name: sc.name || state.storeConfig.name,
                 slug: sc.slug || state.storeConfig.slug,
+                phone: sc.phone || state.storeConfig.phone,
                 hours: sc.hours || state.storeConfig.hours,
                 logo: sc.logo || state.storeConfig.logo,
                 desc: sc.desc || state.storeConfig.desc
@@ -1076,6 +1086,7 @@ function initializeConfeitaAI() {
         const logoVal = document.getElementById("store-logo").value.trim();
         const bannerVal = document.getElementById("store-banner").value.trim();
         const descVal = document.getElementById("store-desc").value.trim();
+        const phoneVal = document.getElementById("store-phone") ? document.getElementById("store-phone").value.trim().replace(/\D/g, '') : '';
         
         if (!slugVal) {
             alert("Por favor, insira um link personalizado (slug) válido.");
@@ -1086,6 +1097,7 @@ function initializeConfeitaAI() {
         state.storeConfig = {
             name: nameVal || "Doces da Ju",
             slug: slugVal,
+            phone: phoneVal,
             hours: hoursVal,
             logo: logoVal || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
             banner: bannerVal || "",
@@ -1109,6 +1121,7 @@ function initializeConfeitaAI() {
                     usuario_id: loggedInUserId,
                     name: state.storeConfig.name,
                     slug: state.storeConfig.slug,
+                    phone: state.storeConfig.phone,
                     hours: state.storeConfig.hours,
                     logo: state.storeConfig.logo,
                     banner: state.storeConfig.banner,
@@ -1234,7 +1247,7 @@ function initializeConfeitaAI() {
     }
 
     // Submit order button
-    safeBind("btn-phone-submit-order", "click", submitPhoneOrderViaWhatsApp);
+    safeBind("btn-phone-submit-order", "click", processarEncomendaDigital);
 
     // Receipt Scanner Bindings
     safeBind("btn-scan-receipt", "click", () => openModal("modal-receipt-scanner"));
@@ -1359,8 +1372,10 @@ function initializeConfeitaAI() {
     });
 
     // Run async load state after bindings
-    loadState();
-    window.confeitaAiLoaded = true;
+    initSupabaseClient().then(() => {
+        loadState();
+        window.confeitaAiLoaded = true;
+    });
 }
 
 // Direct initialization as the script is at the bottom of the body
@@ -1617,6 +1632,7 @@ function renderPedidos() {
                 <div class="kanban-card-actions" style="display: flex; gap: 5px;">
                     ${o.status !== "Recebido" ? `<button class="btn btn-outline btn-sm" title="Voltar fase" onclick="moveOrderStatus('${o.id}', 'prev')">←</button>` : ''}
                     ${o.status === "Pronto" ? `<button class="btn btn-success btn-sm" style="flex: 1; padding: 2px 5px;" onclick="notifyClientPickup('${o.id}')">Avisar Cliente</button>` : ''}
+                    ${o.status === "Entregue" ? `<button class="btn btn-outline btn-sm" title="Baixar Recibo PDF" style="flex: 1; padding: 2px 5px; color: #e11d48; border-color: #fca5a5;" onclick="gerarReciboPDF('${o.id}')">📄 PDF</button>` : ''}
                     <button class="btn btn-outline btn-sm" title="Excluir" style="color:var(--color-danger)" onclick="deleteOrder('${o.id}')">X</button>
                     ${o.status !== "Entregue" ? `<button class="btn btn-outline btn-sm" title="Avançar fase" onclick="moveOrderStatus('${o.id}', 'next')">→</button>` : ''}
                 </div>
@@ -3168,10 +3184,9 @@ if (btnPickup && btnDelivery) {
     });
 }
 
-function submitPhoneOrderViaWhatsApp() {
+async function processarEncomendaDigital() {
     const nameVal = document.getElementById("phone-cust-name").value.trim();
     const phoneVal = document.getElementById("phone-cust-phone").value.trim();
-    const addrVal = document.getElementById("phone-cust-address").value.trim();
     
     if (!nameVal || !phoneVal) {
         alert("Por favor, preencha seu Nome e Telefone para enviar o pedido.");
@@ -3183,58 +3198,100 @@ function submitPhoneOrderViaWhatsApp() {
         return;
     }
     
-    const btnDelivery = document.getElementById("btn-toggle-delivery-home");
-    const isDelivery = btnDelivery && btnDelivery.classList.contains("active");
-    const deliveryMethod = isDelivery ? "Entrega ao Domicílio 🛵" : "Retirada na Loja 🏪";
-    
-    if (isDelivery && !addrVal) {
-        alert("Por favor, informe o endereço completo para a entrega.");
-        return;
+    const btn = document.getElementById("btn-phone-submit-order");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Processando... ⏳";
     }
     
-    // Calculate total price
-    let subtotal = 0;
-    let itemRows = "";
-    
-    customerCart.forEach((item, idx) => {
-        const p = state.products.find(prod => prod.id === item.productId);
-        if (p) {
+    try {
+        const ownerId = state.storeConfig.usuario_id || null;
+        let clientId = "c_" + Date.now();
+        
+        // 1. Criar ou buscar cliente
+        if (isSupabaseActive && ownerId) {
+            const { data: clientData } = await supabaseClient.from('clientes').insert([{
+                id: clientId,
+                usuario_id: ownerId,
+                name: nameVal,
+                phone: phoneVal,
+                order_count: 1,
+                total_spent: 0
+            }]).select();
+            if (clientData && clientData.length > 0) clientId = clientData[0].id;
+        } else {
+            state.clients.push({ id: clientId, name: nameVal, phone: phoneVal, orderCount: 1, totalSpent: 0 });
+        }
+        
+        let subtotal = 0;
+        let itemRows = "";
+        
+        // 2. Inserir Pedidos (Kanban)
+        for (const item of customerCart) {
+            const p = state.products.find(prod => prod.id === item.productId);
+            if (!p) continue;
+            
             const itemSubtotal = item.qty * p.price;
             subtotal += itemSubtotal;
             itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
+            
+            const orderId = "o_" + Date.now() + "_" + Math.floor(Math.random()*1000);
+            const now = new Date();
+            
+            const orderPayload = {
+                id: orderId,
+                client_id: clientId,
+                product_id: p.id,
+                qty: item.qty,
+                val: itemSubtotal,
+                date: now.toISOString().split('T')[0],
+                time: now.toTimeString().split(' ')[0].substring(0, 5),
+                status: "Em Produção",
+                notes: "Via Cardápio Digital"
+            };
+            
+            if (isSupabaseActive && ownerId) {
+                orderPayload.usuario_id = ownerId;
+                await supabaseClient.from('pedidos').insert([orderPayload]);
+            } else {
+                state.orders.push(orderPayload);
+            }
+            
+            // 3. Abater Estoque
+            await deductStockForOrder({ productId: p.id, qty: item.qty });
         }
-    });
-    
-    const deliveryFee = isDelivery ? 7.00 : 0.00;
-    const finalTotal = subtotal + deliveryFee;
-    const deliveryFeeText = isDelivery ? "R$ 7,00" : "Grátis";
-    
-    // Format WhatsApp message text
-    let msg = `Olá! Gostaria de fazer o seguinte pedido no cardápio de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
-    msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
-    msg += `*💰 RESUMO DO PEDIDO:*\n`;
-    msg += `• Subtotal: R$ ${subtotal.toFixed(2)}\n`;
-    msg += `• Taxa de Entrega: ${deliveryFeeText}\n`;
-    msg += `• *Total Geral: R$ ${finalTotal.toFixed(2)}*\n\n`;
-    msg += `*👤 CLIENTE:*\n`;
-    msg += `• Nome: ${nameVal}\n`;
-    msg += `• Telefone: ${phoneVal}\n\n`;
-    msg += `*🏪 MÉTODO DE RECEBIMENTO:*\n`;
-    msg += `• Opção: ${deliveryMethod}\n`;
-    
-    if (isDelivery) {
-        msg += `• Endereço de Entrega: ${addrVal}\n`;
+        
+        saveToLocalStorage();
+        
+        // 4. Sucesso e Preparação WhatsApp
+        const footerActions = document.getElementById("phone-cart-footer-actions");
+        const successActions = document.getElementById("phone-cart-success-actions");
+        if (footerActions) footerActions.style.display = "none";
+        if (successActions) successActions.style.display = "block";
+        
+        const waBtn = document.getElementById("btn-phone-whatsapp-success");
+        if (waBtn) {
+            let msg = `Olá! Acabei de fazer um pedido no cardápio digital de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
+            msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
+            msg += `*💰 TOTAL: R$ ${subtotal.toFixed(2)}*\n\n`;
+            msg += `*👤 CLIENTE:*\n• Nome: ${nameVal}\n• Telefone: ${phoneVal}\n\n`;
+            msg += `Já foi enviado para o seu sistema! Aguardo a confirmação. 🙏✨`;
+            
+            waBtn.onclick = () => {
+                const phoneTarget = state.storeConfig.phone || "";
+                const url = `https://api.whatsapp.com/send?phone=${phoneTarget}&text=${encodeURIComponent(msg)}`;
+                window.open(url, "_blank");
+            };
+        }
+        
+    } catch (err) {
+        console.error("Erro ao enviar pedido digital:", err);
+        alert("Ocorreu um erro ao processar o pedido. Tente novamente.");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Confirmar Encomenda ✨";
+        }
     }
-    
-    msg += `\nMuito obrigado! Aguardo a confirmação do pedido. 🙏✨`;
-    
-    // Redirect customer to WhatsApp with compiled message text
-    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
-    
-    // Close drawer upon successful submission redirect
-    closePhoneCartDrawer();
-    closeModal("modal-menu-preview");
 }
 
 // Bind storefront functions to window so inline onclick handlers execute correctly
@@ -3242,7 +3299,7 @@ window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.openPhoneCartDrawer = openPhoneCartDrawer;
 window.closePhoneCartDrawer = closePhoneCartDrawer;
-window.submitPhoneOrderViaWhatsApp = submitPhoneOrderViaWhatsApp;
+window.processarEncomendaDigital = processarEncomendaDigital;
 
 
 // ================= 8. CACAU WHATSAPP SIMULATOR ENGINE (AI INTEGRATION) =================
@@ -3492,6 +3549,81 @@ O que deseja fazer agora? 🍰😊`;
         });
     }
 }
+
+// ================= 15. PDF RECEIPTS =================
+function gerarReciboPDF(orderId) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("Biblioteca PDF não carregada. Verifique sua conexão com a internet.");
+        return;
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const client = state.clients.find(c => c.id === order.clientId) || { name: "Cliente Não Identificado", phone: "" };
+    const product = state.products.find(p => p.id === order.productId) || { name: "Produto Excluído", price: 0 };
+    
+    const storeName = state.storeConfig.name || "Minha Confeitaria";
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(225, 29, 72); 
+    doc.text(storeName, 105, 20, null, null, "center");
+    
+    doc.setFontSize(14);
+    doc.setTextColor(50, 50, 50);
+    doc.text("RECIBO DE ENCOMENDA", 105, 30, null, null, "center");
+    
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, 35, 190, 35);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`ID do Pedido: ${order.id}`, 20, 45);
+    doc.text(`Data da Encomenda: ${order.date} às ${order.time}`, 20, 52);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Dados do Cliente:", 20, 65);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Nome: ${client.name}`, 20, 72);
+    doc.text(`Telefone: ${client.phone}`, 20, 79);
+    
+    doc.line(20, 85, 190, 85);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo do Pedido:", 20, 95);
+    doc.setFont("helvetica", "normal");
+    
+    doc.text(`${order.qty}x ${product.name}`, 20, 105);
+    doc.text(`R$ ${(order.qty * product.price).toFixed(2)}`, 190, 105, null, null, "right");
+    
+    if (order.notes && order.notes.trim() !== "") {
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Obs: ${order.notes}`, 20, 112);
+        doc.setFontSize(11);
+        doc.setTextColor(80, 80, 80);
+    }
+    
+    doc.line(120, 120, 190, 120);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("TOTAL GERAL:", 120, 130);
+    doc.text(`R$ ${order.val.toFixed(2)}`, 190, 130, null, null, "right");
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.text("Obrigado pela preferência! Volte sempre.", 105, 270, null, null, "center");
+    
+    doc.save(`Recibo_${client.name.replace(/\s+/g, '_')}_${order.id}.pdf`);
+}
+window.gerarReciboPDF = gerarReciboPDF;
 
 // ==========================================================================
 // 9. SCHEDULED ORDERS CALENDAR SYSTEM
@@ -4300,12 +4432,14 @@ window.toggleUserStatus = toggleUserStatus;
 function populateStoreForm() {
     const nameEl = document.getElementById("store-name");
     const slugEl = document.getElementById("store-slug");
+    const phoneEl = document.getElementById("store-phone");
     const hoursEl = document.getElementById("store-hours");
     const logoEl = document.getElementById("store-logo");
     const descEl = document.getElementById("store-desc");
     
     if (nameEl) nameEl.value = state.storeConfig.name || "";
     if (slugEl) slugEl.value = state.storeConfig.slug || "";
+    if (phoneEl) phoneEl.value = state.storeConfig.phone || "";
     if (hoursEl) hoursEl.value = state.storeConfig.hours || "";
     if (logoEl) logoEl.value = state.storeConfig.logo || "";
     if (descEl) descEl.value = state.storeConfig.desc || "";

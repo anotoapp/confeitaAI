@@ -1,25 +1,42 @@
 /* ==========================================================================
-   ConfeitaAI - Hybrid Database Engine (Supabase + LocalStorage Fallback)
+   ConfeitaAI - Secure Backend Engine (Vercel API Proxy + LocalStorage Fallback)
+   API Keys are NEVER exposed here. All DB calls go through /api/db
    ========================================================================== */
 
 // 1. Connection Configurations & Feature Flags
-const SUPABASE_URL = "https://ckppwmneicuxtlektrqi.supabase.co";
-const SUPABASE_KEY = "sb_publishable_cuEIKbE7HdzXmnrIp2546Q_ru5aInHr";
-
-let supabaseClient = null;
 let isSupabaseActive = false;
 
-// Gracefully check if Supabase SDK was loaded from CDN
-try {
-    if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        isSupabaseActive = true;
-        console.log("Supabase inicializado com sucesso! 🌐");
-    } else {
-        console.warn("SDK do Supabase não encontrado. Usando modo local (LocalStorage) 💾");
+// Secure API proxy — all Supabase credentials live only on the server (Vercel)
+async function apiCall(action, table, payload = null, filter = null, orderBy = null) {
+    try {
+        const res = await fetch('/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, table, payload, filter, orderBy })
+        });
+        if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            throw new Error(errBody.error || `HTTP ${res.status}`);
+        }
+        return await res.json();
+    } catch (err) {
+        console.error(`[apiCall] Erro em ${action} ${table}:`, err);
+        throw err;
     }
-} catch (err) {
-    console.error("Falha ao configurar Supabase client, usando modo local:", err);
+}
+
+// Check if backend API is reachable on startup
+async function initConnection() {
+    try {
+        const result = await apiCall('select', 'produtos');
+        if (result && result.data !== undefined) {
+            isSupabaseActive = true;
+            console.log('Backend API conectado com sucesso! 🌐');
+        }
+    } catch (err) {
+        console.warn('Backend API não disponível. Usando modo local (LocalStorage) 💾');
+        isSupabaseActive = false;
+    }
 }
 
 // Memory Cache State
@@ -119,11 +136,11 @@ function sanitizeAndMergeState(loadedState) {
 }
 
 
-// 2. Load & Sync State (Supabase OR LocalStorage Fallback)
+// 2. Load & Sync State (Backend API OR LocalStorage Fallback)
 async function loadState() {
     showLoadingIndicator();
     
-    // Fallback mode if Supabase is inactive or failed to initialize
+    // Fallback mode if backend API is inactive or failed to initialize
     if (!isSupabaseActive) {
         console.log("Modo offline/local ativado.");
         const saved = getFromLocalStorage();
@@ -146,33 +163,37 @@ async function loadState() {
     }
 
     try {
-        // Fetch all tables in parallel
+        // Fetch all tables in parallel via secure backend
         const [
-            { data: prodData, error: prodErr },
-            { data: clientData, error: clientErr },
-            { data: stockData, error: stockErr },
-            { data: orderData, error: orderErr },
-            { data: transData, error: transErr },
-            { data: recipeData, error: recipeErr },
-            { data: msgData, error: msgErr }
+            prodResult,
+            clientResult,
+            stockResult,
+            orderResult,
+            transResult,
+            recipeResult,
+            msgResult
         ] = await Promise.all([
-            supabaseClient.from('produtos').select('*'),
-            supabaseClient.from('clientes').select('*'),
-            supabaseClient.from('estoque').select('*'),
-            supabaseClient.from('pedidos').select('*'),
-            supabaseClient.from('transacoes').select('*'),
-            supabaseClient.from('receitas').select('*'),
-            supabaseClient.from('mensagens_cacau').select('*').order('created_at', { ascending: true })
+            apiCall('select', 'produtos'),
+            apiCall('select', 'clientes'),
+            apiCall('select', 'estoque'),
+            apiCall('select', 'pedidos'),
+            apiCall('select', 'transacoes'),
+            apiCall('select', 'receitas'),
+            apiCall('select', 'mensagens_cacau', null, null, { column: 'created_at', ascending: true })
         ]);
 
-        if (prodErr || clientErr || stockErr || orderErr || transErr || recipeErr || msgErr) {
-            throw new Error("Erro nas tabelas");
-        }
+        const prodData = prodResult.data || [];
+        const clientData = clientResult.data || [];
+        const stockData = stockResult.data || [];
+        const orderData = orderResult.data || [];
+        const transData = transResult.data || [];
+        const recipeData = recipeResult.data || [];
+        const msgData = msgResult.data || [];
 
         // Map database tables to application state
-        state.products = prodData || [];
+        state.products = prodData;
         
-        state.clients = (clientData || []).map(c => ({
+        state.clients = clientData.map(c => ({
             id: c.id,
             name: c.name,
             phone: c.phone,
@@ -180,7 +201,7 @@ async function loadState() {
             totalSpent: parseFloat(c.total_spent) || 0
         }));
 
-        state.ingredients = (stockData || []).map(i => ({
+        state.ingredients = stockData.map(i => ({
             id: i.id,
             name: i.name,
             qty: parseFloat(i.qty) || 0,
@@ -189,7 +210,7 @@ async function loadState() {
             price: parseFloat(i.price) || 0
         }));
 
-        state.orders = (orderData || []).map(o => ({
+        state.orders = orderData.map(o => ({
             id: o.id,
             clientId: o.client_id,
             productId: o.product_id,
@@ -201,7 +222,7 @@ async function loadState() {
             notes: o.notes
         }));
 
-        state.transactions = (transData || []).map(t => ({
+        state.transactions = transData.map(t => ({
             id: t.id,
             date: t.date,
             desc: t.desc,
@@ -210,7 +231,7 @@ async function loadState() {
             val: parseFloat(t.val) || 0
         }));
 
-        state.recipes = (recipeData || []).map(r => ({
+        state.recipes = recipeData.map(r => ({
             id: r.id,
             name: r.name,
             yield: r.yield,
@@ -218,28 +239,28 @@ async function loadState() {
             margin: parseFloat(r.margin) || 0
         }));
 
-        state.cacauMessages = (msgData || []).map(m => ({
+        state.cacauMessages = msgData.map(m => ({
             id: m.id,
             sender: m.sender,
             text: m.text,
             time: m.time
         }));
 
-        // If mensajes_cacau are empty on fresh Supabase project, auto-seed them
+        // If mensagens_cacau are empty on fresh project, auto-seed them
         if (state.cacauMessages.length === 0) {
             const initialMsgs = [
                 { id: "m1", sender: "cacau", text: "Olá! Seja muito bem-vinda ao **ConfeitaAI**! Eu sou a **Cacau**, sua assistente inteligente. 🍰", time: "18:50" },
-                { id: "m2", sender: "cacau", text: "Estou conectada ao seu banco de dados na nuvem com o **Supabase**! Agora tudo o que você me pedir ficará salvo online de verdade. 🌐", time: "18:51" }
+                { id: "m2", sender: "cacau", text: "Estou conectada ao seu banco de dados na nuvem com segurança total! Agora tudo o que você me pedir ficará salvo online de verdade. 🌐", time: "18:51" }
             ];
             for (const m of initialMsgs) {
-                await supabaseClient.from('mensagens_cacau').insert([{ id: m.id, sender: m.sender, text: m.text, time: m.time }]);
+                await apiCall('insert', 'mensagens_cacau', { id: m.id, sender: m.sender, text: m.text, time: m.time });
             }
             state.cacauMessages = initialMsgs;
         }
 
     } catch (err) {
-        console.error("Falha de conexão com o Supabase, ativando fallback local:", err);
-        isSupabaseActive = false; // Disable flag and fall back
+        console.error("Falha de conexão com o Backend, ativando fallback local:", err);
+        isSupabaseActive = false;
         
         const saved = getFromLocalStorage();
         if (saved) {
@@ -500,8 +521,10 @@ function initializeConfeitaAI() {
     safeBind("rec-margin", "input", calculateRecipeCostsInRealTime);
 
     // Run async load state after bindings
-    loadState();
-    window.confeitaAiLoaded = true;
+    initConnection().then(() => {
+        loadState();
+        window.confeitaAiLoaded = true;
+    });
 }
 
 // Direct initialization as the script is at the bottom of the body
@@ -994,10 +1017,10 @@ async function handleProductSubmit(e) {
 
     if (isSupabaseActive) {
         if (id) {
-            await supabaseClient.from('produtos').update({ name, price, category, description: desc, emoji }).eq('id', id);
+            await apiCall('update', 'produtos', { name, price, category, description: desc, emoji }, { column: 'id', value: id });
         } else {
             const newId = "p_" + Date.now();
-            await supabaseClient.from('produtos').insert([{ id: newId, name, price, category, description: desc, emoji }]);
+            await apiCall('insert', 'produtos', { id: newId, name, price, category, description: desc, emoji });
         }
     } else {
         if (id) {
@@ -1032,7 +1055,7 @@ function editProduct(id) {
 async function deleteProduct(id) {
     if (confirm("Deseja realmente excluir este produto? Isso não afetará os pedidos já registrados.")) {
         if (isSupabaseActive) {
-            await supabaseClient.from('produtos').delete().eq('id', id);
+            await apiCall('delete', 'produtos', null, { column: 'id', value: id });
         } else {
             state.products = state.products.filter(p => p.id !== id);
             saveToLocalStorage();
@@ -1053,7 +1076,7 @@ async function handleIngredientSubmit(e) {
     const newId = "i_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('estoque').insert([{ id: newId, name, qty, unit, min, price }]);
+        await apiCall('insert', 'estoque', { id: newId, name, qty, unit, min, price });
     } else {
         state.ingredients.push({ id: newId, name, qty, unit, min, price });
         saveToLocalStorage();
@@ -1077,15 +1100,15 @@ async function quickAddStock(id) {
 
     if (isSupabaseActive) {
         await Promise.all([
-            supabaseClient.from('estoque').update({ qty: newQty }).eq('id', id),
-            supabaseClient.from('transacoes').insert([{
+            apiCall('update', 'estoque', { qty: newQty }, { column: 'id', value: id }),
+            apiCall('insert', 'transacoes', {
                 id: "t_" + Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 desc: `Estoque: +${num}${ing.unit} de ${ing.name}`,
                 type: "Saída",
                 category: "Ingredientes",
                 val: expense
-            }])
+            })
         ]);
     } else {
         ing.qty = newQty;
@@ -1106,7 +1129,7 @@ async function quickAddStock(id) {
 async function deleteIngredient(id) {
     if (confirm("Tem certeza que deseja remover este ingrediente?")) {
         if (isSupabaseActive) {
-            await supabaseClient.from('estoque').delete().eq('id', id);
+            await apiCall('delete', 'estoque', null, { column: 'id', value: id });
         } else {
             state.ingredients = state.ingredients.filter(i => i.id !== id);
             saveToLocalStorage();
@@ -1124,7 +1147,7 @@ async function handleClientSubmit(e) {
     const newId = "c_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('clientes').insert([{ id: newId, name, phone, order_count: 0, total_spent: 0 }]);
+        await apiCall('insert', 'clientes', { id: newId, name, phone, order_count: 0, total_spent: 0 });
     } else {
         state.clients.push({ id: newId, name, phone, orderCount: 0, totalSpent: 0 });
         saveToLocalStorage();
@@ -1138,7 +1161,7 @@ async function handleClientSubmit(e) {
 async function deleteClient(id) {
     if (confirm("Deseja realmente excluir este cliente?")) {
         if (isSupabaseActive) {
-            await supabaseClient.from('clientes').delete().eq('id', id);
+            await apiCall('delete', 'clientes', null, { column: 'id', value: id });
         } else {
             state.clients = state.clients.filter(c => c.id !== id);
             saveToLocalStorage();
@@ -1161,7 +1184,7 @@ async function handleOrderSubmit(e) {
     const newId = "o_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('pedidos').insert([{
+        await apiCall('insert', 'pedidos', {
             id: newId,
             client_id: clientId,
             product_id: productId,
@@ -1171,13 +1194,13 @@ async function handleOrderSubmit(e) {
             time: time + ":00",
             status: "Recebido",
             notes: notes
-        }]);
+        });
 
         const client = state.clients.find(c => c.id === clientId);
         if (client) {
             const newCount = client.orderCount + 1;
             const newSpent = client.totalSpent + val;
-            await supabaseClient.from('clientes').update({ order_count: newCount, total_spent: newSpent }).eq('id', clientId);
+            await apiCall('update', 'clientes', { order_count: newCount, total_spent: newSpent }, { column: 'id', value: clientId });
         }
     } else {
         state.orders.push({ id: newId, clientId, productId, qty, val, date, time, status: "Recebido", notes });
@@ -1204,7 +1227,7 @@ async function deleteOrder(id) {
                 const newSpent = Math.max(0, client.totalSpent - order.val);
                 
                 if (isSupabaseActive) {
-                    await supabaseClient.from('clientes').update({ order_count: newCount, total_spent: newSpent }).eq('id', order.clientId);
+                    await apiCall('update', 'clientes', { order_count: newCount, total_spent: newSpent }, { column: 'id', value: order.clientId });
                 } else {
                     client.orderCount = newCount;
                     client.totalSpent = newSpent;
@@ -1213,7 +1236,7 @@ async function deleteOrder(id) {
         }
 
         if (isSupabaseActive) {
-            await supabaseClient.from('pedidos').delete().eq('id', id);
+            await apiCall('delete', 'pedidos', null, { column: 'id', value: id });
         } else {
             state.orders = state.orders.filter(o => o.id !== id);
             saveToLocalStorage();
@@ -1234,18 +1257,18 @@ async function moveOrderStatus(id, direction) {
         const nextStatus = stages[currIdx + 1];
         
         if (isSupabaseActive) {
-            await supabaseClient.from('pedidos').update({ status: nextStatus }).eq('id', id);
+            await apiCall('update', 'pedidos', { status: nextStatus }, { column: 'id', value: id });
             if (nextStatus === "Entregue") {
                 const prod = state.products.find(p => p.id === order.productId);
                 const client = state.clients.find(c => c.id === order.clientId);
-                await supabaseClient.from('transacoes').insert([{
+                await apiCall('insert', 'transacoes', {
                     id: "t_" + Date.now(),
                     date: new Date().toISOString().split('T')[0],
                     desc: `Entrega: ${prod ? prod.name : 'Doce'} - Cliente: ${client ? client.name : 'Convidado'} (Pedido: ${order.id})`,
                     type: "Entrada",
                     category: "Vendas",
                     val: order.val
-                }]);
+                });
             }
         } else {
             order.status = nextStatus;
@@ -1267,9 +1290,9 @@ async function moveOrderStatus(id, direction) {
         const prevStatus = stages[currIdx - 1];
 
         if (isSupabaseActive) {
-            await supabaseClient.from('pedidos').update({ status: prevStatus }).eq('id', id);
+            await apiCall('update', 'pedidos', { status: prevStatus }, { column: 'id', value: id });
             if (order.status === "Entregue") {
-                await supabaseClient.from('transacoes').delete().like('desc', `%Pedido: ${order.id}%`);
+                await apiCall('delete', 'transacoes', null, { column: 'desc', value: `%Pedido: ${order.id}%`, operator: 'like' });
             }
         } else {
             if (order.status === "Entregue") {
@@ -1303,21 +1326,21 @@ async function drop(e, targetStatus) {
         const wasEntregue = order.status === "Entregue";
 
         if (isSupabaseActive) {
-            await supabaseClient.from('pedidos').update({ status: targetStatus }).eq('id', orderId);
+            await apiCall('update', 'pedidos', { status: targetStatus }, { column: 'id', value: orderId });
 
             if (targetStatus === "Entregue" && !wasEntregue) {
                 const prod = state.products.find(p => p.id === order.productId);
                 const client = state.clients.find(c => c.id === order.clientId);
-                await supabaseClient.from('transacoes').insert([{
+                await apiCall('insert', 'transacoes', {
                     id: "t_" + Date.now(),
                     date: new Date().toISOString().split('T')[0],
                     desc: `Entrega: ${prod ? prod.name : 'Doce'} - Cliente: ${client ? client.name : 'Convidado'} (Pedido: ${order.id})`,
                     type: "Entrada",
                     category: "Vendas",
                     val: order.val
-                }]);
+                });
             } else if (wasEntregue && targetStatus !== "Entregue") {
-                await supabaseClient.from('transacoes').delete().like('desc', `%Pedido: ${order.id}%`);
+                await apiCall('delete', 'transacoes', null, { column: 'desc', value: `%Pedido: ${order.id}%`, operator: 'like' });
             }
         } else {
             order.status = targetStatus;
@@ -1356,7 +1379,7 @@ async function handleTransactionSubmit(e) {
     const newId = "t_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('transacoes').insert([{ id: newId, desc, type, val, category, date }]);
+        await apiCall('insert', 'transacoes', { id: newId, desc, type, val, category, date });
     } else {
         state.transactions.push({ id: newId, desc, type, val, category, date });
         saveToLocalStorage();
@@ -1459,7 +1482,7 @@ async function handleRecipeSubmit(e) {
     const newId = "r_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('receitas').insert([{ id: newId, name, yield: yieldCount, ingredients, margin }]);
+        await apiCall('insert', 'receitas', { id: newId, name, yield: yieldCount, ingredients, margin });
     } else {
         state.recipes.push({ id: newId, name, yield: yieldCount, ingredients, margin });
         saveToLocalStorage();
@@ -1472,7 +1495,7 @@ async function handleRecipeSubmit(e) {
 async function deleteRecipe(id) {
     if (confirm("Excluir esta ficha técnica de receita?")) {
         if (isSupabaseActive) {
-            await supabaseClient.from('receitas').delete().eq('id', id);
+            await apiCall('delete', 'receitas', null, { column: 'id', value: id });
         } else {
             state.recipes = state.recipes.filter(r => r.id !== id);
             saveToLocalStorage();
@@ -1488,14 +1511,14 @@ async function exportRecipeToProduct(recipeId, suggestedPrice) {
     const newProdId = "p_" + Date.now();
 
     if (isSupabaseActive) {
-        await supabaseClient.from('produtos').insert([{
+        await apiCall('insert', 'produtos', {
             id: newProdId,
             name: r.name,
             price: parseFloat(suggestedPrice.toFixed(2)),
             category: "Bolos",
             description: `Receita artesanal inteligente exportada diretamente da Ficha Técnica. Rendimento de ${r.yield} fatias.`,
             emoji: "🎂"
-        }]);
+        });
     } else {
         state.products.push({
             id: newProdId,
@@ -1562,7 +1585,7 @@ async function handleWaSend() {
     
     if (isSupabaseActive) {
         const userMsgId = "m_" + Date.now();
-        await supabaseClient.from('mensagens_cacau').insert([{ id: userMsgId, sender: "user", text: msgText, time: timeStr }]);
+        await apiCall('insert', 'mensagens_cacau', { id: userMsgId, sender: "user", text: msgText, time: timeStr });
     } else {
         state.cacauMessages.push({ sender: "user", text: msgText, time: timeStr });
         saveToLocalStorage();
@@ -1621,7 +1644,7 @@ ${profit >= 0 ? "Você está operando no azul! Parabéns pelas vendas! 💵🍰"
             const newId = "c_" + Date.now();
             
             if (isSupabaseActive) {
-                await supabaseClient.from('clientes').insert([{ id: newId, name: clientName, phone: phoneStr, order_count: 0, total_spent: 0 }]);
+                await apiCall('insert', 'clientes', { id: newId, name: clientName, phone: phoneStr, order_count: 0, total_spent: 0 });
             } else {
                 state.clients.push({ id: newId, name: clientName, phone: phoneStr, orderCount: 0, totalSpent: 0 });
                 saveToLocalStorage();
@@ -1674,7 +1697,7 @@ Deseja que eu gere uma lista de compras formatada para você enviar ao seu forne
         const newId = "o_" + Date.now();
         
         if (isSupabaseActive) {
-            await supabaseClient.from('pedidos').insert([{
+            await apiCall('insert', 'pedidos', {
                 id: newId,
                 client_id: foundClient.id,
                 product_id: foundProduct.id,
@@ -1684,11 +1707,11 @@ Deseja que eu gere uma lista de compras formatada para você enviar ao seu forne
                 time: "16:00:00",
                 status: "Recebido",
                 notes: "Encomenda cadastrada por comando de voz via Cacau AI."
-            }]);
+            });
 
             const newCount = foundClient.orderCount + 1;
             const newSpent = foundClient.totalSpent + val;
-            await supabaseClient.from('clientes').update({ order_count: newCount, total_spent: newSpent }).eq('id', foundClient.id);
+            await apiCall('update', 'clientes', { order_count: newCount, total_spent: newSpent }, { column: 'id', value: foundClient.id });
         } else {
             state.orders.push({
                 id: newId,
@@ -1723,14 +1746,14 @@ O pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
             const newId = "p_" + Date.now();
             
             if (isSupabaseActive) {
-                await supabaseClient.from('produtos').insert([{
+                await apiCall('insert', 'produtos', {
                     id: newId,
                     name: prodName,
                     price: price,
                     category: "Outros",
                     description: "Novo produto cadastrado rapidamente via Cacau AI.",
                     emoji: "🧁"
-                }]);
+                });
             } else {
                 state.products.push({
                     id: newId,
@@ -1762,7 +1785,7 @@ O que deseja fazer agora? 🍰😊`;
 
     if (isSupabaseActive) {
         const cacauMsgId = "m_" + Date.now();
-        await supabaseClient.from('mensagens_cacau').insert([{ id: cacauMsgId, sender: "cacau", text: reply, time: timeStr }]);
+        await apiCall('insert', 'mensagens_cacau', { id: cacauMsgId, sender: "cacau", text: reply, time: timeStr });
     } else {
         state.cacauMessages.push({ sender: "cacau", text: reply, time: timeStr });
         saveToLocalStorage();
