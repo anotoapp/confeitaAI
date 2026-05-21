@@ -1935,36 +1935,49 @@ function renderFinanceiro() {
 
 function renderSvgChart(income, expense) {
     const box = document.getElementById("svg-chart-box");
-    const maxVal = Math.max(income, expense, 100);
+    const profit = income - expense;
+    const maxVal = Math.max(income, expense, Math.abs(profit), 100);
     const incHeight = (income / maxVal) * 160;
     const expHeight = (expense / maxVal) * 160;
+    const profHeight = (Math.abs(profit) / maxVal) * 160;
+    
+    const profColorVar = profit >= 0 ? "var(--color-purple)" : "var(--color-danger)";
+    const profGradient = profit >= 0 ? "url(#grad-profit)" : "url(#grad-expense)";
 
     box.innerHTML = `
-        <svg width="100%" height="100%" viewBox="0 0 300 220" style="display: block;">
-            <line x1="40" y1="20" x2="280" y2="20" stroke="#f1f5f9" stroke-width="1" />
-            <line x1="40" y1="100" x2="280" y2="100" stroke="#f1f5f9" stroke-width="1" />
-            <line x1="40" y1="180" x2="280" y2="180" stroke="#cbd5e1" stroke-width="2" />
+        <svg width="100%" height="100%" viewBox="0 0 350 220" style="display: block;">
+            <line x1="45" y1="20" x2="330" y2="20" stroke="var(--color-text-muted)" stroke-opacity="0.15" stroke-width="1" />
+            <line x1="45" y1="100" x2="330" y2="100" stroke="var(--color-text-muted)" stroke-opacity="0.15" stroke-width="1" />
+            <line x1="45" y1="180" x2="330" y2="180" stroke="var(--color-text-muted)" stroke-opacity="0.4" stroke-width="2" />
             
-            <text x="35" y="185" fill="#6e768e" font-size="10" text-anchor="end">R$ 0</text>
-            <text x="35" y="105" fill="#6e768e" font-size="10" text-anchor="end">R$ ${(maxVal/2).toFixed(0)}</text>
-            <text x="35" y="25" fill="#6e768e" font-size="10" text-anchor="end">R$ ${maxVal.toFixed(0)}</text>
+            <text x="40" y="185" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ 0</text>
+            <text x="40" y="105" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ ${(maxVal/2).toFixed(0)}</text>
+            <text x="40" y="25" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ ${maxVal.toFixed(0)}</text>
 
-            <rect x="75" y="${180 - incHeight}" width="50" height="${incHeight}" fill="url(#grad-income)" rx="6" />
-            <text x="100" y="${175 - incHeight}" fill="#10b981" font-weight="700" font-size="11" text-anchor="middle">R$ ${income.toFixed(0)}</text>
-            <text x="100" y="198" fill="#2d3142" font-size="11" font-weight="600" text-anchor="middle">Receitas</text>
+            <rect x="70" y="${180 - incHeight}" width="50" height="${incHeight}" fill="url(#grad-income)" rx="6" />
+            <text x="95" y="${175 - incHeight}" fill="var(--color-success)" font-weight="700" font-size="11" text-anchor="middle">R$ ${income.toFixed(0)}</text>
+            <text x="95" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Receitas</text>
 
-            <rect x="175" y="${180 - expHeight}" width="50" height="${expHeight}" fill="url(#grad-expense)" rx="6" />
-            <text x="200" y="${175 - expHeight}" fill="#ef4444" font-weight="700" font-size="11" text-anchor="middle">R$ ${expense.toFixed(0)}</text>
-            <text x="200" y="198" fill="#2d3142" font-size="11" font-weight="600" text-anchor="middle">Despesas</text>
+            <rect x="155" y="${180 - expHeight}" width="50" height="${expHeight}" fill="url(#grad-expense)" rx="6" />
+            <text x="180" y="${175 - expHeight}" fill="var(--color-danger)" font-weight="700" font-size="11" text-anchor="middle">R$ ${expense.toFixed(0)}</text>
+            <text x="180" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Despesas</text>
+            
+            <rect x="240" y="${180 - profHeight}" width="50" height="${profHeight}" fill="${profGradient}" rx="6" />
+            <text x="265" y="${175 - profHeight}" fill="${profColorVar}" font-weight="700" font-size="11" text-anchor="middle">R$ ${profit.toFixed(0)}</text>
+            <text x="265" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Lucro</text>
 
             <defs>
                 <linearGradient id="grad-income" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#34d399" />
-                    <stop offset="100%" stop-color="#10b981" />
+                    <stop offset="0%" stop-color="var(--color-success)" />
+                    <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0.6" />
                 </linearGradient>
                 <linearGradient id="grad-expense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#fca5a5" />
-                    <stop offset="100%" stop-color="#ef4444" />
+                    <stop offset="0%" stop-color="var(--color-danger)" />
+                    <stop offset="100%" stop-color="var(--color-danger)" stop-opacity="0.6" />
+                </linearGradient>
+                <linearGradient id="grad-profit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--color-purple)" />
+                    <stop offset="100%" stop-color="var(--color-purple)" stop-opacity="0.6" />
                 </linearGradient>
             </defs>
         </svg>
