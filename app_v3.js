@@ -1054,6 +1054,32 @@ function initializeConfeitaAI() {
 
     // Form Submissions
     safeBind("form-product", "submit", handleProductSubmit);
+    
+    // Auto-fill product price when a recipe is selected
+    safeBind("prod-recipe", "change", (e) => {
+        const recipeId = e.target.value;
+        if (recipeId) {
+            const recipe = state.recipes.find(r => r.id === recipeId);
+            if (recipe) {
+                let totalCost = 0;
+                recipe.ingredients.forEach(ri => {
+                    const ing = state.ingredients.find(i => i.id === ri.ingId);
+                    if (ing) totalCost += ing.unit === 'un' ? ing.price * ri.amount : (ing.price / 1000) * ri.amount;
+                });
+                const suggestedPrice = totalCost * (1 + (recipe.margin || 200) / 100);
+                
+                const nameInput = document.getElementById("prod-name");
+                if (nameInput && !nameInput.value) {
+                    nameInput.value = recipe.name;
+                }
+                
+                const priceInput = document.getElementById("prod-price");
+                if (priceInput) {
+                    priceInput.value = suggestedPrice.toFixed(2);
+                }
+            }
+        }
+    });
     safeBind("form-ingredient", "submit", handleIngredientSubmit);
     safeBind("form-client", "submit", handleClientSubmit);
     safeBind("form-order", "submit", handleOrderSubmit);
@@ -1766,9 +1792,7 @@ function buildRecipeCardHTML(r, showExport = true) {
         return `<li style="font-size:12px;color:var(--color-text-muted);">${ing.name}: <strong>${ri.amount}${ing.unit}</strong></li>`;
     }).join('');
 
-    const exportBtn = showExport
-        ? `<button class="btn btn-primary btn-sm" onclick="exportRecipeToProduct('${r.id}', ${suggestedPrice})" style="width: 100%; margin-top: 10px; font-weight: 600;">Cadastrar no Cardápio ✨</button>`
-        : '';
+    const exportBtn = ''; // Funcionalidade de enviar ao cardápio foi reestruturada para ser controlada a partir do Produto.
 
     return `
         <div class="recipe-card">
@@ -2797,36 +2821,7 @@ async function deleteRecipe(id) {
     }
 }
 
-async function exportRecipeToProduct(recipeId, suggestedPrice) {
-    const r = state.recipes.find(recipe => recipe.id === recipeId);
-    if (!r) return;
-
-    // Reset and prepare the form for a NEW product
-    const form = document.getElementById("form-product");
-    if (form) form.reset();
-    
-    const prodId = document.getElementById("prod-id");
-    if (prodId) prodId.value = "";
-    
-    const prodName = document.getElementById("prod-name");
-    if (prodName) prodName.value = r.name;
-    
-    const prodPrice = document.getElementById("prod-price");
-    if (prodPrice) prodPrice.value = suggestedPrice.toFixed(2);
-    
-    // Auto-select the recipe and lock it
-    const recipeSelect = document.getElementById("prod-recipe");
-    if (recipeSelect) {
-        populateRecipeSelect(recipeSelect, recipeId);
-    }
-    
-    const modalTitle = document.getElementById("product-modal-title");
-    if (modalTitle) modalTitle.innerText = "Finalizar Cadastro (Cardápio)";
-    
-    openModal("modal-product");
-}
-
-// ================= CARDAPIO DIGITAL CUSTOMER STOREFRONT SIMULATOR =================
+// exportRecipeToProduct removed// ================= CARDAPIO DIGITAL CUSTOMER STOREFRONT SIMULATOR =================
 
 // Cart Management Functions
 function addToCart(productId) {

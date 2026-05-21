@@ -947,9 +947,9 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="prod-recipe">🔗 Receita Vinculada <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(opcional — para desconto automático de estoque)</span></label>
-                    <select id="prod-recipe" disabled>
-                        <option value="">Nenhuma receita vinculada</option>
+                    <label for="prod-recipe">🔗 Receita Vinculada * <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(Obrigatório para base de custos e estoque)</span></label>
+                    <select id="prod-recipe" required>
+                        <option value="">Selecione uma receita da sua cozinha...</option>
                         <!-- populated by JS -->
                     </select>
                 </div>
