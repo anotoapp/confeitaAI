@@ -947,13 +947,13 @@ function switchTab(tabId) {
                 console.error("Erro ao renderizar Gestão de Clientes:", e);
             }
             break;
-        case "precificacao":
-            if (headerTitle) headerTitle.innerText = "Precificação";
-            if (headerSubtitle) headerSubtitle.innerText = "Calcule o custo exato com mão de obra e defina seu lucro";
+        case "receitas":
+            if (headerTitle) headerTitle.innerText = "Receitas e Precificação";
+            if (headerSubtitle) headerSubtitle.innerText = "Gerencie suas fichas técnicas e calcule o custo exato com mão de obra";
             try {
                 renderReceitas();
             } catch (e) {
-                console.error("Erro ao renderizar Precificação:", e);
+                console.error("Erro ao renderizar Receitas:", e);
             }
             break;
         case "cacau-chat":
@@ -1028,6 +1028,7 @@ function initializeConfeitaAI() {
     safeBind("btn-add-client", "click", () => openModal("modal-client"));
     safeBind("btn-new-order", "click", () => openModal("modal-order"));
     safeBind("btn-create-recipe", "click", () => openModal("modal-recipe"));
+    safeBind("btn-create-recipe-tab", "click", () => openModal("modal-recipe"));
     safeBind("btn-add-transaction", "click", () => openModal("modal-transaction"));
     // Visit storefront in a new tab
     const openStorefrontInNewTab = () => {
@@ -1814,32 +1815,51 @@ function buildRecipeCardHTML(r, showExport = true) {
     const exportBtn = ''; // Funcionalidade de enviar ao cardápio foi reestruturada para ser controlada a partir do Produto.
 
     return `
-        <div class="recipe-card">
-            <div class="recipe-header">
-                <div>
-                    <h3>${r.name}</h3>
-                    <span class="badge badge-purple" style="margin-top:4px;">${r.ingredients.length} Ingredientes</span>
+        <div class="recipe-card glass" style="border: 1px solid rgba(139,92,246,0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.05); overflow: hidden; position: relative;">
+            <div style="height: 6px; background: linear-gradient(90deg, var(--color-purple), var(--color-primary)); width: 100%; position: absolute; top: 0; left: 0;"></div>
+            <div class="recipe-header" style="padding: 20px 20px 10px 20px;">
+                <div style="flex: 1;">
+                    <h3 style="font-size: 18px; margin-bottom: 6px; color: var(--color-text-main); font-weight: 700;">${r.name}</h3>
+                    <span class="badge" style="background: var(--color-purple-light); color: var(--color-purple); border: 1px solid rgba(139,92,246,0.3); font-weight: 600;"><i style="margin-right:4px;">🥣</i> ${r.ingredients.length} Ingredientes</span>
                 </div>
+            </div>
+            
+            <div style="padding: 0 20px;">
                 ${capacityBadge}
             </div>
-            <ul style="margin:8px 0 4px 0;padding-left:16px;">${ingredientList}</ul>
-            <div class="recipe-cost-breakdown">
+
+            <div style="padding: 15px 20px;">
+                <h4 style="font-size: 11px; text-transform: uppercase; color: var(--color-text-muted); font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px;">Ficha Técnica</h4>
+                <ul style="margin:0; padding-left:0; list-style: none; display: flex; flex-direction: column; gap: 6px;">
+                    ${r.ingredients.map(ri => {
+                        const ing = state.ingredients.find(i => i.id === ri.ingId);
+                        if (!ing) return '';
+                        return `<li style="font-size:13px; color:var(--color-text-main); display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0,0,0,0.05); padding-bottom: 4px;"><span>${ing.name}</span> <strong style="color: var(--color-purple);">${ri.amount}${ing.unit}</strong></li>`;
+                    }).join('')}
+                </ul>
+            </div>
+
+            <div style="background: rgba(139,92,246,0.03); border-top: 1px solid rgba(139,92,246,0.1); border-bottom: 1px solid rgba(139,92,246,0.1); padding: 15px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <span class="recipe-cost-label">Custo Produção</span>
-                    <div class="recipe-cost-value">R$ ${totalCost.toFixed(2)}</div>
+                    <span style="font-size: 11px; color: var(--color-text-muted); font-weight: 600; text-transform: uppercase;">Custo Produção</span>
+                    <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-top: 4px;">R$ ${totalCost.toFixed(2)}</div>
                 </div>
-                <div style="text-align: right;">
-                    <span class="recipe-cost-label" style="color: var(--color-purple)">Preço por Unidade</span>
-                    <div class="recipe-cost-value" style="color: var(--color-purple)">R$ ${pricePerUnit.toFixed(2)}</div>
+                <div style="text-align: right; position: relative;">
+                    <div style="position: absolute; left: -8px; top: 10%; height: 80%; width: 1px; background: rgba(0,0,0,0.05);"></div>
+                    <span style="font-size: 11px; color: var(--color-text-muted); font-weight: 600; text-transform: uppercase;">Preço Sugerido / Un.</span>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--color-purple); margin-top: 4px;">R$ ${pricePerUnit.toFixed(2)}</div>
                 </div>
             </div>
-            <div class="recipe-meta">
-                <span>Rendimento: <strong>${r.yield} un.</strong></span>
-                <span>Markup: <strong>${r.margin}%</strong></span>
+
+            <div style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--color-text-muted);">
+                <div style="display: flex; gap: 12px;">
+                    <span><i style="opacity: 0.7;">📦</i> Rende: <strong>${r.yield} un.</strong></span>
+                    <span><i style="opacity: 0.7;">📈</i> Markup: <strong>${r.margin}%</strong></span>
+                </div>
             </div>
-            <div class="recipe-actions">
-                ${exportBtn}
-                <button class="btn btn-outline btn-sm" style="color:var(--color-danger); margin-top: 5px; width: 100%" onclick="deleteRecipe('${r.id}')">Excluir</button>
+
+            <div style="padding: 0 20px 20px 20px;">
+                <button class="btn btn-outline" style="width: 100%; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600;" onclick="deleteRecipe('${r.id}')">Excluir Ficha Técnica</button>
             </div>
         </div>
     `;
