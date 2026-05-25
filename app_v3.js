@@ -988,6 +988,23 @@ function switchTab(tabId) {
                 console.error("Erro ao renderizar Conversa com a Cacau:", e);
             }
             break;
+        case "eventos":
+            if (headerTitle) headerTitle.innerText = "Eventos e Prêmios";
+            if (headerSubtitle) headerSubtitle.innerText = "Acompanhe e participe dos eventos da comunidade";
+            try {
+                const superAdminPanel = document.getElementById("eventos-superadmin-controls");
+                if (superAdminPanel) {
+                    const userEmail = getLoggedInUserEmail();
+                    if (userEmail === "naturamixrepresentacoes@gmail.com") {
+                        superAdminPanel.style.display = "block";
+                    } else {
+                        superAdminPanel.style.display = "none";
+                    }
+                }
+            } catch (e) {
+                console.error("Erro ao renderizar Eventos:", e);
+            }
+            break;
         case "adm":
             if (headerTitle) headerTitle.innerText = "Painel ADM";
             if (headerSubtitle) headerSubtitle.innerText = "Controle suas credenciais, dados do sistema e parâmetros de custos";
@@ -1097,6 +1114,59 @@ function initializeConfeitaAI() {
 
     // Form Submissions
     safeBind("form-product", "submit", handleProductSubmit);
+
+    // Image Upload Logic for Products
+    safeBind("prod-photo-input", "change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 400;
+                const MAX_HEIGHT = 400;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL("image/webp", 0.8);
+                document.getElementById("prod-photo-base64").value = dataUrl;
+                
+                const previewImg = document.getElementById("prod-photo-preview");
+                if (previewImg) {
+                    previewImg.src = dataUrl;
+                    document.getElementById("prod-photo-preview-container").style.display = "block";
+                }
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    safeBind("btn-remove-photo", "click", () => {
+        document.getElementById("prod-photo-input").value = "";
+        document.getElementById("prod-photo-base64").value = "";
+        document.getElementById("prod-photo-preview").src = "";
+        document.getElementById("prod-photo-preview-container").style.display = "none";
+    });
     
     // Auto-fill product price when a recipe is selected
     safeBind("prod-recipe", "change", (e) => {
@@ -1338,6 +1408,63 @@ function initializeConfeitaAI() {
     if (waInput) {
         waInput.addEventListener("keypress", (e) => {
             if (e.key === "Enter") handleWaSend();
+        });
+    }
+
+    // Voice Recognition for Cacau
+    const waMicBtn = document.getElementById("wa-mic-btn");
+    if (waMicBtn) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = function() {
+                waMicBtn.style.color = '#ef4444'; 
+                waMicBtn.style.transform = 'scale(1.2)';
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                if (waInput) {
+                    waInput.value = transcript;
+                    handleWaSend();
+                }
+            };
+
+            recognition.onend = function() {
+                waMicBtn.style.color = '#64748b';
+                waMicBtn.style.transform = 'scale(1)';
+            };
+
+            waMicBtn.addEventListener('click', () => {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        } else {
+            waMicBtn.addEventListener('click', () => {
+                alert("Seu navegador não suporta reconhecimento de voz.");
+            });
+        }
+    }
+
+    // Eventos Super Admin Form Handler
+    const formCriarEvento = document.getElementById("form-criar-evento");
+    if (formCriarEvento) {
+        formCriarEvento.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const tema = document.getElementById("evento-tema").value;
+            const premio = document.getElementById("evento-premio").value;
+            if(confirm(`Tem certeza que deseja disparar o evento "${tema}" com prêmio de R$ ${premio} para todas as assinantes PRO?`)) {
+                alert("🚀 Evento disparado com sucesso via WhatsApp para todas as confeiteiras PRO!");
+                formCriarEvento.reset();
+            }
         });
     }
 
@@ -1620,8 +1747,56 @@ function renderDashboard() {
         }
     }
 
-    // Update SVG chart with monthly filtered metrics
-    renderSvgChart(income, expense);
+    // Update SVG chart with monthly filtered metrics (now handles its own dynamic filtering)
+    renderSvgChart();
+
+    // Stock Alerts
+    const lowStockItems = state.ingredients.filter(i => i.qty <= i.min);
+    const alertDiv = document.getElementById("dashboard-stock-alert");
+    const alertText = document.getElementById("dashboard-stock-alert-text");
+    if (alertDiv && alertText) {
+        if (lowStockItems.length > 0) {
+            alertDiv.style.display = "flex";
+            if (lowStockItems.length === 1) {
+                alertText.innerText = `O ingrediente "${lowStockItems[0].name}" está com estoque baixo.`;
+            } else {
+                alertText.innerText = `Você tem ${lowStockItems.length} ingredientes com estoque baixo.`;
+            }
+        } else {
+            alertDiv.style.display = "none";
+        }
+    }
+
+    // CRM Insights: 1 year anniversary
+    const crmDiv = document.getElementById("dashboard-crm-alert");
+    const crmText = document.getElementById("dashboard-crm-text");
+    const crmBtn = document.getElementById("dashboard-crm-btn");
+    
+    if (crmDiv && crmText && crmBtn) {
+        let anniversaryClients = [];
+        state.clients.forEach(c => {
+            const clientOrders = state.orders.filter(o => o.clientId === c.id).sort((a,b) => new Date(a.date) - new Date(b.date));
+            if (clientOrders.length > 0) {
+                const firstOrderDate = new Date(clientOrders[0].date + "T00:00:00");
+                const diffDays = Math.floor((new Date() - firstOrderDate) / (1000 * 60 * 60 * 24));
+                // Consider anniversary if between 330 and 365 days ago
+                if (diffDays >= 330 && diffDays <= 365) {
+                    anniversaryClients.push(c);
+                }
+            }
+        });
+
+        if (anniversaryClients.length > 0) {
+            crmDiv.style.display = "flex";
+            const firstClient = anniversaryClients[0];
+            crmText.innerText = `A cliente ${firstClient.name} fez o 1º pedido há quase 1 ano. Envie um mimo!`;
+            
+            const message = encodeURIComponent(`Olá ${firstClient.name}! Aqui é da ConfeitaAI. Percebemos que faz quase 1 ano do seu primeiro pedido com a gente! 🎉 Como agradecimento, gostaríamos de te dar um cupom de 10% OFF no seu próximo pedido. Vamos celebrar? 🍰`);
+            crmBtn.href = `https://wa.me/55${firstClient.phone}?text=${message}`;
+        } else {
+            crmDiv.style.display = "none";
+        }
+    }
 }
 
 // B. CARDAPIO VIEW
@@ -1650,9 +1825,9 @@ function renderCardapio(searchQuery = "") {
     filtered.forEach(p => {
         list.innerHTML += `
             <div class="product-card">
-                <div class="product-emoji-banner">
-                    ${p.emoji}
-                    <span class="badge badge-purple product-badge">${p.category}</span>
+                <div class="product-emoji-banner" style="position: relative; overflow: hidden; ${p.photo ? 'padding:0;' : ''}">
+                    ${p.photo ? `<img src="${p.photo}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:0;">` : p.emoji}
+                    <span class="badge badge-purple product-badge" style="position:relative; z-index:1;">${p.category}</span>
                 </div>
                 <div class="product-info">
                     <h3 class="product-title">${p.name}</h3>
@@ -1693,18 +1868,25 @@ function renderPedidos() {
         const isUrgent = (o.status !== "Entregue" && new Date(o.date) <= new Date(new Date().setDate(new Date().getDate() + 1)));
         const urgentClass = isUrgent ? "urgent" : "";
 
+        const tagHtml = o.tag ? `<span class="badge badge-tag-${o.tag.toLowerCase()}" style="margin-top: 4px; display: inline-block;">${o.tag}</span>` : "";
+
         const cardHtml = `
-            <div class="kanban-card ${urgentClass}" draggable="true" ondragstart="drag(event, '${o.id}')">
+            <div class="kanban-card ${urgentClass}" data-order-id="${o.id}">
                 <div class="kanban-card-title">${product ? product.emoji : "🧁"} ${o.qty}x ${product ? product.name : "Doce Especial"}</div>
                 <div class="kanban-card-client">Cliente: <strong>${client ? client.name : "Sem Nome"}</strong></div>
-                <p style="font-size: 11px; color: var(--color-text-muted); line-height:1.3;">${o.notes || ""}</p>
+                ${tagHtml}
+                <p style="font-size: 11px; color: var(--color-text-muted); line-height:1.3; margin-top: 4px;">${o.notes || ""}</p>
                 <div class="kanban-card-details">
                     <span class="kanban-card-date">${formattedDate} às ${o.time}</span>
                     <span class="kanban-card-val">R$ ${o.val.toFixed(2)}</span>
                 </div>
-                <div class="kanban-card-actions" style="display: flex; gap: 5px;">
+                <div class="kanban-card-actions" style="display: flex; gap: 5px; flex-wrap: wrap;">
                     ${o.status !== "Recebido" ? `<button class="btn btn-outline btn-sm" title="Voltar fase" onclick="moveOrderStatus('${o.id}', 'prev')">←</button>` : ''}
-                    ${o.status === "Pronto" ? `<button class="btn btn-success btn-sm" style="flex: 1; padding: 2px 5px;" onclick="notifyClientPickup('${o.id}')">Avisar Cliente</button>` : ''}
+                    
+                    ${o.status === "Em Produção" ? `<button class="btn btn-sm" style="flex: 1; padding: 2px 5px; background: #25D366; color: white; border: none; font-weight: bold;" onclick="openWhatsAppForOrder('${o.id}')">💬 Avisar Produção</button>` : ''}
+                    
+                    ${o.status === "Pronto" ? `<button class="btn btn-success btn-sm" style="flex: 1; padding: 2px 5px; font-weight: bold;" onclick="openWhatsAppForOrder('${o.id}')">🟢 Avisar Retirada</button>` : ''}
+                    
                     ${o.status === "Entregue" ? `<button class="btn btn-outline btn-sm" title="Baixar Recibo PDF" style="flex: 1; padding: 2px 5px; color: #e11d48; border-color: #fca5a5;" onclick="gerarReciboPDF('${o.id}')">📄 PDF</button>` : ''}
                     <button class="btn btn-outline btn-sm" title="Excluir" style="color:var(--color-danger)" onclick="deleteOrder('${o.id}')">X</button>
                     ${o.status !== "Entregue" ? `<button class="btn btn-outline btn-sm" title="Avançar fase" onclick="moveOrderStatus('${o.id}', 'next')">→</button>` : ''}
@@ -1721,6 +1903,28 @@ function renderPedidos() {
     document.getElementById("badge-producao").innerText = counts["Em Produção"];
     document.getElementById("badge-pronto").innerText = counts["Pronto"];
     document.getElementById("badge-entregue").innerText = counts["Entregue"];
+
+    // Initialize SortableJS
+    if (window.Sortable) {
+        Object.values(cols).forEach(container => {
+            new Sortable(container, {
+                group: 'kanban',
+                animation: 150,
+                delay: 100, // delay on touch to allow scrolling
+                delayOnTouchOnly: true,
+                onEnd: function (evt) {
+                    const itemEl = evt.item;
+                    const toContainer = evt.to;
+                    const orderId = itemEl.getAttribute("data-order-id");
+                    const newStatus = toContainer.getAttribute("data-status");
+                    
+                    if (orderId && newStatus) {
+                        updateOrderStatus(orderId, newStatus);
+                    }
+                }
+            });
+        });
+    }
 }
 
 // D. ESTOQUE VIEW
@@ -1785,11 +1989,30 @@ function renderClientes(searchQuery = "") {
     }
 
     filtered.forEach(c => {
+        // Calculate CRM stats dynamically based on actual orders
+        const clientOrders = state.orders.filter(o => o.clientId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+        
+        let tagsHtml = "";
+        
+        // VIP Tag (> 2 orders)
+        if (clientOrders.length >= 3 || c.orderCount >= 3) {
+            tagsHtml += `<span class="badge" style="background: linear-gradient(45deg, #FFD700, #FDB931); color: #855a00; border: none; font-weight: bold; margin-right: 5px;">🥇 VIP</span>`;
+        }
+        
+        // Ausente Tag (last order > 60 days)
+        if (clientOrders.length > 0) {
+            const lastOrderDate = new Date(clientOrders[0].date + "T00:00:00");
+            const diffDays = Math.floor((new Date() - lastOrderDate) / (1000 * 60 * 60 * 24));
+            if (diffDays > 60) {
+                tagsHtml += `<span class="badge badge-danger" style="margin-right: 5px;" title="Último pedido há ${diffDays} dias">⚠️ Ausente</span>`;
+            }
+        }
+
         list.innerHTML += `
             <tr>
-                <td><strong>${c.name}</strong></td>
+                <td><strong>${c.name}</strong><br><div style="margin-top: 4px;">${tagsHtml}</div></td>
                 <td><a href="https://wa.me/55${c.phone}" target="_blank" class="btn-text" style="text-decoration:none;">🟢 WhatsApp (${c.phone})</a></td>
-                <td><span class="badge">${c.orderCount} pedidos</span></td>
+                <td><span class="badge">${clientOrders.length > 0 ? clientOrders.length : c.orderCount} pedidos</span></td>
                 <td><strong>R$ ${c.totalSpent.toFixed(2)}</strong></td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick="deleteClient('${c.id}')" style="color:var(--color-danger)">Excluir</button>
@@ -1987,55 +2210,126 @@ function renderFinanceiro() {
     renderSvgChart(income, expense);
 }
 
-function renderSvgChart(income, expense) {
-    const box = document.getElementById("svg-chart-box");
-    const profit = income - expense;
-    const maxVal = Math.max(income, expense, Math.abs(profit), 100);
-    const incHeight = (income / maxVal) * 160;
-    const expHeight = (expense / maxVal) * 160;
-    const profHeight = (Math.abs(profit) / maxVal) * 160;
+let dashboardChartInstance = null;
+let currentChartFilter = 'month';
+
+window.setChartFilter = function(filter) {
+    currentChartFilter = filter;
+    const btnMonth = document.getElementById("filter-chart-month");
+    const btn7Days = document.getElementById("filter-chart-7days");
+    const btnYear = document.getElementById("filter-chart-year");
+    if(btnMonth) btnMonth.classList.remove("active");
+    if(btn7Days) btn7Days.classList.remove("active");
+    if(btnYear) btnYear.classList.remove("active");
     
-    const profColorVar = profit >= 0 ? "var(--color-purple)" : "var(--color-danger)";
-    const profGradient = profit >= 0 ? "url(#grad-profit)" : "url(#grad-expense)";
+    const activeBtn = document.getElementById(`filter-chart-${filter}`);
+    if (activeBtn) activeBtn.classList.add("active");
+    
+    // Re-render chart without full dashboard re-render
+    renderSvgChart();
+};
 
-    box.innerHTML = `
-        <svg width="100%" height="100%" viewBox="0 0 350 220" style="display: block;">
-            <line x1="45" y1="20" x2="330" y2="20" stroke="var(--color-text-muted)" stroke-opacity="0.15" stroke-width="1" />
-            <line x1="45" y1="100" x2="330" y2="100" stroke="var(--color-text-muted)" stroke-opacity="0.15" stroke-width="1" />
-            <line x1="45" y1="180" x2="330" y2="180" stroke="var(--color-text-muted)" stroke-opacity="0.4" stroke-width="2" />
-            
-            <text x="40" y="185" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ 0</text>
-            <text x="40" y="105" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ ${(maxVal/2).toFixed(0)}</text>
-            <text x="40" y="25" fill="var(--color-text-muted)" font-size="10" text-anchor="end">R$ ${maxVal.toFixed(0)}</text>
+function renderSvgChart() {
+    // Determine the transactions based on current filter
+    let filteredTrans = [];
+    const now = new Date();
+    
+    if (currentChartFilter === 'month') {
+        filteredTrans = state.transactions.filter(t => {
+            if (!t.date) return false;
+            const d = new Date(t.date + "T00:00:00");
+            return d.getMonth() === dashSelectedMonth && d.getFullYear() === dashSelectedYear;
+        });
+    } else if (currentChartFilter === '7days') {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        filteredTrans = state.transactions.filter(t => {
+            if (!t.date) return false;
+            const d = new Date(t.date + "T00:00:00");
+            return d >= sevenDaysAgo && d <= now;
+        });
+    } else if (currentChartFilter === 'year') {
+        filteredTrans = state.transactions.filter(t => {
+            if (!t.date) return false;
+            const d = new Date(t.date + "T00:00:00");
+            return d.getFullYear() === now.getFullYear();
+        });
+    }
 
-            <rect x="70" y="${180 - incHeight}" width="50" height="${incHeight}" fill="url(#grad-income)" rx="6" />
-            <text x="95" y="${175 - incHeight}" fill="var(--color-success)" font-weight="700" font-size="11" text-anchor="middle">R$ ${income.toFixed(0)}</text>
-            <text x="95" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Receitas</text>
+    const income = filteredTrans.filter(t => t.type === "Entrada").reduce((s,t) => s + t.val, 0);
+    const expense = filteredTrans.filter(t => t.type !== "Entrada").reduce((s,t) => s + t.val, 0);
 
-            <rect x="155" y="${180 - expHeight}" width="50" height="${expHeight}" fill="url(#grad-expense)" rx="6" />
-            <text x="180" y="${175 - expHeight}" fill="var(--color-danger)" font-weight="700" font-size="11" text-anchor="middle">R$ ${expense.toFixed(0)}</text>
-            <text x="180" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Despesas</text>
-            
-            <rect x="240" y="${180 - profHeight}" width="50" height="${profHeight}" fill="${profGradient}" rx="6" />
-            <text x="265" y="${175 - profHeight}" fill="${profColorVar}" font-weight="700" font-size="11" text-anchor="middle">R$ ${profit.toFixed(0)}</text>
-            <text x="265" y="198" fill="var(--color-text-main)" font-size="11" font-weight="600" text-anchor="middle">Lucro</text>
+    const box = document.getElementById("svg-chart-box");
+    box.innerHTML = '<canvas id="dashboardChart" style="width:100%;height:100%;"></canvas>';
+    
+    const profit = income - expense;
+    const ctx = document.getElementById('dashboardChart').getContext('2d');
+    
+    if (dashboardChartInstance) {
+        dashboardChartInstance.destroy();
+    }
+    
+    const rootStyles = getComputedStyle(document.body);
+    const colorSuccess = rootStyles.getPropertyValue('--color-success').trim() || '#10b981';
+    const colorDanger = rootStyles.getPropertyValue('--color-danger').trim() || '#ef4444';
+    const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
+    
+    const profitColor = profit >= 0 ? colorPurple : colorDanger;
 
-            <defs>
-                <linearGradient id="grad-income" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--color-success)" />
-                    <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0.6" />
-                </linearGradient>
-                <linearGradient id="grad-expense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--color-danger)" />
-                    <stop offset="100%" stop-color="var(--color-danger)" stop-opacity="0.6" />
-                </linearGradient>
-                <linearGradient id="grad-profit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--color-purple)" />
-                    <stop offset="100%" stop-color="var(--color-purple)" stop-opacity="0.6" />
-                </linearGradient>
-            </defs>
-        </svg>
-    `;
+    dashboardChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Receitas', 'Despesas', 'Lucro'],
+            datasets: [{
+                label: 'Valor (R$)',
+                data: [income, expense, profit],
+                backgroundColor: [
+                    colorSuccess,
+                    colorDanger,
+                    profitColor
+                ],
+                borderRadius: 6,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let val = context.raw || 0;
+                            return ' R$ ' + val.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.05)'
+                    },
+                    ticks: {
+                        color: textColor
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: {
+                            weight: 'bold'
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // H. CACAU CHAT VIEW
@@ -2113,8 +2407,18 @@ async function handleProductSubmit(e) {
     const desc = document.getElementById("prod-desc").value;
     const emoji = document.getElementById("prod-image").value;
     const recipeId = document.getElementById("prod-recipe")?.value || "";
+    let photo = document.getElementById("prod-photo-base64").value || null;
 
     const targetId = id || "p_" + Date.now();
+    
+    // Se for edição e não houver nova foto, mantemos a antiga
+    if (id && !photo) {
+        const existingProd = state.products.find(p => p.id === id);
+        if (existingProd && existingProd.photo) {
+            photo = existingProd.photo;
+        }
+    }
+
     const newProduct = { 
         id: targetId, 
         name, 
@@ -2123,6 +2427,7 @@ async function handleProductSubmit(e) {
         desc, 
         description: desc,
         emoji,
+        photo,
         recipeId: recipeId || null
     };
 
@@ -2140,11 +2445,11 @@ async function handleProductSubmit(e) {
         try {
             const loggedInUserId = getLoggedInUserId();
             if (id) {
-                let query = supabaseClient.from('produtos').update({ name, price, category, description: desc, emoji, recipe_id: recipeId || null }).eq('id', id);
+                let query = supabaseClient.from('produtos').update({ name, price, category, description: desc, emoji, photo, recipe_id: recipeId || null }).eq('id', id);
                 if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
                 await query;
             } else {
-                const payload = { id: targetId, name, price, category, description: desc, emoji, recipe_id: recipeId || null };
+                const payload = { id: targetId, name, price, category, description: desc, emoji, photo, recipe_id: recipeId || null };
                 if (loggedInUserId) payload.usuario_id = loggedInUserId;
                 await supabaseClient.from('produtos').insert([payload]);
             }
@@ -2164,6 +2469,16 @@ function editProduct(id) {
     document.getElementById("prod-category").value = prod.category;
     document.getElementById("prod-desc").value = prod.desc || prod.description || "";
     document.getElementById("prod-image").value = prod.emoji;
+    
+    document.getElementById("prod-photo-input").value = "";
+    document.getElementById("prod-photo-base64").value = "";
+    if (prod.photo) {
+        document.getElementById("prod-photo-preview").src = prod.photo;
+        document.getElementById("prod-photo-preview-container").style.display = "block";
+    } else {
+        document.getElementById("prod-photo-preview").src = "";
+        document.getElementById("prod-photo-preview-container").style.display = "none";
+    }
 
     // Popular select de receitas e selecionar a vinculada
     const recipeSelect = document.getElementById("prod-recipe");
@@ -2448,9 +2763,10 @@ async function handleOrderSubmit(e) {
     const date = document.getElementById("ord-date").value;
     const time = document.getElementById("ord-time").value;
     const notes = document.getElementById("ord-notes").value;
+    const tag = document.getElementById("ord-tag") ? document.getElementById("ord-tag").value : "";
 
     const newId = "o_" + Date.now();
-    const newOrder = { id: newId, clientId, productId, qty, val, date, time, status: "Recebido", notes };
+    const newOrder = { id: newId, clientId, productId, qty, val, date, time, status: "Recebido", notes, tag };
 
     // 1. Update locally instantly
     state.orders.push(newOrder);
@@ -2554,6 +2870,32 @@ async function deleteOrder(id) {
 }
 
 // Kanban Status Moving Control
+function openWhatsAppForOrder(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) return;
+    
+    const client = state.clients.find(c => c.id === order.clientId);
+    if (!client || !client.phone) {
+        alert("Cliente não encontrado ou sem telefone cadastrado.");
+        return;
+    }
+    
+    const product = state.products.find(p => p.id === order.productId);
+    const prodName = product ? product.name : "sua encomenda";
+    
+    let message = "";
+    if (order.status === "Em Produção") {
+        message = `Olá, ${client.name}! Passando para avisar que já começamos a preparar o seu pedido (${order.qty}x ${prodName}) com muito carinho! 🧁 Em breve avisaremos quando estiver pronto.`;
+    } else if (order.status === "Pronto") {
+        message = `Boas notícias, ${client.name}! Seu pedido (${order.qty}x ${prodName}) já está pronto e embalado para retirada! 🎉 Te aguardamos.`;
+    } else {
+        message = `Olá, ${client.name}! Tudo bem? Referente ao seu pedido de ${prodName}...`;
+    }
+    
+    const encodedMsg = encodeURIComponent(message);
+    window.open(`https://wa.me/55${client.phone}?text=${encodedMsg}`, "_blank");
+}
+
 async function moveOrderStatus(id, direction) {
     const order = state.orders.find(o => o.id === id);
     if (!order) return;
@@ -2658,18 +3000,8 @@ async function moveOrderStatus(id, direction) {
     }
 }
 
-// Drag & Drop Kanban Handlers
-function allowDrop(e) {
-    e.preventDefault();
-}
-
-function drag(e, id) {
-    e.dataTransfer.setData("orderId", id);
-}
-
-async function drop(e, targetStatus) {
-    e.preventDefault();
-    const orderId = e.dataTransfer.getData("orderId");
+// Drag & Drop Kanban Handlers (SortableJS Integration)
+async function updateOrderStatus(orderId, targetStatus) {
     const order = state.orders.find(o => o.id === orderId);
     
     if (order && order.status !== targetStatus) {
@@ -2863,7 +3195,81 @@ function calculateRecipeCostsInRealTime() {
     document.getElementById("rec-suggested-slice").innerText = `R$ ${sugSlice.toFixed(2)}`;
     const sugWholeEl = document.getElementById("rec-suggested-whole");
     if (sugWholeEl) sugWholeEl.innerText = `R$ ${suggestedPrice.toFixed(2)}`;
+    
+    // Render donut chart
+    renderRecipeChart(ingredientsCost, packagingCost, laborCost, suggestedPrice - totalCost);
+    
     return totalCost;
+}
+
+let recipeChartInstance = null;
+
+function renderRecipeChart(ingCost, packCost, laborCost, profit) {
+    const ctx = document.getElementById('recipe-cost-chart');
+    if (!ctx) return;
+    
+    if (recipeChartInstance) {
+        recipeChartInstance.destroy();
+    }
+    
+    // If everything is 0, don't show an empty chart
+    if (ingCost === 0 && packCost === 0 && laborCost === 0 && profit === 0) {
+        return;
+    }
+    
+    const rootStyles = getComputedStyle(document.body);
+    const colorPrimary = rootStyles.getPropertyValue('--color-primary-hover').trim() || '#ff5d9e';
+    const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
+    const colorSuccess = rootStyles.getPropertyValue('--color-success').trim() || '#10b981';
+    const colorWarning = '#f59e0b';
+    
+    // Ensure no negative profit in chart
+    const safeProfit = Math.max(0, profit);
+
+    recipeChartInstance = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Ingredientes', 'Embalagem', 'Mão de Obra', 'Lucro Líquido'],
+            datasets: [{
+                data: [ingCost, packCost, laborCost, safeProfit],
+                backgroundColor: [
+                    colorPrimary,
+                    colorWarning,
+                    colorPurple,
+                    colorSuccess
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { size: 11, family: "'Inter', sans-serif" },
+                        boxWidth: 12
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed !== null) {
+                                label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 async function handleRecipeSubmit(e) {
@@ -3158,11 +3564,13 @@ function renderStorefrontProducts() {
         card.style.borderRadius = "var(--border-radius-md)";
         card.style.marginBottom = "8px";
         
+        const imageElement = p.photo 
+            ? `<div style="width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${p.photo}" style="width:100%; height:100%; object-fit:cover;"></div>`
+            : `<div class="phone-prod-emoji" style="font-size: 24px; width: 44px; height: 44px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0;">${p.emoji || "🧁"}</div>`;
+
         card.innerHTML = `
             <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                <div class="phone-prod-emoji" style="font-size: 24px; width: 44px; height: 44px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0;">
-                    ${p.emoji || "🧁"}
-                </div>
+                ${imageElement}
                 <div class="phone-prod-details" style="flex: 1;">
                     <div class="phone-prod-name" style="font-size: 13px; font-weight: 600; color: var(--color-text-main);">${p.name}</div>
                     <p style="font-size: 10px; color: #6e768e; margin: 2px 0 0 0; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">

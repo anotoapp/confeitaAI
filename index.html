@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ConfeitaAI - O assistente inteligente das confeiteiras</title>
+    <link rel="icon" href="imagens/logo.webp" type="image/webp">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +14,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- jsPDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SortableJS -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
     <div id="diag-bar" style="background: #ef4444; color: white; padding: 12px; text-align: center; font-weight: 600; font-family: system-ui, -apple-system, sans-serif; z-index: 99999; position: fixed; top: 0; left: 0; width: 100vw; display: none; font-size: 13px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
@@ -63,8 +68,7 @@
         <div class="login-card glass">
             <div class="login-header">
                 <div class="logo-container" style="justify-content: center; margin-bottom: 8px;">
-                    <span class="logo-icon" style="font-size: 32px;">🍰</span>
-                    <span class="logo-text" style="font-size: 28px;">Confeita<span class="highlight">AI</span></span>
+                    <img src="imagens/logo.webp" alt="ConfeitaAI" style="height: 45px; width: auto; object-fit: contain;">
                 </div>
                 <p class="login-subtitle">O assistente inteligente das confeiteiras profissionais</p>
             </div>
@@ -143,12 +147,11 @@
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo-container">
-                    <span class="logo-icon">🍰</span>
-                    <span class="logo-text">Confeita<span class="highlight">AI</span></span>
+            <div class="sidebar-header" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 24px;">
+                <div class="logo-container" style="justify-content: center; margin-bottom: 8px;">
+                    <img src="imagens/logo.webp" alt="ConfeitaAI" style="height: 65px; width: auto; object-fit: contain;">
                 </div>
-                <p class="sidebar-tagline">Exclusivo Confeitaria</p>
+                <div class="logo-text" style="font-size: 22px;">Confeita<span class="highlight">AI</span></div>
             </div>
             
             <nav class="sidebar-menu">
@@ -179,6 +182,12 @@
                 <a href="#" class="menu-item" data-tab="clientes">
                     <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     Gestão de Clientes
+                </a>
+                <a href="#" class="menu-item" data-tab="eventos">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                    Eventos & Prêmios
                 </a>
                 <a href="#" class="menu-item" data-tab="adm" style="margin-top: 15px; background: linear-gradient(135deg, var(--color-purple-light), #fff); border: 1px solid rgba(139,92,246,0.3); border-left: 4px solid var(--color-purple); color: var(--color-purple); font-weight: 700; border-radius: var(--border-radius-sm); box-shadow: 0 4px 12px rgba(139,92,246,0.1);">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -228,6 +237,27 @@
                 
                 <!-- SECTION: DASHBOARD -->
                 <section id="section-dashboard" class="tab-content active">
+                    <div id="dashboard-stock-alert" style="display: none; background: var(--color-danger); color: white; padding: 12px 16px; border-radius: var(--border-radius-md); margin-bottom: 20px; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.2);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">⚠️</span>
+                            <div>
+                                <h4 style="margin: 0; font-size: 14px; font-weight: 600;">Atenção: Estoque Baixo!</h4>
+                                <p id="dashboard-stock-alert-text" style="margin: 2px 0 0 0; font-size: 13px; opacity: 0.9;">Você tem itens precisando de reposição.</p>
+                            </div>
+                        </div>
+                        <button onclick="document.querySelector('[data-tab=\'estoque\']').click()" class="btn btn-sm" style="background: white; color: var(--color-danger); border: none; font-weight: 600;">Ver Estoque</button>
+                    </div>
+
+                    <div id="dashboard-crm-alert" style="display: none; background: linear-gradient(135deg, var(--color-purple), #c084fc); color: white; padding: 12px 16px; border-radius: var(--border-radius-md); margin-bottom: 20px; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 24px;">🤖</span>
+                            <div>
+                                <h4 style="margin: 0; font-size: 14px; font-weight: 700;">Cacau Insights: Oportunidade de Venda!</h4>
+                                <p id="dashboard-crm-text" style="margin: 2px 0 0 0; font-size: 13px; opacity: 0.9;">Você tem clientes com aniversário de compra próximo.</p>
+                            </div>
+                        </div>
+                        <a id="dashboard-crm-btn" href="#" target="_blank" class="btn btn-sm" style="background: white; color: var(--color-purple); border: none; font-weight: 700; text-decoration: none;">Enviar Cupom</a>
+                    </div>
                     <!-- Month Selector Row -->
                     <div class="dashboard-month-selector">
                         <button type="button" id="btn-prev-month-dash" class="btn-month-nav" title="Mês Anterior">
@@ -313,8 +343,13 @@
 
                         <!-- Grafico -->
                         <div class="panel-card glass">
-                            <div class="panel-header">
+                            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                                 <h3>Gráfico — <span id="dash-chart-month">Maio</span></h3>
+                                <div class="chart-filters" style="display:flex; gap:5px;">
+                                    <button class="btn btn-sm btn-outline active" id="filter-chart-month" onclick="setChartFilter('month')">Mês Atual</button>
+                                    <button class="btn btn-sm btn-outline" id="filter-chart-7days" onclick="setChartFilter('7days')">7 Dias</button>
+                                    <button class="btn btn-sm btn-outline" id="filter-chart-year" onclick="setChartFilter('year')">Ano</button>
+                                </div>
                             </div>
                             <div class="panel-body flex-center">
                                 <div class="svg-chart-container" id="svg-chart-box"></div>
@@ -538,7 +573,7 @@
                             <div class="column-header">
                                 <h3>Recebidos <span class="badge" id="badge-recebido">0</span></h3>
                             </div>
-                            <div class="kanban-cards-container" id="cards-recebido" ondragover="allowDrop(event)" ondrop="drop(event, 'Recebido')">
+                            <div class="kanban-cards-container" id="cards-recebido" data-status="Recebido">
                                 <!-- Cards populated by JS -->
                             </div>
                         </div>
@@ -546,7 +581,7 @@
                             <div class="column-header">
                                 <h3>Em Produção <span class="badge badge-warning" id="badge-producao">0</span></h3>
                             </div>
-                            <div class="kanban-cards-container" id="cards-producao" ondragover="allowDrop(event)" ondrop="drop(event, 'Em Produção')">
+                            <div class="kanban-cards-container" id="cards-producao" data-status="Em Produção">
                                 <!-- Cards populated by JS -->
                             </div>
                         </div>
@@ -554,7 +589,7 @@
                             <div class="column-header">
                                 <h3>Pronto para Entrega <span class="badge badge-success" id="badge-pronto">0</span></h3>
                             </div>
-                            <div class="kanban-cards-container" id="cards-pronto" ondragover="allowDrop(event)" ondrop="drop(event, 'Pronto')">
+                            <div class="kanban-cards-container" id="cards-pronto" data-status="Pronto">
                                 <!-- Cards populated by JS -->
                             </div>
                         </div>
@@ -562,7 +597,7 @@
                             <div class="column-header">
                                 <h3>Entregues <span class="badge badge-purple" id="badge-entregue">0</span></h3>
                             </div>
-                            <div class="kanban-cards-container" id="cards-entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'Entregue')">
+                            <div class="kanban-cards-container" id="cards-entregue" data-status="Entregue">
                                 <!-- Cards populated by JS -->
                             </div>
                         </div>
@@ -718,9 +753,77 @@
 
                             <!-- Input Bar -->
                             <div class="wa-input-bar">
-                                <input type="text" id="wa-message-input" placeholder="Digite uma mensagem para a Cacau cadastrar dados ou tirar dúvidas...">
+                                <button id="wa-mic-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0 10px; color: #64748b; transition: color 0.3s;" title="Falar com a Cacau">🎤</button>
+                                <input type="text" id="wa-message-input" placeholder="Digite ou fale uma mensagem para a Cacau...">
                                 <button class="btn btn-purple" id="wa-send-btn">Enviar</button>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: EVENTOS -->
+                <section id="section-eventos" class="tab-content">
+                    <div class="panel-card glass" style="max-width: 800px; margin: 40px auto; text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 64px; margin-bottom: 20px;">🏆</div>
+                        <h2 style="font-size: 28px; font-weight: 700; color: var(--color-purple); margin-bottom: 10px;">Eventos & Premiações</h2>
+                        <span class="badge" style="background-color: var(--color-warning); color: #fff; font-size: 14px; padding: 6px 12px; margin-bottom: 20px; display: inline-block;">🌟 Exclusivo PRO</span>
+                        
+                        <p style="font-size: 16px; color: var(--color-text-muted); line-height: 1.6; margin-bottom: 30px;">
+                            Participe dos nossos eventos temáticos (como Páscoa, Dia das Mães, Natal) e concorra a prêmios em dinheiro!<br>
+                            A ideia mais criativa votada pela comunidade será a grande vencedora.
+                        </p>
+
+                        <div style="background: linear-gradient(135deg, var(--color-primary-light), #fff); border: 1px solid rgba(255,126,185,0.3); border-radius: var(--border-radius-md); padding: 25px; margin-bottom: 30px; text-align: left; box-shadow: 0 4px 15px rgba(255,126,185,0.1);">
+                            <h3 style="font-size: 18px; color: var(--color-primary-hover); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                                <span>📋</span> Como Funciona?
+                            </h3>
+                            <ul style="list-style: none; padding: 0; margin: 0; color: var(--color-text-main); font-size: 14px; line-height: 1.8;">
+                                <li style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                    <span style="color: var(--color-primary); font-weight: bold;">1.</span>
+                                    <span><strong>Fique de Olho:</strong> O Super Admin irá anunciar o início do evento e as regras de participação.</span>
+                                </li>
+                                <li style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                    <span style="color: var(--color-primary); font-weight: bold;">2.</span>
+                                    <span><strong>Seja Criativa:</strong> Crie seu produto ou campanha seguindo o tema proposto.</span>
+                                </li>
+                                <li style="display: flex; gap: 10px; margin-bottom: 12px;">
+                                    <span style="color: var(--color-primary); font-weight: bold;">3.</span>
+                                    <span><strong>Envie sua Ideia:</strong> Compartilhe sua criação com a nossa comunidade através do grupo de WhatsApp oficial.</span>
+                                </li>
+                                <li style="display: flex; gap: 10px;">
+                                    <span style="color: var(--color-primary); font-weight: bold;">4.</span>
+                                    <span><strong>Votação e Prêmio:</strong> A comunidade vota, e a ideia mais incrível leva o prêmio em dinheiro!</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="padding: 30px; background: #f8fafc; border-radius: var(--border-radius-md); border: 1px dashed #cbd5e1; margin-bottom: 30px;">
+                            <h3 style="font-size: 20px; color: var(--color-text-main); margin-bottom: 10px;">🚀 Em Breve!</h3>
+                            <p style="color: var(--color-text-muted); font-size: 14px;">Não temos nenhum evento ativo no momento.<br>Mantenha sua assinatura PRO ativa e fique ligada no próximo lançamento!</p>
+                        </div>
+
+                        <!-- CONTROLES SUPER ADMIN (Hidden by default) -->
+                        <div id="eventos-superadmin-controls" style="display: none; background: #fff; border: 2px solid var(--color-purple); border-radius: var(--border-radius-md); padding: 25px; text-align: left; box-shadow: 0 4px 15px rgba(139,92,246,0.15);">
+                            <h3 style="font-size: 18px; color: var(--color-purple); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                <span>⚙️</span> Painel do Super Admin
+                            </h3>
+                            <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 20px;">Utilize este painel exclusivo para criar e disparar novos eventos para a base de assinantes PRO no WhatsApp.</p>
+                            
+                            <form id="form-criar-evento">
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Tema do Evento</label>
+                                    <input type="text" id="evento-tema" placeholder="Ex: Especial de Páscoa" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Descrição / Regras</label>
+                                    <textarea id="evento-desc" rows="3" placeholder="Ex: Crie o ovo de páscoa mais criativo..." required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;"></textarea>
+                                </div>
+                                <div style="margin-bottom: 20px;">
+                                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Prêmio em Dinheiro (R$)</label>
+                                    <input type="number" id="evento-premio" placeholder="Ex: 500" required style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+                                </div>
+                                <button type="submit" class="btn btn-purple btn-block" style="width: 100%; font-weight: bold;">📢 Disparar Evento no WhatsApp</button>
+                            </form>
                         </div>
                     </div>
                 </section>
@@ -841,6 +944,15 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="prod-photo-input">📸 Foto Real do Produto (Opcional)</label>
+                    <input type="file" id="prod-photo-input" accept="image/*" style="margin-bottom: 10px;">
+                    <input type="hidden" id="prod-photo-base64">
+                    <div id="prod-photo-preview-container" style="display: none; position: relative; width: 120px; height: 120px; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; margin-top: 8px;">
+                        <img id="prod-photo-preview" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        <button type="button" id="btn-remove-photo" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold;">X</button>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label for="prod-recipe">🔗 Receita Vinculada * <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(Obrigatório para base de custos e estoque)</span></label>
                     <select id="prod-recipe" required>
                         <option value="">Selecione uma receita da sua cozinha...</option>
@@ -952,6 +1064,16 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label for="ord-tag">Etiqueta (Opcional)</label>
+                    <select id="ord-tag">
+                        <option value="">Nenhuma</option>
+                        <option value="Urgente">🚨 Urgente</option>
+                        <option value="Casamento">💍 Casamento</option>
+                        <option value="Aniversario">🎉 Aniversário</option>
+                        <option value="Corporativo">💼 Corporativo</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="ord-notes">Observações Especiais (Recheio, escritas, alergias...)</label>
                     <textarea id="ord-notes" rows="2" placeholder="Ex: Sem glúten, escrever 'Parabéns Maria!' em chocolate..."></textarea>
                 </div>
@@ -1000,6 +1122,9 @@
 
                 <div class="recipe-pricing-card" style="margin-top: 20px;">
                     <h4>Cálculo de Custos e Vendas</h4>
+                    <div class="recipe-chart-wrapper" style="width: 100%; height: 200px; margin-bottom: 16px;">
+                        <canvas id="recipe-cost-chart"></canvas>
+                    </div>
                     <div class="pricing-flex" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap;">
                         <div class="price-box" style="flex: 1; min-width: 120px;">
                             <span class="label">Custo Ingredientes</span>

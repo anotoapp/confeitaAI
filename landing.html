@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ConfeitaAI - A Inteligência da sua Confeitaria</title>
+    <link rel="icon" href="imagens/logo.webp" type="image/webp">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
@@ -59,9 +60,81 @@
         .hero {
             padding: 160px 20px 100px;
             text-align: center;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .css-iphone-mockup {
+            margin-top: 60px;
+            width: 320px;
+            height: 650px;
+            background: #fafafa;
+            border-radius: 44px;
+            border: 12px solid #2d3142;
+            box-shadow: 0 40px 80px rgba(255, 126, 185, 0.3), inset 0 0 0 2px #e2e8f0;
+            position: relative;
+            overflow: hidden;
+            animation: float 6s ease-in-out infinite;
+            text-align: left;
+        }
+
+        .css-iphone-mockup::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 130px; height: 26px;
+            background: #2d3142;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+            z-index: 10;
+        }
+
+        .mockup-header {
+            background: white;
+            padding: 45px 20px 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 126, 185, 0.1);
+        }
+        
+        .mockup-title { font-weight: 800; font-size: 20px; color: var(--color-text-main); margin: 0; display: flex; align-items: center; justify-content: center; gap: 8px;}
+        .mockup-tag { background: linear-gradient(135deg, var(--color-primary), var(--color-purple)); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-top: 10px; display: inline-block;}
+        
+        .mockup-body { padding: 20px; background: #fafafa; height: 100%; display: flex; flex-direction: column; gap: 15px; }
+        
+        .mockup-item { background: white; border-radius: 16px; padding: 15px; display: flex; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.02);}
+        .mockup-item-img { width: 60px; height: 60px; background: var(--color-primary-light); border-radius: 12px; font-size: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+        .mockup-item-info { display: flex; flex-direction: column; justify-content: center;}
+        .mockup-item-info h4 { margin: 0 0 5px 0; font-size: 15px; color: var(--color-text-main);}
+        .mockup-item-info p { margin: 0; color: var(--color-primary); font-weight: 800; font-size: 15px;}
+        
+        .mockup-fab { position: absolute; bottom: 25px; right: 25px; width: 56px; height: 56px; background: var(--color-purple); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4); z-index: 10; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .hero-badge {
@@ -419,7 +492,9 @@
 <body>
 
     <nav class="navbar">
-        <div class="logo">🧁 Confeita<span class="highlight">AI</span></div>
+        <div class="logo">
+            <img src="imagens/logo.webp" alt="ConfeitaAI" style="height: 45px; width: auto; object-fit: contain; vertical-align: middle;">
+        </div>
         <div class="nav-buttons">
             <a href="index.html?action=login" class="btn btn-outline" style="border-radius: 30px; padding: 10px 20px; font-weight: 600;">Entrar</a>
             <a href="index.html?action=signup" class="btn btn-primary" style="border-radius: 30px; padding: 10px 20px; font-weight: 600;">Testar Grátis</a>
@@ -435,40 +510,118 @@
             <a href="index.html?action=signup" class="btn btn-primary btn-large">Começar a Lucrar Agora</a>
             <span style="font-size: 14px; color: var(--color-text-muted); font-weight: 500;">🎁 7 Dias Grátis &bull; Sem cartão</span>
         </div>
+        
+        <div class="css-iphone-mockup">
+            <div class="mockup-header">
+                <h3 class="mockup-title">🍰 ConfeitaAI</h3>
+                <span class="mockup-tag">Cardápio Oficial</span>
+            </div>
+            <div class="mockup-body">
+                <div class="mockup-item">
+                    <div class="mockup-item-img">🧁</div>
+                    <div class="mockup-item-info">
+                        <h4>Cupcake Morango</h4>
+                        <p>R$ 8,50</p>
+                    </div>
+                </div>
+                <div class="mockup-item">
+                    <div class="mockup-item-img">🎂</div>
+                    <div class="mockup-item-info">
+                        <h4>Bolo Festa 2kg</h4>
+                        <p>R$ 120,00</p>
+                    </div>
+                </div>
+                <div class="mockup-item">
+                    <div class="mockup-item-img">🍫</div>
+                    <div class="mockup-item-info">
+                        <h4>Caixa Bombons</h4>
+                        <p>R$ 35,00</p>
+                    </div>
+                </div>
+            </div>
+            </div>
+            <div class="mockup-fab">🛒</div>
+        </div>
     </section>
 
-    <section class="comparison">
-        <h2 class="section-title">O impacto da tecnologia no seu lucro</h2>
-        <p class="section-title" style="font-size: 20px; color: var(--color-primary); margin-top: -15px; margin-bottom: 50px;">Tempo é dinheiro. Pare de desperdiçar os dois.</p>
+    <!-- NOVA SEÇÃO: AGITAÇÃO DA DOR -->
+    <section class="reveal" style="padding: 100px 20px; background: var(--color-danger-light); text-align: center; border-top: 1px solid rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.1);">
+        <h2 style="font-size: 38px; font-weight: 800; color: var(--color-text-main); margin-bottom: 20px; max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.2;">Você trabalha 12 horas por dia, mas não vê a cor do dinheiro no fim do mês?</h2>
+        <p style="font-size: 20px; color: var(--color-text-muted); max-width: 700px; margin: 0 auto 40px; line-height: 1.6;">O problema não está no seu bolo. O problema está em cobrar barato por medo de perder a venda, esquecer entregas no WhatsApp e gastar horas calculando ingredientes no caderno.</p>
         
-        <div class="compare-grid">
-            <div class="compare-card bad">
-                <h3>📖 Anotar no Caderno</h3>
-                <ul class="compare-list">
-                    <li>Precificação no "olhômetro" (risco alto de tomar prejuízo nos ingredientes).</li>
-                    <li>Estoque desorganizado, vencendo ou faltando ingrediente no meio da encomenda.</li>
-                    <li>Perda de tempo respondendo aos clientes um a um no WhatsApp.</li>
-                    <li>Pedidos esquecidos em mensagens antigas ou no meio de planilhas.</li>
-                </ul>
+        <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; max-width: 900px; margin: 0 auto 40px;">
+            <div style="background: white; padding: 25px; border-radius: 20px; flex: 1; min-width: 250px; text-align: left; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.05);">
+                <div style="font-size: 24px; margin-bottom: 15px;">💸</div>
+                <h4 style="margin: 0 0 10px 0; font-size: 18px; color: var(--color-danger);">Prejuízo Invisível</h4>
+                <p style="margin: 0; color: var(--color-text-muted); font-size: 15px;">A embalagem encareceu, mas você manteve o preço do bolo igual. Resultado: você está pagando para trabalhar.</p>
             </div>
-            
-            <div class="compare-card good">
-                <h3>🧁 Usando o ConfeitaAI</h3>
-                <ul class="compare-list">
-                    <li><strong>Precificação Exata:</strong> Ficha técnica calcula margem e custo por você.</li>
-                    <li><strong>Estoque Inteligente:</strong> Dá baixa automática nos ingredientes a cada entrega.</li>
-                    <li><strong>Vitrine Digital Própria:</strong> Seu cliente escolhe e o pedido cai direto no painel.</li>
-                    <li><strong>Quadro Kanban:</strong> Organização visual das encomendas para nunca atrasar.</li>
-                </ul>
+            <div style="background: white; padding: 25px; border-radius: 20px; flex: 1; min-width: 250px; text-align: left; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.05);">
+                <div style="font-size: 24px; margin-bottom: 15px;">🤯</div>
+                <h4 style="margin: 0 0 10px 0; font-size: 18px; color: var(--color-danger);">Caos no WhatsApp</h4>
+                <p style="margin: 0; color: var(--color-text-muted); font-size: 15px;">Responder dezenas de clientes perguntando sabores enquanto você deveria estar batendo massa na batedeira.</p>
+            </div>
+        </div>
+        <a href="index.html?action=signup" class="btn btn-primary btn-large" style="background: var(--color-danger); border-color: var(--color-danger); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);">Quero parar de perder dinheiro</a>
+    </section>
+
+    <section class="reveal" style="padding: 100px 20px; background: white; text-align: center;">
+        <h2 class="section-title">Como funciona?</h2>
+        <p class="section-subtitle">O caminho mais rápido entre o desejo do cliente e o dinheiro no seu bolso.</p>
+        <div style="display: flex; gap: 40px; justify-content: center; max-width: 1000px; margin: 40px auto 0; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <div style="width: 60px; height: 60px; background: var(--color-primary-light); color: var(--color-primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin: 0 auto 20px;">1</div>
+                <h3 style="font-size: 20px; margin-bottom: 10px;">Ficha Técnica</h3>
+                <p style="color: var(--color-text-muted);">Você cadastra suas receitas uma única vez. A inteligência calcula o custo e sugere o preço de venda exato.</p>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <div style="width: 60px; height: 60px; background: var(--color-purple-light); color: var(--color-purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin: 0 auto 20px;">2</div>
+                <h3 style="font-size: 20px; margin-bottom: 10px;">Envio do Link</h3>
+                <p style="color: var(--color-text-muted);">Mande seu link exclusivo para os clientes. Eles montam o pedido igual no Ifood e ele cai no seu painel.</p>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <div style="width: 60px; height: 60px; background: var(--color-success-light); color: var(--color-success); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin: 0 auto 20px;">3</div>
+                <h3 style="font-size: 20px; margin-bottom: 10px;">Produção Rápida</h3>
+                <p style="color: var(--color-text-muted);">O pedido entra na fila de produção (Kanban). Ao finalizar, basta 1 clique para avisar o cliente no WhatsApp.</p>
             </div>
         </div>
     </section>
 
-    <section class="features">
+    <section class="comparison reveal">
+        <h2 class="section-title">A Paz de Espírito que a Tecnologia Traz</h2>
+        <p class="section-title" style="font-size: 20px; color: var(--color-primary); margin-top: -15px; margin-bottom: 50px;">O ConfeitaAI não é só um app. É o seu Gerente Financeiro Pessoal.</p>
+        
+        <div class="compare-grid">
+            <div class="compare-card bad">
+                <h3>📖 Desespero no Caderno</h3>
+                <ul class="compare-list">
+                    <li>Precificação no "olhômetro" (risco alto de tomar prejuízo).</li>
+                    <li>Pânico de esquecer a data de entrega de um bolo de casamento.</li>
+                    <li>Estoque desorganizado, faltando leite condensado no meio da receita.</li>
+                    <li>Perda de tempo respondendo aos clientes um a um no WhatsApp.</li>
+                </ul>
+            </div>
+            
+            <div class="compare-card good">
+                <h3>🧁 Controle Total com a IA</h3>
+                <ul class="compare-list">
+                    <li><strong>Precificação Exata:</strong> Ficha técnica garante o lucro até na fita da embalagem.</li>
+                    <li><strong>Dormir Tranquila:</strong> Kanban visual organiza suas produções por status.</li>
+                    <li><strong>Estoque Inteligente:</strong> Dá baixa automática nos ingredientes a cada entrega.</li>
+                    <li><strong>Cardápio Automático:</strong> Seu cliente escolhe sozinho e o pedido cai no seu painel.</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 50px;">
+            <a href="index.html?action=signup" class="btn btn-primary btn-large">Quero organizar minhas encomendas</a>
+        </div>
+    </section>
+
+    <section class="features reveal">
         <div class="feature-card">
-            <div class="feature-icon">📦</div>
-            <h3>Estoque Automático</h3>
-            <p>Os ingredientes são descontados sozinhos a cada bolo entregue, baseado na sua Ficha Técnica. Saiba exatamente quando ir às compras e nunca mais perca produtos vencidos.</p>
+            <div class="feature-icon">📈</div>
+            <h3>Inteligência Financeira</h3>
+            <p>Precificação não é chute, é matemática exata. Nossa Ficha Técnica interativa desenha um gráfico de lucro instantâneo para você garantir que sempre sairá no azul.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">📱</div>
@@ -477,12 +630,56 @@
         </div>
         <div class="feature-card">
             <div class="feature-icon">🤖</div>
-            <h3>Inteligência Artificial</h3>
-            <p>A Cacau, nossa assistente virtual, escaneia notas fiscais para lançar compras e ajuda a gerenciar suas finanças com relatórios inteligentes a qualquer hora.</p>
+            <h3>Assistente Cacau</h3>
+            <p>Uma Inteligência Artificial treinada para confeitarias. Ela escaneia notas fiscais, analisa quem são seus melhores clientes e sugere promoções na hora certa para você não ficar parada.</p>
         </div>
     </section>
 
-    <section class="pricing" id="planos">
+    <section class="reveal" style="padding: 60px 20px; background: linear-gradient(135deg, var(--color-primary-light), var(--color-purple-light)); text-align: center; border-radius: 40px; max-width: 1100px; margin: 0 auto 80px;">
+        <div style="font-size: 50px; margin-bottom: 20px;">🛡️</div>
+        <h2 style="font-size: 32px; font-weight: 800; color: var(--color-text-main); margin-bottom: 15px;">Garantia de 7 Dias</h2>
+        <p style="font-size: 18px; color: var(--color-text-muted); max-width: 600px; margin: 0 auto 30px;">Acreditamos tanto que o ConfeitaAI vai aumentar seus lucros que você pode usar o sistema completo por 7 dias. Se não amar, você não paga absolutamente nada.</p>
+        <a href="index.html?action=signup" class="btn btn-primary" style="padding: 15px 30px; font-size: 16px; border-radius: 30px;">Testar Sem Risco</a>
+    </section>
+
+    <section class="social-proof reveal" style="padding: 80px 20px; background: rgba(255,126,185,0.03); border-top: 1px solid rgba(255,126,185,0.1); border-bottom: 1px solid rgba(255,126,185,0.1);">
+        <h2 class="section-title">O que as confeiteiras dizem</h2>
+        <p class="section-subtitle">Junte-se a dezenas de mulheres que transformaram seus negócios.</p>
+        <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; max-width: 1200px; margin: 0 auto;">
+            <div style="background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); flex: 1; min-width: 300px;">
+                <p style="font-style: italic; color: var(--color-text-muted); margin-bottom: 20px;">"Antes eu perdia horas no caderno e não sabia qual era o meu lucro real. Hoje a Cacau faz os cálculos e meu Cardápio Digital vende sozinho pelo WhatsApp. Mudou minha vida!"</p>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 50px; height: 50px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">👩🏻‍🍳</div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 16px;">Juliana Silva</h4>
+                        <span style="font-size: 13px; color: var(--color-primary);">Doces da Ju</span>
+                    </div>
+                </div>
+            </div>
+            <div style="background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); flex: 1; min-width: 300px;">
+                <p style="font-style: italic; color: var(--color-text-muted); margin-bottom: 20px;">"O botão mágico de avisar que o pedido está em produção encanta os meus clientes. Eles acham o máximo a profissionalização! O sistema é perfeito e muito fácil."</p>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 50px; height: 50px; background: var(--color-purple-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🍰</div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 16px;">Camila Ferreira</h4>
+                        <span style="font-size: 13px; color: var(--color-purple);">Ateliê Doce Sabor</span>
+                    </div>
+                </div>
+            </div>
+            <div style="background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); flex: 1; min-width: 300px;">
+                <p style="font-style: italic; color: var(--color-text-muted); margin-bottom: 20px;">"Eu tinha pavor de planilha. A inteligência artificial de montar receitas aqui me salva. Eu vejo num gráfico de rosca lindo quanto estou ganhando em cada bolo. Sensacional!"</p>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="width: 50px; height: 50px; background: #e0f2fe; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;">🧁</div>
+                    <div>
+                        <h4 style="margin: 0; font-size: 16px;">Marina Rosa</h4>
+                        <span style="font-size: 13px; color: #0284c7;">Confeitaria Artística</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing reveal" id="planos">
         <h2 class="section-title">Planos feitos para o seu sucesso</h2>
         <p class="section-subtitle">Escolha o plano ideal para o tamanho do seu negócio e comece a escalar suas vendas.</p>
         
@@ -516,15 +713,73 @@
         </div>
     </section>
 
-    <footer class="cta-bottom">
+    <section class="faq reveal" style="padding: 80px 20px; max-width: 800px; margin: 0 auto;">
+        <h2 class="section-title">Perguntas Frequentes</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 40px;">
+            <div style="background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05);">
+                <h4 style="margin: 0 0 10px 0; font-size: 18px; color: var(--color-primary);">Preciso de cartão de crédito para testar?</h4>
+                <p style="margin: 0; color: var(--color-text-muted); line-height: 1.5;">Não! Você pode testar todas as funcionalidades Premium por 7 dias gratuitamente sem adicionar nenhum cartão de crédito. É só se cadastrar e usar.</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05);">
+                <h4 style="margin: 0 0 10px 0; font-size: 18px; color: var(--color-primary);">O Cardápio Digital funciona no WhatsApp?</h4>
+                <p style="margin: 0; color: var(--color-text-muted); line-height: 1.5;">Sim! Você receberá um link exclusivo do seu cardápio. Basta colocá-lo na bio do Instagram ou enviar pelo WhatsApp. O cliente monta o pedido lá e ele cai organizado no seu painel.</p>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05);">
+                <h4 style="margin: 0 0 10px 0; font-size: 18px; color: var(--color-primary);">Consigo usar apenas pelo celular?</h4>
+                <p style="margin: 0; color: var(--color-text-muted); line-height: 1.5;">Com certeza. Todo o sistema do ConfeitaAI, desde o painel de receitas até o Kanban de produção, é 100% otimizado para funcionar perfeitamente em telas de celular.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="cta-bottom reveal" style="padding-bottom: 40px;">
         <h2>Pronta para profissionalizar sua confeitaria?</h2>
         <p>Junte-se a dezenas de confeiteiras que estão lucrando mais com o ConfeitaAI.</p>
         <a href="index.html?action=signup" class="btn btn-white btn-large">Criar Conta Grátis Agora</a>
         
-        <div style="margin-top: 60px; font-size: 14px; opacity: 0.7;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; max-width: 1000px; margin: 80px auto 40px; text-align: left; flex-wrap: wrap; gap: 40px;">
+            <div style="flex: 1; min-width: 200px;">
+                <h3 style="font-size: 24px; font-weight: 800; margin-bottom: 20px;">🍰 ConfeitaAI</h3>
+                <p style="font-size: 14px; opacity: 0.8; line-height: 1.6;">O ecossistema completo para a confeiteira moderna. Organize, precifique e venda muito mais com nossa IA.</p>
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: rgba(255,255,255,0.9);">Produto</h4>
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 14px; opacity: 0.8;">
+                    <li><a href="#" style="color: white; text-decoration: none;">Cardápio Digital</a></li>
+                    <li><a href="#" style="color: white; text-decoration: none;">Ficha Técnica</a></li>
+                    <li><a href="#" style="color: white; text-decoration: none;">Estoque Automático</a></li>
+                </ul>
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: rgba(255,255,255,0.9);">Empresa</h4>
+                <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 14px; opacity: 0.8;">
+                    <li><a href="#" style="color: white; text-decoration: none;">Sobre Nós</a></li>
+                    <li><a href="#" style="color: white; text-decoration: none;">Suporte</a></li>
+                    <li><a href="#" style="color: white; text-decoration: none;">Termos de Uso</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; font-size: 14px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
             &copy; 2026 ConfeitaAI. Feito com 💖 para confeiteiras de sucesso.
         </div>
     </footer>
 
+    <script>
+        // Intersection Observer for scroll animations
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll(".reveal");
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("active");
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            reveals.forEach(reveal => {
+                observer.observe(reveal);
+            });
+        });
+    </script>
 </body>
 </html>
