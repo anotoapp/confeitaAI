@@ -778,14 +778,32 @@ async function handleSetupSubmit(e) {
         if (authErr) throw authErr;
 
         if (authData.user) {
-            // Set 7 days trial
-            const expireDate = new Date();
-            expireDate.setDate(expireDate.getDate() + 7);
-            await supabaseClient.from('usuarios').update({
-                plan: 'Trial',
-                plan_expires_at: expireDate.toISOString(),
-                status: 'Ativo'
-            }).eq('id', authData.user.id);
+            // Verifica se pagou antes de criar a conta
+            const { data: pendingPayments } = await supabaseClient
+                .from('pagamentos_pendentes')
+                .select('*')
+                .eq('email', email);
+
+            if (pendingPayments && pendingPayments.length > 0) {
+                // Pagou antes! Virar PRO direto
+                await supabaseClient.from('usuarios').update({
+                    plan: 'PRO',
+                    plan_expires_at: null,
+                    status: 'Ativo'
+                }).eq('id', authData.user.id);
+
+                // Remove da fila de pendentes
+                await supabaseClient.from('pagamentos_pendentes').delete().eq('email', email);
+            } else {
+                // Fluxo normal: Set 7 days trial
+                const expireDate = new Date();
+                expireDate.setDate(expireDate.getDate() + 7);
+                await supabaseClient.from('usuarios').update({
+                    plan: 'Trial',
+                    plan_expires_at: expireDate.toISOString(),
+                    status: 'Ativo'
+                }).eq('id', authData.user.id);
+            }
         }
 
         // 2. Verifica se o email já estava cadastrado (Supabase retorna user mas sem session)

@@ -47,7 +47,15 @@ module.exports = async function handler(req, res) {
             if (data && data.length > 0) {
                 console.log(`[Kiwify Webhook] Usuário ${email} promovido para PRO com sucesso!`);
             } else {
-                console.log(`[Kiwify Webhook] Usuário ${email} não encontrado no banco de dados.`);
+                console.log(`[Kiwify Webhook] Usuário ${email} não encontrado. Adicionando à fila de pagamentos pendentes.`);
+                // Insert into pagamentos_pendentes
+                const { error: insertErr } = await supabase
+                    .from('pagamentos_pendentes')
+                    .upsert({ email: email }, { onConflict: 'email' });
+                
+                if (insertErr) {
+                    console.error('[Kiwify Webhook] Erro ao adicionar na lista de pendentes:', insertErr);
+                }
             }
 
             return res.status(200).json({ received: true, success: true });
