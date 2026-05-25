@@ -562,8 +562,11 @@ async function checkSession() {
         if (profile.role !== 'Super Admin') {
             const plan = profile.plan || 'Trial';
             const expires = profile.plan_expires_at ? new Date(profile.plan_expires_at) : null;
-            if (plan === 'Trial' && expires && new Date() > expires) {
-                showTrialExpiredModal();
+            const isTrialExpired = plan === 'Trial' && expires && new Date() > expires;
+            const isInativo = profile.status === 'Inativo';
+            
+            if (isTrialExpired || isInativo) {
+                showTrialExpiredModal(isInativo && plan === 'PRO');
                 return true;
             }
             // Show trial countdown badge if within 3 days
@@ -583,8 +586,11 @@ async function checkSession() {
         return true;
     }
 
-    function showTrialExpiredModal() {
+    function showTrialExpiredModal(isProInactive) {
         let modal = document.getElementById('modal-trial-expired');
+        const title = isProInactive ? "Sua assinatura está inativa!" : "Seu período de teste acabou!";
+        const desc = isProInactive ? "Renove sua assinatura PRO para voltar a ter acesso ao ConfeitaAI." : "Para continuar usando o ConfeitaAI com todos os recursos de estoque, cardápio digital e a IA Cacau, assine o Plano PRO.";
+        
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'modal-trial-expired';
@@ -592,14 +598,14 @@ async function checkSession() {
             modal.innerHTML = `
                 <div style="background:white;border-radius:24px;padding:40px;max-width:480px;width:100%;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,0.3);">
                     <div style="font-size:60px;margin-bottom:16px;">🔒</div>
-                    <h2 style="font-size:24px;font-weight:800;margin-bottom:12px;color:#1e293b;">Seu período de teste acabou!</h2>
-                    <p style="color:#64748b;font-size:15px;margin-bottom:28px;line-height:1.6;">Para continuar usando o ConfeitaAI com todos os recursos de estoque, cardápio digital e a IA Cacau, assine o Plano PRO.</p>
+                    <h2 id="trial-modal-title" style="font-size:24px;font-weight:800;margin-bottom:12px;color:#1e293b;">${title}</h2>
+                    <p id="trial-modal-desc" style="color:#64748b;font-size:15px;margin-bottom:28px;line-height:1.6;">${desc}</p>
                     <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:16px;padding:24px;margin-bottom:24px;">
                         <div style="color:white;font-size:14px;opacity:0.8;margin-bottom:4px;">Plano PRO</div>
                         <div style="color:white;font-size:42px;font-weight:800;">R$ 29,90<span style="font-size:16px;font-weight:400;">/mês</span></div>
                         <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:8px;">Pedidos ilimitados • IA ilimitada • Suporte prioritário</div>
                     </div>
-                    <button onclick="window.open('landing.html#planos','_blank')" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;">✨ Assinar Agora</button>
+                    <button onclick="window.open('https://pay.kiwify.com.br/lH5Lp1S','_blank')" style="width:100%;padding:14px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;">✨ Assinar Agora</button>
                     <button onclick="supabaseClient?.auth.signOut().then(()=>location.reload())" style="width:100%;padding:12px;background:none;border:1px solid #e2e8f0;border-radius:12px;font-size:14px;color:#64748b;cursor:pointer;">Sair da conta</button>
                 </div>`;
             document.body.appendChild(modal);
@@ -770,6 +776,17 @@ async function handleSetupSubmit(e) {
         });
 
         if (authErr) throw authErr;
+
+        if (authData.user) {
+            // Set 7 days trial
+            const expireDate = new Date();
+            expireDate.setDate(expireDate.getDate() + 7);
+            await supabaseClient.from('usuarios').update({
+                plan: 'Trial',
+                plan_expires_at: expireDate.toISOString(),
+                status: 'Ativo'
+            }).eq('id', authData.user.id);
+        }
 
         // 2. Verifica se o email já estava cadastrado (Supabase retorna user mas sem session)
         if (authData.user && !authData.session) {
