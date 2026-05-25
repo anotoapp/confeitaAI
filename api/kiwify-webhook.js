@@ -13,7 +13,7 @@ module.exports = async function handler(req, res) {
     try {
         // Validação do Token de Segurança (passado na URL)
         const token = req.query.token;
-        if (token !== 'jdxffuxa8b4') {
+        if (token !== 'x97aovcy5nd') {
             console.log('[Kiwify Webhook] Acesso negado: Token inválido ou ausente.');
             return res.status(401).json({ error: 'Unauthorized' });
         }
