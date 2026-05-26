@@ -146,6 +146,7 @@
 
     <div class="app-container">
         <!-- Sidebar Navigation -->
+        <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
         <aside class="sidebar">
             <div class="sidebar-header" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 24px;">
                 <div class="logo-container" style="justify-content: center; margin-bottom: 8px;">
@@ -213,6 +214,9 @@
         <!-- Main Workspace -->
         <main class="main-workspace">
             <header class="top-bar">
+                <button id="mobile-menu-btn" class="btn btn-outline btn-sm" style="display: none; padding: 6px; border: none; margin-right: 12px; background: transparent; color: var(--color-text-main);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                </button>
                 <div class="page-title-area">
                     <h1 id="workspace-title">Painel Geral</h1>
                     <p id="workspace-subtitle" class="text-muted">Acompanhe o desempenho da sua confeitaria hoje</p>

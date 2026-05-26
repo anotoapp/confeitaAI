@@ -5486,3 +5486,34 @@ async function deductStockForOrder(order) {
         }
     }
 }
+
+// Mobile menu toggle logic
+document.addEventListener('DOMContentLoaded', () => {
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    
+    if (mobileBtn && sidebar && backdrop) {
+        function toggleMenu() {
+            sidebar.classList.toggle('open');
+            if (sidebar.classList.contains('open')) {
+                backdrop.classList.add('show');
+            } else {
+                backdrop.classList.remove('show');
+            }
+        }
+        
+        mobileBtn.addEventListener('click', toggleMenu);
+        backdrop.addEventListener('click', toggleMenu);
+        
+        // Close menu on link click (mobile)
+        const menuLinks = document.querySelectorAll('.menu-item');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    toggleMenu();
+                }
+            });
+        });
+    }
+});
