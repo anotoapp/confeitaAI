@@ -1221,6 +1221,42 @@
                     <!-- Loaded dynamically via JS -->
                 </div>
 
+                <!-- Tela de Rastreio (Oculta por padrão) -->
+                <div class="phone-body" id="phone-tracking-body" style="display: none; padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🛵</div>
+                    <h3 style="color: var(--color-text-main); margin-bottom: 5px;">Status do Pedido</h3>
+                    <p style="color: var(--color-text-muted); font-size: 13px; margin-bottom: 30px;" id="track-order-id">#ID_AQUI</p>
+
+                    <div style="text-align: left; position: relative; margin-left: 20px; border-left: 2px solid #e2e8f0; padding-left: 20px;">
+                        <!-- Recebido -->
+                        <div class="track-step" id="track-step-1" style="margin-bottom: 25px; position: relative;">
+                            <div class="track-dot" style="width: 16px; height: 16px; background: #e2e8f0; border-radius: 50%; position: absolute; left: -29px; top: 2px; border: 2px solid white;"></div>
+                            <h4 style="font-size: 15px; color: var(--color-text-main); margin-bottom: 2px;">Recebido 📝</h4>
+                            <p style="font-size: 12px; color: var(--color-text-muted);">Sua encomenda foi registrada.</p>
+                        </div>
+                        <!-- Em Produção -->
+                        <div class="track-step" id="track-step-2" style="margin-bottom: 25px; position: relative;">
+                            <div class="track-dot" style="width: 16px; height: 16px; background: #e2e8f0; border-radius: 50%; position: absolute; left: -29px; top: 2px; border: 2px solid white;"></div>
+                            <h4 style="font-size: 15px; color: var(--color-text-main); margin-bottom: 2px;">Na Cozinha 👩‍🍳</h4>
+                            <p style="font-size: 12px; color: var(--color-text-muted);">Estamos preparando com carinho.</p>
+                        </div>
+                        <!-- Pronto -->
+                        <div class="track-step" id="track-step-3" style="margin-bottom: 25px; position: relative;">
+                            <div class="track-dot" style="width: 16px; height: 16px; background: #e2e8f0; border-radius: 50%; position: absolute; left: -29px; top: 2px; border: 2px solid white;"></div>
+                            <h4 style="font-size: 15px; color: var(--color-text-main); margin-bottom: 2px;">Pronto para Entrega 📦</h4>
+                            <p style="font-size: 12px; color: var(--color-text-muted);">Seu pedido já foi finalizado.</p>
+                        </div>
+                        <!-- Entregue -->
+                        <div class="track-step" id="track-step-4" style="margin-bottom: 25px; position: relative;">
+                            <div class="track-dot" style="width: 16px; height: 16px; background: #e2e8f0; border-radius: 50%; position: absolute; left: -29px; top: 2px; border: 2px solid white;"></div>
+                            <h4 style="font-size: 15px; color: var(--color-text-main); margin-bottom: 2px;">Entregue ✅</h4>
+                            <p style="font-size: 12px; color: var(--color-text-muted);">Pedido finalizado. Aproveite!</p>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-outline btn-block" style="margin-top: 20px;" onclick="window.location.href = window.location.pathname + '?loja=' + new URLSearchParams(window.location.search).get('loja')">Voltar ao Cardápio</button>
+                </div>
+
                 <!-- Floating Bag Bar -->
                 <div class="phone-bag-bar" id="phone-bag-bar" style="display: none;">
                     <div class="phone-bag-left">
@@ -1272,7 +1308,25 @@
                                 <label class="phone-form-label" for="phone-cust-phone">Seu Telefone *</label>
                                 <input type="tel" id="phone-cust-phone" class="phone-form-input" placeholder="Ex: (11) 98888-7777" required>
                             </div>
-                            <!-- Delivery options removed as per request (focused on ordering/encomendas) -->
+                            <!-- Delivery Address -->
+                            <div>
+                                <label class="phone-form-label" for="phone-cust-cep">CEP *</label>
+                                <input type="text" id="phone-cust-cep" class="phone-form-input" placeholder="Ex: 01001-000" maxlength="9">
+                            </div>
+                            <div>
+                                <label class="phone-form-label" for="phone-cust-address">Endereço *</label>
+                                <input type="text" id="phone-cust-address" class="phone-form-input" placeholder="Rua, Bairro, Cidade" readonly style="background-color: #f8fafc;">
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <label class="phone-form-label" for="phone-cust-num">Número *</label>
+                                    <input type="text" id="phone-cust-num" class="phone-form-input" placeholder="Ex: 123">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label class="phone-form-label" for="phone-cust-comp">Complemento</label>
+                                    <input type="text" id="phone-cust-comp" class="phone-form-input" placeholder="Apto 45">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="phone-cart-footer" id="phone-cart-footer-actions">
@@ -1287,6 +1341,9 @@
                         <p style="margin-bottom: 12px; color: var(--color-success); font-weight: 600;">✅ Pedido Enviado para a Loja!</p>
                         <button type="button" class="phone-btn-checkout" id="btn-phone-whatsapp-success" style="background: #25D366; color: white;">
                             Falar com a Confeiteira no WhatsApp 💬
+                        </button>
+                        <button type="button" class="phone-btn-checkout" id="btn-phone-track-order" style="background: var(--color-primary); color: white; margin-top: 10px;">
+                            Acompanhar Meu Pedido 📍
                         </button>
                     </div>
                 </div>

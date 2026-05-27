@@ -3712,6 +3712,65 @@ function openMenuPreview() {
     }
 
     openModal("modal-menu-preview");
+    
+    // Check if tracking mode
+    const urlParams = new URLSearchParams(window.location.search);
+    const rastreioId = urlParams.get('rastreio');
+    if (rastreioId) {
+        showTrackingScreen(rastreioId);
+    }
+}
+
+async function showTrackingScreen(cartId) {
+    document.getElementById("phone-menu-body").style.display = "none";
+    const bagBar = document.getElementById("phone-bag-bar");
+    if(bagBar) bagBar.style.display = "none";
+    
+    document.getElementById("phone-tracking-body").style.display = "block";
+    document.getElementById("track-order-id").innerText = "#" + cartId;
+    
+    // Default fallback if we can't find it or offline
+    let status = "Em Produção"; 
+    
+    if (isSupabaseActive) {
+        try {
+            // Buscando o pedido (precisa da política RLS atualizada)
+            const { data, error } = await supabaseClient.from('pedidos')
+                .select('status')
+                .like('notes', `%${cartId}%`)
+                .limit(1);
+                
+            if (data && data.length > 0) {
+                status = data[0].status;
+            }
+        } catch(e) {
+            console.error("Erro ao buscar rastreio:", e);
+        }
+    } else {
+        // Fallback local search
+        const localOrder = state.orders.find(o => o.notes && o.notes.includes(cartId));
+        if (localOrder) status = localOrder.status;
+    }
+    
+    // Update tracking UI dots
+    let step = 1;
+    if (status === "Novo") step = 1;
+    else if (status === "Em Produção") step = 2;
+    else if (status === "Pronto" || status === "Em Transporte") step = 3;
+    else if (status === "Concluído" || status === "Entregue") step = 4;
+    
+    for (let i = 1; i <= 4; i++) {
+        const stepDiv = document.getElementById(`track-step-${i}`);
+        if (!stepDiv) continue;
+        const dot = stepDiv.querySelector(".track-dot");
+        if (i <= step) {
+            dot.style.background = "var(--color-primary)";
+            dot.style.border = "2px solid var(--color-primary-light)";
+        } else {
+            dot.style.background = "#e2e8f0";
+            dot.style.border = "2px solid white";
+        }
+    }
 }
 
 function renderCategoryChips() {
@@ -3910,53 +3969,55 @@ function updateCartUI() {
     }
     
     // 5. Update checkout totals summary
-    const btnDelivery = document.getElementById("btn-toggle-delivery-home");
-    const isDeliveryHome = btnDelivery && btnDelivery.classList.contains("active");
-    const deliveryFee = isDeliveryHome ? 7.00 : 0.00;
+    let deliveryFee = window.currentDeliveryFee || 0.00;
     
     const subtotalEl = document.getElementById("phone-summary-subtotal");
     const deliveryEl = document.getElementById("phone-summary-delivery");
     const totalValEl = document.getElementById("phone-summary-total-val");
     
     if (subtotalEl) subtotalEl.innerText = `R$ ${totalPrice.toFixed(2)}`;
-    if (deliveryEl) deliveryEl.innerText = isDeliveryHome ? "R$ 7,00" : "Grátis";
+    if (deliveryEl) deliveryEl.innerText = deliveryFee > 0 ? `R$ ${deliveryFee.toFixed(2)}` : "A calcular";
     if (totalValEl) totalValEl.innerText = `R$ ${(totalPrice + deliveryFee).toFixed(2)}`;
 }
 
-// Attach delivery change recalculations so toggles update totals instantly!
-const btnPickup = document.getElementById("btn-toggle-delivery-pickup");
-const btnDelivery = document.getElementById("btn-toggle-delivery-home");
-if (btnPickup && btnDelivery) {
-    btnPickup.addEventListener("click", () => {
-        setTimeout(updateCartUI, 10);
-    });
-    btnDelivery.addEventListener("click", () => {
-        setTimeout(updateCartUI, 10);
+// ViaCEP Integration
+const cepInput = document.getElementById("phone-cust-cep");
+if (cepInput) {
+    cepInput.addEventListener("blur", async (e) => {
+        let cep = e.target.value.replace(/\D/g, '');
+        if (cep.length === 8) {
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await res.json();
+                if (!data.erro) {
+                    document.getElementById("phone-cust-address").value = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+                    // Simulated Freight Calculation: Random value between 5 and 15 based on the first digit of CEP
+                    window.currentDeliveryFee = 5 + (parseInt(cep[0]) * 1.5);
+                    updateCartUI();
+                } else {
+                    alert("CEP não encontrado.");
+                }
+            } catch(e) {
+                console.error("Erro ViaCEP:", e);
+            }
+        }
     });
 }
 
 async function processarEncomendaDigital() {
     const nameVal = document.getElementById("phone-cust-name").value.trim();
     const phoneVal = document.getElementById("phone-cust-phone").value.trim();
-    const deliveryMode = document.getElementById("phone-delivery-mode").value; // 'retirada' or 'entrega'
+    const cep = document.getElementById("phone-cust-cep").value.trim();
+    const address = document.getElementById("phone-cust-address").value.trim();
+    const num = document.getElementById("phone-cust-num").value.trim();
+    const comp = document.getElementById("phone-cust-comp").value.trim();
     
     let deliveryNotes = "";
-    
-    if (deliveryMode === 'retirada') {
-        const dt = document.getElementById("phone-pickup-datetime").value;
-        deliveryNotes = `Modalidade: Retirada\nPara: ${dt ? dt.replace('T', ' às ') : 'A combinar'}`;
+    if (cep && address && num) {
+        deliveryNotes = `Endereço de Entrega:\n${address}, Nº ${num} ${comp ? '- ' + comp : ''}\nCEP: ${cep}`;
     } else {
-        const cep = document.getElementById("phone-delivery-cep").value.trim();
-        const address = document.getElementById("phone-delivery-address").value.trim();
-        const num = document.getElementById("phone-delivery-number").value.trim();
-        const hood = document.getElementById("phone-delivery-neighborhood").value.trim();
-        const dt = document.getElementById("phone-delivery-datetime").value;
-        
-        if (!address || !num || !hood) {
-            alert("Para entrega, preencha o endereço completo (Rua, Número e Bairro).");
-            return;
-        }
-        deliveryNotes = `Modalidade: Entrega\nEndereço: ${address}, ${num} - ${hood}${cep ? ' (CEP: '+cep+')' : ''}\nPara: ${dt ? dt.replace('T', ' às ') : 'A combinar'}`;
+        alert("Por favor, preencha o CEP e o Número para calcular a entrega.");
+        return;
     }
     
     if (!nameVal || !phoneVal) {
@@ -4009,6 +4070,11 @@ async function processarEncomendaDigital() {
             const orderId = "o_" + Date.now() + "_" + Math.floor(Math.random()*1000);
             const now = new Date();
             
+            const cartId = "TRK-" + clientId.substring(2) + "-" + now.getTime().toString().substring(8);
+            window.lastOrderCartId = cartId; // To generate the tracking link
+            
+            const finalNotes = `[CART:${cartId}]\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
+            
             const orderPayload = {
                 id: orderId,
                 client_id: clientId,
@@ -4018,7 +4084,7 @@ async function processarEncomendaDigital() {
                 date: now.toISOString().split('T')[0],
                 time: now.toTimeString().split(' ')[0].substring(0, 5),
                 status: "Em Produção",
-                notes: `Via Cardápio Digital\n${deliveryNotes}`
+                notes: finalNotes
             };
             
             if (isSupabaseActive && ownerId) {
