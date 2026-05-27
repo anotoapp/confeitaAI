@@ -13,6 +13,9 @@ let forcedOffline = localStorage.getItem("confeitaai_forced_offline") === "true"
 // Global Dashboard Month Navigator State
 let dashSelectedMonth = new Date().getMonth();
 let dashSelectedYear = new Date().getFullYear();
+let dashPeriodType = 'month'; // 'month', 'day', '7days', '15days', '30days'
+let dashSelectedDate = new Date(); // for specific day view
+let currentView = 'mes';
 
 // Global Pricing Parameters
 let DEFAULT_MARKUP = parseFloat(localStorage.getItem("confeitaai_default_markup")) || 200;
@@ -583,8 +586,242 @@ async function checkSession() {
         }
 
         renderActiveTab();
+
+        // 🎓 Verificar e iniciar tutorial de onboarding para novos usuários
+        setTimeout(() => checkAndStartTutorial(profile.email), 800);
+
         return true;
     }
+
+    // =====================================================
+    // 🎓 TUTORIAL DE ONBOARDING (GUIDED TOUR)
+    // =====================================================
+
+    const TOUR_STEPS = [
+        {
+            tab: "dashboard",
+            icon: "📊",
+            title: "Painel Geral",
+            description: "Aqui é a sua central de comando! Veja um resumo de faturamento, pedidos pendentes, clientes e muito mais — tudo numa só tela."
+        },
+        {
+            tab: "encomendas",
+            icon: "🎂",
+            title: "Encomendas",
+            description: "Gerencie seus pedidos num quadro visual (Kanban). Mova as encomendas de 'Recebido' até 'Entregue' e nunca perca um prazo."
+        },
+        {
+            tab: "cardapio",
+            icon: "🍰",
+            title: "Cardápio Digital",
+            description: "Monte sua vitrine online! Configure seus produtos e compartilhe o link exclusivo da sua loja com seus clientes."
+        },
+        {
+            tab: "estoque",
+            icon: "📦",
+            title: "Estoque Inteligente",
+            description: "Cadastre seus ingredientes, defina um mínimo de alerta e a Cacau te avisa quando estiver acabando. Também gera lista de compras automaticamente!"
+        },
+        {
+            tab: "receitas",
+            icon: "📖",
+            title: "Receitas & Precificação",
+            description: "Crie suas fichas técnicas, vincule ingredientes e descubra exatamente quanto custa cada receita. Nunca mais venda no prejuízo!"
+        },
+        {
+            tab: "clientes",
+            icon: "👩‍👩‍👧",
+            title: "Gestão de Clientes",
+            description: "Sua lista de clientes completa com histórico de pedidos e total gasto. Fidelização começa com organização!"
+        },
+        {
+            tab: "cacau-chat",
+            icon: "🤖",
+            title: "Cacau — Sua IA",
+            description: "Converse com a Cacau como se fosse o WhatsApp! Peça relatórios, cadastre pedidos, veja o estoque e muito mais usando linguagem natural. Ela é sua assistente 24h!"
+        },
+        {
+            tab: "calendario",
+            icon: "📅",
+            title: "Calendário",
+            description: "Veja todas as suas entregas em formato de agenda. Assim você sabe exatamente os seus dias mais cheios e pode se programar com antecedência."
+        }
+    ];
+
+    let currentTourStep = 0;
+
+    function checkAndStartTutorial(userEmail) {
+        if (!userEmail) return;
+        const tourKey = `confeitaai_tour_${userEmail}`;
+        const alreadySeen = localStorage.getItem(tourKey);
+        if (!alreadySeen) {
+            startTutorial(userEmail);
+        }
+    }
+
+    function startTutorial(userEmail) {
+        currentTourStep = 0;
+        renderTourModal(userEmail);
+        showTourStep(0);
+    }
+
+    function renderTourModal(userEmail) {
+        // Remove any existing tour modal
+        const existing = document.getElementById('confeitaai-tour-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'confeitaai-tour-overlay';
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 999999;
+            pointer-events: none;
+            display: flex; align-items: flex-end; justify-content: center;
+            padding: 24px;
+        `;
+
+        overlay.innerHTML = `
+            <!-- Spotlight backdrop (top half) -->
+            <div id="tour-backdrop" style="
+                position: fixed; inset: 0;
+                background: rgba(15, 10, 30, 0.55);
+                backdrop-filter: blur(2px);
+                pointer-events: all;
+            "></div>
+
+            <!-- Tour Card -->
+            <div id="tour-card" style="
+                position: relative; z-index: 1;
+                background: linear-gradient(135deg, #1e1040 0%, #2d1a6e 100%);
+                border: 1px solid rgba(139,92,246,0.5);
+                border-radius: 24px;
+                padding: 32px 28px 24px;
+                max-width: 480px; width: 100%;
+                box-shadow: 0 30px 80px rgba(139,92,246,0.35), 0 0 0 1px rgba(255,255,255,0.06);
+                color: white;
+                font-family: inherit;
+                pointer-events: all;
+                animation: tourSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            ">
+                <!-- Progress bar -->
+                <div style="display: flex; gap: 6px; margin-bottom: 22px;">
+                    ${TOUR_STEPS.map((_, i) => `
+                        <div class="tour-dot" data-index="${i}" style="
+                            flex: 1; height: 3px; border-radius: 10px;
+                            background: ${i === 0 ? 'rgba(167,139,250,1)' : 'rgba(255,255,255,0.15)'};
+                            transition: background 0.3s;
+                        "></div>
+                    `).join('')}
+                </div>
+
+                <!-- Icon + Content -->
+                <div id="tour-icon" style="font-size: 44px; margin-bottom: 12px; animation: none;"></div>
+                <h2 id="tour-title" style="font-size: 22px; font-weight: 700; margin: 0 0 10px; color: #e9d5ff;"></h2>
+                <p id="tour-desc" style="font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.75); margin: 0 0 24px;"></p>
+
+                <!-- Step counter -->
+                <p id="tour-counter" style="font-size: 12px; color: rgba(255,255,255,0.4); margin: 0 0 16px; text-align: center;"></p>
+
+                <!-- Buttons -->
+                <div style="display: flex; gap: 12px;">
+                    <button id="btn-tour-skip" onclick="skipTutorial('${userEmail}')" style="
+                        flex: 1; padding: 12px; border-radius: 12px;
+                        background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+                        color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer;
+                        transition: all 0.2s; font-weight: 500; font-family: inherit;
+                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.07)'">
+                        Pular tutorial
+                    </button>
+                    <button id="btn-tour-next" onclick="nextTourStep('${userEmail}')" style="
+                        flex: 2; padding: 12px; border-radius: 12px;
+                        background: linear-gradient(135deg, #7c3aed, #a855f7);
+                        border: none; color: white; font-size: 14px; font-weight: 700;
+                        cursor: pointer; transition: all 0.2s; font-family: inherit;
+                        box-shadow: 0 4px 20px rgba(139,92,246,0.4);
+                    " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                        Próximo →
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Inject keyframe animation
+        if (!document.getElementById('tour-styles')) {
+            const style = document.createElement('style');
+            style.id = 'tour-styles';
+            style.innerHTML = `
+                @keyframes tourSlideUp {
+                    from { opacity: 0; transform: translateY(40px) scale(0.96); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes tourIconBounce {
+                    0%   { transform: scale(1); }
+                    40%  { transform: scale(1.25) rotate(-6deg); }
+                    70%  { transform: scale(0.95) rotate(4deg); }
+                    100% { transform: scale(1) rotate(0deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(overlay);
+    }
+
+    function showTourStep(index) {
+        const step = TOUR_STEPS[index];
+        if (!step) return;
+
+        // Switch tab to highlight it
+        switchTab(step.tab);
+
+        // Update card content
+        const iconEl = document.getElementById('tour-icon');
+        const titleEl = document.getElementById('tour-title');
+        const descEl  = document.getElementById('tour-desc');
+        const counter = document.getElementById('tour-counter');
+        const nextBtn = document.getElementById('btn-tour-next');
+
+        if (iconEl) {
+            iconEl.textContent = step.icon;
+            iconEl.style.animation = 'none';
+            void iconEl.offsetWidth; // reflow to restart animation
+            iconEl.style.animation = 'tourIconBounce 0.5s ease';
+        }
+        if (titleEl) titleEl.textContent = step.title;
+        if (descEl)  descEl.textContent  = step.description;
+        if (counter) counter.textContent  = `${index + 1} de ${TOUR_STEPS.length}`;
+        if (nextBtn) nextBtn.textContent  = index === TOUR_STEPS.length - 1 ? '🎉 Começar a usar!' : 'Próximo →';
+
+        // Update progress dots
+        document.querySelectorAll('.tour-dot').forEach((dot, i) => {
+            dot.style.background = i <= index ? 'rgba(167,139,250,1)' : 'rgba(255,255,255,0.15)';
+        });
+
+        currentTourStep = index;
+    }
+
+    window.nextTourStep = function(userEmail) {
+        const next = currentTourStep + 1;
+        if (next >= TOUR_STEPS.length) {
+            skipTutorial(userEmail);
+        } else {
+            showTourStep(next);
+        }
+    };
+
+    window.skipTutorial = function(userEmail) {
+        if (userEmail) {
+            localStorage.setItem(`confeitaai_tour_${userEmail}`, '1');
+        }
+        const overlay = document.getElementById('confeitaai-tour-overlay');
+        if (overlay) {
+            overlay.style.transition = 'opacity 0.3s';
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 300);
+        }
+        // Return to dashboard after tutorial
+        switchTab('dashboard');
+    };
+
 
     function showTrialExpiredModal(isProInactive) {
         let modal = document.getElementById('modal-trial-expired');
@@ -845,7 +1082,7 @@ async function handleSetupSubmit(e) {
 
 function applyPermissions(role) {
     const admMenuItem = document.querySelector(".sidebar-menu a[data-tab='adm']");
-    const precificacaoMenuItem = document.querySelector(".sidebar-menu a[data-tab='precificacao']");
+    const precificacaoMenuItem = document.querySelector(".sidebar-menu a[data-tab='receitas']");
 
     if (admMenuItem) admMenuItem.style.display = "flex";
     if (precificacaoMenuItem) precificacaoMenuItem.style.display = "flex";
@@ -1039,6 +1276,14 @@ function switchTab(tabId) {
             } catch (e) {
                 console.error("Erro ao renderizar Eventos:", e);
             }
+            break;
+        case "parceiros":
+            if (headerTitle) headerTitle.innerText = "Marcas Parceiras";
+            if (headerSubtitle) headerSubtitle.innerText = "Nossos parceiros homologados para você";
+            break;
+        case "grupo-whatsapp":
+            if (headerTitle) headerTitle.innerText = "Networking e Apoio";
+            if (headerSubtitle) headerSubtitle.innerText = "Nossa comunidade exclusiva no WhatsApp";
             break;
         case "adm":
             if (headerTitle) headerTitle.innerText = "Painel ADM";
@@ -1524,24 +1769,48 @@ function initializeConfeitaAI() {
     safeBind("rec-packaging-cost", "input", calculateRecipeCostsInRealTime);
     safeBind("rec-yield", "input", calculateRecipeCostsInRealTime);
 
-    // Calendar Navigation Buttons
-    safeBind("btn-prev-month", "click", handlePrevMonth);
-    safeBind("btn-next-month", "click", handleNextMonth);
+    // Dashboard Navigation (Period Dropdown)
+    safeBind("dash-period-type", "change", (e) => {
+        dashPeriodType = e.target.value;
+        const btnPrev = document.getElementById("btn-prev-month-dash");
+        const btnNext = document.getElementById("btn-next-month-dash");
+        
+        if (dashPeriodType === 'month' || dashPeriodType === 'day') {
+            if (btnPrev) btnPrev.style.display = 'flex';
+            if (btnNext) btnNext.style.display = 'flex';
+        } else {
+            if (btnPrev) btnPrev.style.display = 'none';
+            if (btnNext) btnNext.style.display = 'none';
+        }
+        
+        dashSelectedMonth = new Date().getMonth();
+        dashSelectedYear = new Date().getFullYear();
+        dashSelectedDate = new Date();
+        renderDashboard();
+    });
 
     // Dashboard Month Navigation Buttons
     safeBind("btn-prev-month-dash", "click", () => {
-        dashSelectedMonth--;
-        if (dashSelectedMonth < 0) {
-            dashSelectedMonth = 11;
-            dashSelectedYear--;
+        if (dashPeriodType === 'month') {
+            dashSelectedMonth--;
+            if (dashSelectedMonth < 0) {
+                dashSelectedMonth = 11;
+                dashSelectedYear--;
+            }
+        } else if (dashPeriodType === 'day') {
+            dashSelectedDate.setDate(dashSelectedDate.getDate() - 1);
         }
         renderDashboard();
     });
     safeBind("btn-next-month-dash", "click", () => {
-        dashSelectedMonth++;
-        if (dashSelectedMonth > 11) {
-            dashSelectedMonth = 0;
-            dashSelectedYear++;
+        if (dashPeriodType === 'month') {
+            dashSelectedMonth++;
+            if (dashSelectedMonth > 11) {
+                dashSelectedMonth = 0;
+                dashSelectedYear++;
+            }
+        } else if (dashPeriodType === 'day') {
+            dashSelectedDate.setDate(dashSelectedDate.getDate() + 1);
         }
         renderDashboard();
     });
@@ -1686,7 +1955,19 @@ function renderDashboard() {
     // Update the main elegant navigator label
     const dashSelectedMonthLabel = document.getElementById("dash-selected-month-label");
     if (dashSelectedMonthLabel) {
-        dashSelectedMonthLabel.innerText = `${monthLabel} ${yearLabel}`;
+        if (dashPeriodType === 'month') {
+            dashSelectedMonthLabel.innerText = `${monthLabel} ${yearLabel}`;
+        } else if (dashPeriodType === 'day') {
+            dashSelectedMonthLabel.innerText = dashSelectedDate.toLocaleDateString("pt-BR");
+        } else {
+            let daysToSubtract = 7;
+            if (dashPeriodType === '15days') daysToSubtract = 15;
+            if (dashPeriodType === '30days') daysToSubtract = 30;
+            const past = new Date();
+            past.setDate(past.getDate() - daysToSubtract);
+            const fmt = (d) => d.toLocaleDateString("pt-BR", {day:'2-digit', month:'2-digit'});
+            dashSelectedMonthLabel.innerText = `${fmt(past)} a ${fmt(new Date())}`;
+        }
     }
 
     // Set month label in all placeholders (for compatibility / titles)
@@ -1694,15 +1975,33 @@ function renderDashboard() {
         const el = document.getElementById(id); if (el) el.innerText = monthLabel;
     });
 
-    // Helper: check if date string belongs to the currently navigated month/year
-    function isThisMonth(dateStr) {
+    // Helper: check if date string belongs to the selected period
+    function isDateInSelectedPeriod(dateStr) {
         if (!dateStr) return false;
         const d = new Date(dateStr + "T00:00:00");
-        return d.getMonth() === dashSelectedMonth && d.getFullYear() === dashSelectedYear;
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        if (dashPeriodType === 'month') {
+            return d.getMonth() === dashSelectedMonth && d.getFullYear() === dashSelectedYear;
+        } else if (dashPeriodType === 'day') {
+            return d.getDate() === dashSelectedDate.getDate() && 
+                   d.getMonth() === dashSelectedDate.getMonth() && 
+                   d.getFullYear() === dashSelectedDate.getFullYear();
+        } else {
+            let daysToSubtract = 0;
+            if (dashPeriodType === '7days') daysToSubtract = 7;
+            if (dashPeriodType === '15days') daysToSubtract = 15;
+            if (dashPeriodType === '30days') daysToSubtract = 30;
+            
+            const past = new Date(today);
+            past.setDate(past.getDate() - daysToSubtract);
+            return d >= past && d <= today;
+        }
     }
 
     // Financial metrics filtered to navigated month
-    const monthTrans = state.transactions.filter(t => isThisMonth(t.date));
+    const monthTrans = state.transactions.filter(t => isDateInSelectedPeriod(t.date));
     const income  = monthTrans.filter(t => t.type === "Entrada").reduce((s,t) => s + t.val, 0);
     const expense = monthTrans.filter(t => t.type !== "Entrada").reduce((s,t) => s + t.val, 0);
     const profit  = income - expense;
@@ -1719,7 +2018,7 @@ function renderDashboard() {
     if (profitEl) profitEl.className = "metric-value " + (profit >= 0 ? "text-success" : "text-danger");
 
     // Orders filtered to navigated month
-    const monthOrders = state.orders.filter(o => isThisMonth(o.date));
+    const monthOrders = state.orders.filter(o => isDateInSelectedPeriod(o.date));
     const pendingCount = monthOrders.filter(o => o.status !== "Entregue").length;
     setEl("dash-orders-count",   String(monthOrders.length));
     setEl("dash-orders-pending", `${pendingCount} pendentes`);
@@ -1733,7 +2032,7 @@ function renderDashboard() {
             .sort((a,b) => new Date(a.date) - new Date(b.date));
 
         if (activeOrders.length === 0) {
-            urgentDiv.innerHTML = `<div class="empty-state"><p>Nenhuma encomenda ativa em ${monthLabel}!</p></div>`;
+            urgentDiv.innerHTML = `<div class="empty-state"><p>Nenhuma encomenda ativa neste período!</p></div>`;
         } else {
             activeOrders.forEach(o => {
                 const client  = state.clients.find(c => c.id === o.clientId);
@@ -1765,7 +2064,7 @@ function renderDashboard() {
         transList.innerHTML = "";
         const sorted = [...monthTrans].sort((a,b) => new Date(b.date) - new Date(a.date));
         if (sorted.length === 0) {
-            transList.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px 0;color:var(--color-text-muted);">Nenhum lançamento em ${monthLabel}.</td></tr>`;
+            transList.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px 0;color:var(--color-text-muted);">Nenhum lançamento neste período.</td></tr>`;
         } else {
             sorted.forEach(t => {
                 const fmtD = new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR", {day:"2-digit",month:"2-digit",year:"numeric"});
@@ -1783,7 +2082,7 @@ function renderDashboard() {
     }
 
     // Update SVG chart with monthly filtered metrics (now handles its own dynamic filtering)
-    renderSvgChart();
+    // removed rendersvgchart
 
     // Stock Alerts
     const lowStockItems = state.ingredients.filter(i => i.qty <= i.min);
@@ -2195,109 +2494,6 @@ function renderFinanceiro() {
     const income = state.transactions.filter(t => t.type === "Entrada").reduce((sum, t) => sum + t.val, 0);
     const expense = state.transactions.filter(t => t.type === "Saída").reduce((sum, t) => sum + t.val, 0);
     const profit = income - expense;
-
-    document.getElementById("fin-income").innerText = `R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-    document.getElementById("fin-expense").innerText = `R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-    
-    const profitEl = document.getElementById("fin-profit");
-    profitEl.innerText = `R$ ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
-    
-    if (profit >= 0) {
-        profitEl.style.color = "var(--color-success)";
-    } else {
-        profitEl.style.color = "var(--color-danger)";
-    }
-
-    const transList = document.getElementById("transactions-list");
-    transList.innerHTML = "";
-
-    const sortedTrans = [...state.transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
-
-    if (sortedTrans.length === 0) {
-        transList.innerHTML = `
-            <tr>
-                <td colspan="5" class="text-center" style="text-align: center; padding: 20px 0; color: var(--color-text-muted);">
-                    Nenhum lançamento no fluxo de caixa. 💸
-                </td>
-            </tr>
-        `;
-    } else {
-        sortedTrans.forEach(t => {
-            const isEntry = t.type === "Entrada";
-            const valClass = isEntry ? "text-success" : "text-danger";
-            const sign = isEntry ? "+" : "-";
-
-            const rawDate = new Date(t.date + "T00:00:00");
-            const formattedDate = rawDate.toLocaleDateString("pt-BR");
-
-            transList.innerHTML += `
-                <tr>
-                    <td>${formattedDate}</td>
-                    <td><strong>${t.desc}</strong></td>
-                    <td><span class="badge ${isEntry ? 'badge-success' : 'badge-danger'}">${t.type}</span></td>
-                    <td><span class="badge">${t.category}</span></td>
-                    <td class="${valClass}"><strong>${sign} R$ ${t.val.toFixed(2)}</strong></td>
-                </tr>
-            `;
-        });
-    }
-
-    renderSvgChart(income, expense);
-}
-
-let dashboardChartInstance = null;
-let currentChartFilter = 'month';
-
-window.setChartFilter = function(filter) {
-    currentChartFilter = filter;
-    const btnMonth = document.getElementById("filter-chart-month");
-    const btn7Days = document.getElementById("filter-chart-7days");
-    const btnYear = document.getElementById("filter-chart-year");
-    if(btnMonth) btnMonth.classList.remove("active");
-    if(btn7Days) btn7Days.classList.remove("active");
-    if(btnYear) btnYear.classList.remove("active");
-    
-    const activeBtn = document.getElementById(`filter-chart-${filter}`);
-    if (activeBtn) activeBtn.classList.add("active");
-    
-    // Re-render chart without full dashboard re-render
-    renderSvgChart();
-};
-
-function renderSvgChart() {
-    // Determine the transactions based on current filter
-    let filteredTrans = [];
-    const now = new Date();
-    
-    if (currentChartFilter === 'month') {
-        filteredTrans = state.transactions.filter(t => {
-            if (!t.date) return false;
-            const d = new Date(t.date + "T00:00:00");
-            return d.getMonth() === dashSelectedMonth && d.getFullYear() === dashSelectedYear;
-        });
-    } else if (currentChartFilter === '7days') {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(now.getDate() - 7);
-        filteredTrans = state.transactions.filter(t => {
-            if (!t.date) return false;
-            const d = new Date(t.date + "T00:00:00");
-            return d >= sevenDaysAgo && d <= now;
-        });
-    } else if (currentChartFilter === 'year') {
-        filteredTrans = state.transactions.filter(t => {
-            if (!t.date) return false;
-            const d = new Date(t.date + "T00:00:00");
-            return d.getFullYear() === now.getFullYear();
-        });
-    }
-
-    const income = filteredTrans.filter(t => t.type === "Entrada").reduce((s,t) => s + t.val, 0);
-    const expense = filteredTrans.filter(t => t.type !== "Entrada").reduce((s,t) => s + t.val, 0);
-
-    const box = document.getElementById("svg-chart-box");
-    box.innerHTML = '<canvas id="dashboardChart" style="width:100%;height:100%;"></canvas>';
-    
-    const profit = income - expense;
     const ctx = document.getElementById('dashboardChart').getContext('2d');
     
     if (dashboardChartInstance) {
@@ -2308,6 +2504,7 @@ function renderSvgChart() {
     const colorSuccess = rootStyles.getPropertyValue('--color-success').trim() || '#10b981';
     const colorDanger = rootStyles.getPropertyValue('--color-danger').trim() || '#ef4444';
     const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
+    const textColor = rootStyles.getPropertyValue('--color-text-main').trim() || '#334155';
     
     const profitColor = profit >= 0 ? colorPurple : colorDanger;
 
@@ -3741,6 +3938,26 @@ if (btnPickup && btnDelivery) {
 async function processarEncomendaDigital() {
     const nameVal = document.getElementById("phone-cust-name").value.trim();
     const phoneVal = document.getElementById("phone-cust-phone").value.trim();
+    const deliveryMode = document.getElementById("phone-delivery-mode").value; // 'retirada' or 'entrega'
+    
+    let deliveryNotes = "";
+    
+    if (deliveryMode === 'retirada') {
+        const dt = document.getElementById("phone-pickup-datetime").value;
+        deliveryNotes = `Modalidade: Retirada\nPara: ${dt ? dt.replace('T', ' às ') : 'A combinar'}`;
+    } else {
+        const cep = document.getElementById("phone-delivery-cep").value.trim();
+        const address = document.getElementById("phone-delivery-address").value.trim();
+        const num = document.getElementById("phone-delivery-number").value.trim();
+        const hood = document.getElementById("phone-delivery-neighborhood").value.trim();
+        const dt = document.getElementById("phone-delivery-datetime").value;
+        
+        if (!address || !num || !hood) {
+            alert("Para entrega, preencha o endereço completo (Rua, Número e Bairro).");
+            return;
+        }
+        deliveryNotes = `Modalidade: Entrega\nEndereço: ${address}, ${num} - ${hood}${cep ? ' (CEP: '+cep+')' : ''}\nPara: ${dt ? dt.replace('T', ' às ') : 'A combinar'}`;
+    }
     
     if (!nameVal || !phoneVal) {
         alert("Por favor, preencha seu Nome e Telefone para enviar o pedido.");
@@ -3801,7 +4018,7 @@ async function processarEncomendaDigital() {
                 date: now.toISOString().split('T')[0],
                 time: now.toTimeString().split(' ')[0].substring(0, 5),
                 status: "Em Produção",
-                notes: "Via Cardápio Digital"
+                notes: `Via Cardápio Digital\n${deliveryNotes}`
             };
             
             if (isSupabaseActive && ownerId) {
@@ -3829,6 +4046,7 @@ async function processarEncomendaDigital() {
             msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
             msg += `*💰 TOTAL: R$ ${subtotal.toFixed(2)}*\n\n`;
             msg += `*👤 CLIENTE:*\n• Nome: ${nameVal}\n• Telefone: ${phoneVal}\n\n`;
+            msg += `*📦 DETALHES DA ENTREGA:*\n${deliveryNotes}\n\n`;
             msg += `Já foi enviado para o seu sistema! Aguardo a confirmação. 🙏✨`;
             
             waBtn.onclick = () => {
