@@ -9,16 +9,20 @@
     <link rel="stylesheet" href="style.css">
     <style>
         /* Landing Page Specific Overrides */
-        body {
-            font-family: 'Inter', sans-serif;
+        html, body {
+            height: auto !important;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: visible !important;
             margin: 0;
             padding: 0;
+            position: relative;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
             background-color: #fafafa;
             color: var(--color-text-main, #2d3142);
-            min-height: 100vh;
-            height: auto;
-            overflow: auto;
-            overflow-x: hidden;
         }
 
         /* Glass Navbar */
