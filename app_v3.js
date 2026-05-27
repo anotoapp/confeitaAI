@@ -4974,7 +4974,7 @@ function renderUsersTable() {
         else if (approxBytes < 1024 * 1024) displaySize = (approxBytes / 1024).toFixed(2) + " KB";
         else displaySize = (approxBytes / (1024 * 1024)).toFixed(2) + " MB";
         
-        storageEl.innerText = displaySize;
+        storageEl.innerHTML = `<span style="color: var(--color-text-main); font-weight: bold;">${displaySize}</span> <span style="font-size: 14px; color: var(--color-text-muted);">/ 500 MB</span>`;
     }
 }
 
