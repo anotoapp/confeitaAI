@@ -4,6 +4,7 @@
   "routes": [
     { "src": "/", "dest": "/landing.html" },
     { "src": "/app", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/$1" }
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

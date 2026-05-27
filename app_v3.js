@@ -259,7 +259,13 @@ async function loadState() {
 
     // 1. MODO CARDÁPIO DIGITAL (Storefront): Carregamento isolado e ultrasseguro
     const urlParams = new URLSearchParams(window.location.search);
-    const storefrontSlug = urlParams.get('loja');
+    let storefrontSlug = urlParams.get('loja');
+    if (!storefrontSlug) {
+        const path = window.location.pathname;
+        if (path && path !== '/' && path !== '/app' && path !== '/index.html') {
+            storefrontSlug = path.replace('/', '').replace('.html', '').trim();
+        }
+    }
     if (storefrontSlug) {
         try {
             console.log("Carregando cardápio digital isolado para a loja:", storefrontSlug);
@@ -1310,7 +1316,13 @@ function safeBind(id, event, handler) {
 function initializeConfeitaAI() {
     // Standalone Storefront Client Mode Detection
     const urlParams = new URLSearchParams(window.location.search);
-    const lojaSlug = urlParams.get('loja');
+    let lojaSlug = urlParams.get('loja');
+    if (!lojaSlug) {
+        const path = window.location.pathname;
+        if (path && path !== '/' && path !== '/app' && path !== '/index.html') {
+            lojaSlug = path.replace('/', '').replace('.html', '').trim();
+        }
+    }
     if (lojaSlug) {
         document.body.classList.add("standalone-storefront-mode");
         state.storeConfig.slug = lojaSlug;
@@ -1353,7 +1365,7 @@ function initializeConfeitaAI() {
     // Visit storefront in a new tab
     const openStorefrontInNewTab = () => {
         const slug = state.storeConfig.slug || "docesdaju";
-        const url = `index.html?loja=${slug}`;
+        const url = `/${slug}`;
         window.open(url, "_blank");
     };
     safeBind("btn-preview-menu", "click", openStorefrontInNewTab);
@@ -1616,8 +1628,8 @@ function initializeConfeitaAI() {
     // Copy link button
     safeBind("btn-copy-store-link", "click", () => {
         const slug = state.storeConfig.slug || "docesdaju";
-        const origin = window.location.origin + window.location.pathname;
-        const link = `${origin}?loja=${slug}`;
+        const origin = window.location.origin;
+        const link = `${origin}/${slug}`;
         navigator.clipboard.writeText(link).then(() => {
             const btn = document.getElementById("btn-copy-store-link");
             if (btn) {
@@ -5387,8 +5399,8 @@ function updateGeneratedStoreLink() {
         let val = slugEl.value.trim().toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             .replace(/[^a-z0-9-_]/g, "");
-        const origin = window.location.origin + window.location.pathname;
-        urlEl.innerText = `${origin}?loja=${val || "sua-loja"}`;
+        const origin = window.location.origin;
+        urlEl.innerText = `${origin}/${val || "sua-loja"}`;
     }
 }
 
