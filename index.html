@@ -699,8 +699,14 @@
                 <!-- SECTION: GESTAO DE CLIENTES -->
                 <section id="section-clientes" class="tab-content">
                     <div class="action-bar">
-                        <div class="search-box">
-                            <input type="text" id="search-client" placeholder="Procurar cliente por nome ou celular...">
+                        <div class="search-box" style="display: flex; gap: 10px;">
+                            <input type="text" id="search-client" placeholder="Procurar cliente..." style="flex: 1;">
+                            <select id="filter-clientes" style="border: 1px solid #e2e8f0; background: #f8fafc; border-radius: var(--border-radius); padding: 0 15px; outline: none; color: var(--color-text-main);">
+                                <option value="alpha">🔤 Ordem Alfabética</option>
+                                <option value="ticket">💰 Maior Ticket</option>
+                                <option value="recent">🕒 Pedido Mais Recente</option>
+                                <option value="oldest">⏳ Pedido Mais Antigo</option>
+                            </select>
                         </div>
                         <button class="btn btn-primary" id="btn-add-client">+ Novo Cliente</button>
                     </div>
@@ -713,6 +719,7 @@
                                         <th>Cliente</th>
                                         <th>WhatsApp / Contato</th>
                                         <th>Pedidos Feitos</th>
+                                        <th>Último Pedido</th>
                                         <th>Total Gasto</th>
                                         <th>Ações</th>
                                     </tr>

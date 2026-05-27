@@ -1760,6 +1760,7 @@ function initializeConfeitaAI() {
     safeBind("search-product", "input", (e) => renderCardapio(e.target.value));
     safeBind("search-ingredient", "input", (e) => renderEstoque(e.target.value));
     safeBind("search-client", "input", (e) => renderClientes(e.target.value));
+    safeBind("filter-clientes", "change", () => renderClientes(document.getElementById("search-client").value));
     safeBind("search-recipe", "input", (e) => renderReceitas(e.target.value));
 
     // Recipe Row dynamic calculations
@@ -2304,18 +2305,69 @@ function renderEstoque(searchQuery = "") {
 // E. CLIENTES VIEW
 function renderClientes(searchQuery = "") {
     const list = document.getElementById("clients-list");
+    if (!list) return;
     list.innerHTML = "";
 
-    const filtered = state.clients.filter(c => 
+    const filterSelect = document.getElementById("filter-clientes");
+    const sortBy = filterSelect ? filterSelect.value : "alpha";
+
+    let filtered = state.clients.filter(c => 
         c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         c.phone.includes(searchQuery)
     );
 
+    // Pre-calculate data for rendering and sorting
+    filtered = filtered.map(c => {
+        const clientOrders = state.orders.filter(o => o.clientId === c.id || o.client_id === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
+        
+        let lastOrderDate = null;
+        let diffDays = -1;
+        let deliveryMode = null;
+        
+        if (clientOrders.length > 0) {
+            lastOrderDate = new Date(clientOrders[0].date + "T00:00:00");
+            diffDays = Math.floor((new Date() - lastOrderDate) / (1000 * 60 * 60 * 24));
+            
+            const notes = clientOrders[0].notes || "";
+            if (notes.includes("Endereço de Entrega") || notes.includes("Modalidade: Entrega")) {
+                deliveryMode = "Delivery";
+            } else if (notes.includes("Retirada")) {
+                deliveryMode = "Retirada";
+            }
+        }
+        
+        return {
+            ...c,
+            clientOrders,
+            lastOrderDate,
+            diffDays,
+            deliveryMode
+        };
+    });
+
+    // Apply Sorting
+    filtered.sort((a, b) => {
+        if (sortBy === "alpha") {
+            return a.name.localeCompare(b.name);
+        } else if (sortBy === "ticket") {
+            return b.totalSpent - a.totalSpent;
+        } else if (sortBy === "recent") {
+            if (!a.lastOrderDate) return 1;
+            if (!b.lastOrderDate) return -1;
+            return b.lastOrderDate - a.lastOrderDate;
+        } else if (sortBy === "oldest") {
+            if (!a.lastOrderDate) return 1;
+            if (!b.lastOrderDate) return -1;
+            return a.lastOrderDate - b.lastOrderDate;
+        }
+        return 0;
+    });
+
     if (filtered.length === 0) {
         list.innerHTML = `
             <tr>
-                <td colspan="5" class="text-center" style="text-align: center; padding: 30px 0; color: var(--color-text-muted);">
-                    Nenhum cliente cadastrado. 👥
+                <td colspan="6" class="text-center" style="text-align: center; padding: 30px 0; color: var(--color-text-muted);">
+                    Nenhum cliente encontrado. 👥
                 </td>
             </tr>
         `;
@@ -2323,30 +2375,33 @@ function renderClientes(searchQuery = "") {
     }
 
     filtered.forEach(c => {
-        // Calculate CRM stats dynamically based on actual orders
-        const clientOrders = state.orders.filter(o => o.clientId === c.id).sort((a,b) => new Date(b.date) - new Date(a.date));
-        
         let tagsHtml = "";
         
-        // VIP Tag (> 2 orders)
-        if (clientOrders.length >= 3 || c.orderCount >= 3) {
+        // VIP Tag
+        if (c.clientOrders.length >= 3 || c.orderCount >= 3) {
             tagsHtml += `<span class="badge" style="background: linear-gradient(45deg, #FFD700, #FDB931); color: #855a00; border: none; font-weight: bold; margin-right: 5px;">🥇 VIP</span>`;
         }
         
-        // Ausente Tag (last order > 60 days)
-        if (clientOrders.length > 0) {
-            const lastOrderDate = new Date(clientOrders[0].date + "T00:00:00");
-            const diffDays = Math.floor((new Date() - lastOrderDate) / (1000 * 60 * 60 * 24));
-            if (diffDays > 60) {
-                tagsHtml += `<span class="badge badge-danger" style="margin-right: 5px;" title="Último pedido há ${diffDays} dias">⚠️ Ausente</span>`;
-            }
+        // Ausente Tag
+        if (c.diffDays > 60) {
+            tagsHtml += `<span class="badge badge-danger" style="margin-right: 5px;" title="Último pedido há ${c.diffDays} dias">⚠️ Ausente</span>`;
         }
+        
+        // Delivery / Retirada Tag
+        if (c.deliveryMode === "Delivery") {
+            tagsHtml += `<span class="badge" style="background: #e0e7ff; color: #4338ca; border: none; font-weight: bold; margin-right: 5px;">🛵 Delivery</span>`;
+        } else if (c.deliveryMode === "Retirada") {
+            tagsHtml += `<span class="badge" style="background: #fce7f3; color: #be185d; border: none; font-weight: bold; margin-right: 5px;">📍 Retirada</span>`;
+        }
+
+        const lastOrderStr = c.lastOrderDate ? c.lastOrderDate.toLocaleDateString('pt-BR') : 'Sem pedidos';
 
         list.innerHTML += `
             <tr>
                 <td><strong>${c.name}</strong><br><div style="margin-top: 4px;">${tagsHtml}</div></td>
                 <td><a href="https://wa.me/55${c.phone}" target="_blank" class="btn-text" style="text-decoration:none;">🟢 WhatsApp (${c.phone})</a></td>
-                <td><span class="badge">${clientOrders.length > 0 ? clientOrders.length : c.orderCount} pedidos</span></td>
+                <td><span class="badge">${c.clientOrders.length > 0 ? c.clientOrders.length : c.orderCount} pedidos</span></td>
+                <td><span style="color: var(--color-text-muted); font-size: 13px;">${lastOrderStr}</span></td>
                 <td><strong>R$ ${c.totalSpent.toFixed(2)}</strong></td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick="deleteClient('${c.id}')" style="color:var(--color-danger)">Excluir</button>
