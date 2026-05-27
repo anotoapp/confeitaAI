@@ -1960,57 +1960,45 @@ function populateSelectDropdowns() {
 // A. DASHBOARD VIEW
 function renderDashboard() {
     const now = new Date();
-    const monthNames = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-                        "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-    const monthLabel = monthNames[dashSelectedMonth];
-    const yearLabel = dashSelectedYear;
+    
+    const dashFilter = window.globalDashFilter || 'today';
+    const dashCustomMonth = window.globalDashCustomMonth || '';
+    
+    // Set label in all placeholders for compatibility
+    const labelTitle = dashFilter === 'today' ? 'Hoje' :
+                       dashFilter === '7days' ? 'Últimos 7 Dias' :
+                       dashFilter === '30days' ? 'Últimos 30 Dias' :
+                       dashFilter === 'custom' ? dashCustomMonth : 'Tempo Todo';
 
-    // Update the main elegant navigator label
-    const dashSelectedMonthLabel = document.getElementById("dash-selected-month-label");
-    if (dashSelectedMonthLabel) {
-        if (dashPeriodType === 'month') {
-            dashSelectedMonthLabel.innerText = `${monthLabel} ${yearLabel}`;
-        } else if (dashPeriodType === 'day') {
-            dashSelectedMonthLabel.innerText = dashSelectedDate.toLocaleDateString("pt-BR");
-        } else {
-            let daysToSubtract = 7;
-            if (dashPeriodType === '15days') daysToSubtract = 15;
-            if (dashPeriodType === '30days') daysToSubtract = 30;
-            const past = new Date();
-            past.setDate(past.getDate() - daysToSubtract);
-            const fmt = (d) => d.toLocaleDateString("pt-BR", {day:'2-digit', month:'2-digit'});
-            dashSelectedMonthLabel.innerText = `${fmt(past)} a ${fmt(new Date())}`;
-        }
-    }
-
-    // Set month label in all placeholders (for compatibility / titles)
     ["dash-month-label","dash-month-label-2","dash-cashflow-month","dash-chart-month"].forEach(id => {
-        const el = document.getElementById(id); if (el) el.innerText = monthLabel;
+        const el = document.getElementById(id); if (el) el.innerText = labelTitle;
     });
 
     // Helper: check if date string belongs to the selected period
     function isDateInSelectedPeriod(dateStr) {
         if (!dateStr) return false;
+        if (dashFilter === 'all') return true;
+        
         const d = new Date(dateStr + "T00:00:00");
         const today = new Date();
         today.setHours(0,0,0,0);
         
-        if (dashPeriodType === 'month') {
-            return d.getMonth() === dashSelectedMonth && d.getFullYear() === dashSelectedYear;
-        } else if (dashPeriodType === 'day') {
-            return d.getDate() === dashSelectedDate.getDate() && 
-                   d.getMonth() === dashSelectedDate.getMonth() && 
-                   d.getFullYear() === dashSelectedDate.getFullYear();
-        } else {
-            let daysToSubtract = 0;
-            if (dashPeriodType === '7days') daysToSubtract = 7;
-            if (dashPeriodType === '15days') daysToSubtract = 15;
-            if (dashPeriodType === '30days') daysToSubtract = 30;
-            
+        if (dashFilter === 'today') {
+            return d.getTime() === today.getTime();
+        } else if (dashFilter === '7days') {
             const past = new Date(today);
-            past.setDate(past.getDate() - daysToSubtract);
+            past.setDate(past.getDate() - 7);
             return d >= past && d <= today;
+        } else if (dashFilter === '30days') {
+            const past = new Date(today);
+            past.setDate(past.getDate() - 30);
+            return d >= past && d <= today;
+        } else if (dashFilter === 'custom') {
+            if (!dashCustomMonth) return true;
+            const [y, m] = dashCustomMonth.split('-');
+            return d.getFullYear() === parseInt(y) && (d.getMonth() + 1) === parseInt(m);
         }
+        return true;
     }
 
     // Financial metrics filtered to navigated month
@@ -2077,7 +2065,7 @@ function renderDashboard() {
         transList.innerHTML = "";
         const sorted = [...monthTrans].sort((a,b) => new Date(b.date) - new Date(a.date));
         if (sorted.length === 0) {
-            transList.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px 0;color:var(--color-text-muted);">Nenhum lançamento neste período.</td></tr>`;
+            transList.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px 0;color:var(--color-text-muted);">Nenhum lançamento neste período.</td></tr>`;
         } else {
             sorted.forEach(t => {
                 const fmtD = new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR", {day:"2-digit",month:"2-digit",year:"numeric"});
@@ -2089,13 +2077,20 @@ function renderDashboard() {
                         <td><span class="badge ${isIn ? 'badge-success' : 'badge-danger'}">${t.type}</span></td>
                         <td>${t.category}</td>
                         <td style="font-weight:600;color:${isIn ? 'var(--color-success)' : 'var(--color-danger)'};">${isIn ? '+' : '-'} ${fmt(t.val)}</td>
+                        <td style="text-align:right;">
+                            <button class="btn btn-sm btn-outline" style="color:var(--color-danger); border:none; padding:4px;" onclick="deleteTransaction('${t.id}')">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </td>
                     </tr>`;
             });
         }
     }
 
-    // Update SVG chart with monthly filtered metrics (now handles its own dynamic filtering)
-    // removed rendersvgchart
+    // Update Line Chart (Chart.js)
+    if (typeof renderDashboardLineChart === 'function') {
+        renderDashboardLineChart(monthTrans);
+    }
 
     // Stock Alerts
     const lowStockItems = state.ingredients.filter(i => i.qty <= i.min);
