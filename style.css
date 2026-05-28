@@ -3327,6 +3327,11 @@ html, body {
         overflow-x: hidden !important;
     }
 
+    /* ── Prevent iOS Auto-Zoom on Inputs ── */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
     .app-container {
         overflow-x: hidden;
         max-width: 100vw;
