@@ -1076,8 +1076,8 @@ async function handleSetupSubmit(e) {
         if (err.message && err.message.includes("User already registered")) {
             return showSetupError("Este e-mail já está cadastrado. Use a tela de login.");
         }
-        if (err.code === '23505') {
-            return showSetupError("Este nome de usuário já está em uso. Escolha outro.");
+        if (err.code === '23505' || (err.message && err.message.includes("Database error saving new user"))) {
+            return showSetupError("Este nome de usuário já está em uso. Escolha outro nome (ex: " + username + "123).");
         }
         return showSetupError(err.message || "Erro ao criar conta. Tente novamente.");
     } finally {
