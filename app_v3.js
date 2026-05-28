@@ -554,6 +554,23 @@ async function checkSession() {
         if (greetingEl) {
             greetingEl.innerHTML = `Olá, <strong>${profile.name}</strong>! 👋 <span class="role-badge role-badge-${profile.role.toLowerCase().replaceAll(" ", "-")}">${profile.role}</span>`;
         }
+        const planBadgeEl = document.getElementById("user-plan-badge");
+        if (planBadgeEl && profile.role !== 'Super Admin') {
+            const currentPlan = profile.plan || 'TESTE';
+            planBadgeEl.textContent = currentPlan.toUpperCase();
+            if (currentPlan.toUpperCase() === 'PRO') {
+                planBadgeEl.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                planBadgeEl.style.color = 'white';
+                planBadgeEl.style.border = 'none';
+            } else {
+                planBadgeEl.style.background = 'rgba(139, 92, 246, 0.1)';
+                planBadgeEl.style.color = 'var(--color-purple)';
+                planBadgeEl.style.border = '1px solid rgba(139, 92, 246, 0.2)';
+            }
+            planBadgeEl.style.display = 'inline-block';
+        } else if (planBadgeEl) {
+            planBadgeEl.style.display = 'none';
+        }
         applyPermissions(profile.role);
 
         // Update last_login silently
