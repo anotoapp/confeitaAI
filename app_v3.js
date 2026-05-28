@@ -146,11 +146,11 @@ const seedData = {
         { id: "admin_local", name: "Super Admin", username: "admin", email: "naturamixrepresentacoes@gmail.com", password: "123", role: "Super Admin", status: "Ativo", plan: "PRO" }
     ],
     storeConfig: {
-        name: "Doces da Ju",
-        slug: "docesdaju",
+        name: "Minha Loja",
+        slug: "",
         hours: "Seg a Sex, 09h às 18h",
-        logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
-        desc: "Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais."
+        logo: "",
+        desc: ""
     }
 };
 
@@ -1598,6 +1598,7 @@ function initializeConfeitaAI() {
                 }]).then(({ error }) => {
                     if (error) {
                         console.error("Erro ao salvar no Supabase:", error);
+                        alert("Erro ao salvar no servidor: " + error.message);
                     } else {
                         console.log("Configurações salvas no Supabase com sucesso.");
                     }
@@ -5464,9 +5465,9 @@ function updateStoreShowcase() {
     const logoPlaceholderEl = document.getElementById("showcase-logo-placeholder");
     const coverEl = document.querySelector(".store-showcase-cover");
     
-    if (nameEl) nameEl.innerText = state.storeConfig.name || "Doces da Ju";
-    if (hoursEl) hoursEl.innerText = state.storeConfig.hours || "Seg a Sex, 09h às 18h";
-    if (descEl) descEl.innerText = state.storeConfig.desc || "Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor.";
+    if (nameEl) nameEl.innerText = state.storeConfig.name || "Sua Loja";
+    if (hoursEl) hoursEl.innerText = state.storeConfig.hours || "Aberto de segunda a sexta";
+    if (descEl) descEl.innerText = state.storeConfig.desc || "A sua loja de doces preferida.";
     
     if (coverEl && state.storeConfig.banner) {
         coverEl.style.backgroundImage = `url('${state.storeConfig.banner}')`;
@@ -5475,7 +5476,7 @@ function updateStoreShowcase() {
     }
     
     if (urlEl) {
-        const slug = state.storeConfig.slug || "docesdaju";
+        const slug = state.storeConfig.slug || "sua-loja";
         const origin = window.location.origin;
         urlEl.innerText = `${origin}/${slug}`;
     }
