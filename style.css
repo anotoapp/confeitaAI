@@ -209,7 +209,7 @@ body.theme-rosegold textarea {
     font-family: var(--font-body);
 }
 
-body {
+body:not(.landing-body) {
     background-color: var(--color-bg-base);
     background-image: radial-gradient(at 0% 0%, var(--gradient-color-1) 0, transparent 50%),
                       radial-gradient(at 100% 0%, var(--gradient-color-2) 0, transparent 50%);
@@ -3291,7 +3291,7 @@ body.standalone-storefront-mode #modal-menu-preview .phone-screen {
 }
 
 /* ─── BASE: evitar scroll horizontal em qualquer viewport ─── */
-html, body {
+html:not(.landing-html), body:not(.landing-body) {
     max-width: 100vw;
     overflow-x: hidden;
 }
@@ -3323,7 +3323,7 @@ html, body {
 @media (max-width: 768px) {
 
     /* ── Layout geral ── */
-    html, body {
+    html:not(.landing-html), body:not(.landing-body) {
         overflow-x: hidden !important;
     }
 

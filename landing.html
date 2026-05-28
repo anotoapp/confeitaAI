@@ -1,28 +1,42 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="landing-html">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ConfeitaAI - A Inteligência da sua Confeitaria</title>
     <link rel="icon" href="imagens/logo.webp" type="image/webp">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260528_1826">
     <style>
         /* Landing Page Specific Overrides */
-        html, body {
+        html.landing-html {
             height: auto !important;
-            min-height: 100vh;
-            overflow-x: hidden;
-            overflow-y: visible !important;
-            margin: 0;
-            padding: 0;
-            position: relative;
+            min-height: 100%;
+            overflow-y: auto !important;
+            overflow-x: visible !important;
         }
 
-        body {
+        body.landing-body {
             font-family: 'Inter', sans-serif;
             background-color: #fafafa;
             color: var(--color-text-main, #2d3142);
+            height: auto !important;
+            min-height: 100vh !important;
+            overflow-y: auto !important;
+            overflow-x: visible !important;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .landing-wrapper {
+            width: 100%;
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Glass Navbar */
@@ -493,9 +507,10 @@
         }
     </style>
 </head>
-<body>
+<body class="landing-body">
+    <div class="landing-wrapper">
 
-    <nav class="navbar">
+        <nav class="navbar">
         <div class="logo">
             <img src="imagens/logo.webp" alt="ConfeitaAI" style="height: 45px; width: auto; object-fit: contain; vertical-align: middle;">
         </div>
@@ -766,7 +781,7 @@
         <div style="margin-top: 40px; font-size: 14px; opacity: 0.7; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px;">
             &copy; 2026 ConfeitaAI. Feito com 💖 para confeiteiras de sucesso.
         </div>
-    </footer>
+    </footer>    </div>
 
     <script>
         // Intersection Observer for scroll animations
