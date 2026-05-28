@@ -3724,8 +3724,9 @@ function openMenuPreview() {
                     <span class="phone-status-badge phone-status-open"><span></span> Aberto</span>
                 </div>
                 <p class="phone-shop-desc">${state?.storeConfig?.desc || "Os melhores doces artesanais."}</p>
-                <div class="phone-shop-meta">
+                <div class="phone-shop-meta" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; align-items: center;">
                     <span class="phone-status-hours">🕒 ${state?.storeConfig?.hours || "Consulte nossos horários"}</span>
+                    ${state?.storeConfig?.phone ? `<a href="https://wa.me/${state.storeConfig.phone.replace(/\D/g, '')}?text=Olá!%20Estou%20no%20seu%20cardápio%20digital%20e%20gostaria%20de%20tirar%20uma%20dúvida." target="_blank" class="phone-status-hours" style="background:#25D366;color:white;border:none;text-decoration:none;display:flex;align-items:center;gap:4px;cursor:pointer;"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.128.552 4.195 1.6 6.015L.178 24l6.108-1.599c1.764.954 3.743 1.458 5.744 1.458 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.84c-1.802 0-3.568-.485-5.116-1.403l-.367-.217-3.8.995.998-3.705-.238-.378C2.463 15.421 1.94 13.754 1.94 12.03 1.94 6.467 6.467 1.94 12.031 1.94c5.564 0 10.091 4.527 10.091 10.091 0 5.564-4.527 10.091-10.091 10.091zm5.534-7.553c-.303-.152-1.794-.886-2.074-.987-.28-.101-.485-.152-.688.152-.202.303-.783.987-.96 1.189-.177.202-.354.227-.657.076-1.758-.888-3.04-1.845-4.148-3.69-.115-.194-.01-.299.141-.45.136-.137.303-.354.455-.53.152-.177.202-.303.303-.505.101-.202.051-.379-.025-.53-.076-.152-.688-1.658-.94-2.269-.247-.597-.497-.516-.688-.526-.177-.01-.379-.01-.581-.01-.202 0-.53.076-.808.379-.278.303-1.061 1.036-1.061 2.527s1.087 2.932 1.238 3.134c.152.202 2.138 3.262 5.178 4.571 2.062.888 2.871.956 3.931.81.658-.09 1.794-.733 2.046-1.44.253-.707.253-1.314.177-1.44-.076-.126-.278-.202-.581-.354z"/></svg>Tirar Dúvida</a>` : ''}
                 </div>
             </div>
         </div>
