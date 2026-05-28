@@ -381,6 +381,7 @@ async function loadState() {
         let userQuery = supabaseClient.from('usuarios').select('*');
 
         if (loggedInUserId) {
+            configQuery = configQuery.eq('usuario_id', loggedInUserId);
             if (!isSuperAdmin) {
                 prodQuery = prodQuery.eq('usuario_id', loggedInUserId);
                 clientQuery = clientQuery.eq('usuario_id', loggedInUserId);
@@ -389,7 +390,6 @@ async function loadState() {
                 transQuery = transQuery.eq('usuario_id', loggedInUserId);
                 recipeQuery = recipeQuery.eq('usuario_id', loggedInUserId);
                 msgQuery = msgQuery.eq('usuario_id', loggedInUserId);
-                configQuery = configQuery.eq('usuario_id', loggedInUserId);
                 
                 // Uma confeiteira/auxiliar só vê a si mesma e aos colaboradores sob o mesmo tenant
                 userQuery = userQuery.or(`usuario_id.eq.${loggedInUserId},id.eq.${loggedInUserId}`);
@@ -1598,12 +1598,13 @@ function initializeConfeitaAI() {
                 }]).then(({ error }) => {
                     if (error) {
                         console.error("Erro ao salvar no Supabase:", error);
-                        alert("Erro ao salvar no servidor: " + error.message);
+                        alert("ERRO NO BANCO DE DADOS: " + error.message + " (Detalhes: " + (error.details || error.hint || "") + ")");
                     } else {
                         console.log("Configurações salvas no Supabase com sucesso.");
                     }
                 }).catch(err => {
                     console.error("Erro assíncrono ao salvar configurações:", err);
+                    alert("ERRO DE CONEXÃO AO SALVAR: " + err.message);
                 });
             }
         }
