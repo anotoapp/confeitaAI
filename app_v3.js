@@ -5108,7 +5108,7 @@ function renderUsersTable() {
             row.innerHTML = `
                 <td><strong>${u.name}</strong><br>
                     <span style="font-size:11px;color:#888;">@${u.username || '—'}</span>
-                    ${u.username ? `<a href="?loja=${u.username}" target="_blank" style="text-decoration:none; margin-left: 4px;" title="Ver Loja">🔗</a>` : ''}
+                    ${u.username ? `<a href="/${u.username}" target="_blank" style="text-decoration:none; margin-left: 4px;" title="Ver Loja">🔗</a>` : ''}
                 </td>
                 <td><code style="font-size:12px;">${u.email || '—'}</code></td>
                 <td style="font-size:12px;color:#64748b;">${lastLogin}</td>
@@ -5476,8 +5476,8 @@ function updateStoreShowcase() {
     
     if (urlEl) {
         const slug = state.storeConfig.slug || "docesdaju";
-        const origin = window.location.origin + window.location.pathname;
-        urlEl.innerText = `${origin}?loja=${slug}`;
+        const origin = window.location.origin;
+        urlEl.innerText = `${origin}/${slug}`;
     }
     
     if (logoImgEl && logoPlaceholderEl) {

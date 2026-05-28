@@ -490,7 +490,7 @@
                             <div class="store-showcase-body">
                                 <p class="store-showcase-description" id="showcase-desc">Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais.</p>
                                 <div class="store-showcase-link-wrapper">
-                                    <span class="store-showcase-url" id="store-showcase-url">index.html?loja=docesdaju</span>
+                                    <span class="store-showcase-url" id="store-showcase-url">/docesdaju</span>
                                     <button type="button" class="btn-copy-url" id="btn-copy-store-link" title="Copiar Link do Cardápio">📋 Copiar Link</button>
                                 </div>
                                 <div class="store-showcase-actions">
@@ -1335,7 +1335,7 @@
                         </div>
                     </div>
 
-                    <button class="btn btn-outline btn-block" style="margin-top: 20px;" onclick="window.location.href = window.location.pathname + '?loja=' + new URLSearchParams(window.location.search).get('loja')">Voltar ao Cardápio</button>
+                    <button class="btn btn-outline btn-block" style="margin-top: 20px;" onclick="window.location.reload()">Voltar ao Cardápio</button>
                 </div>
 
                 <!-- Floating Bag Bar -->
@@ -1544,6 +1544,6 @@
     </div>
 
     <!-- Core App Logic -->
-    <script src="app_v3.js?v=20260528_1436"></script>
+    <script src="app_v3.js?v=20260528_1442"></script>
 </body>
 </html>
