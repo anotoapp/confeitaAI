@@ -176,6 +176,17 @@ function getLoggedInUserEmail() {
     }
 }
 
+function getLoggedInUserRole() {
+    const session = localStorage.getItem("confeitaai_session");
+    if (!session) return null;
+    try {
+        const sessionData = JSON.parse(session);
+        return sessionData.role || null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Local storage backup utilities with safety checks
 function saveToLocalStorage() {
     try {
@@ -345,7 +356,7 @@ async function loadState() {
         if (session) {
             try {
                 userRole = JSON.parse(session).role || "";
-            } catch (e) {}
+            } catch (e) { console.error("Erro silenciado capturado:", e); }
         }
         const isSuperAdmin = userRole === "Super Admin";
 
@@ -1290,8 +1301,8 @@ function switchTab(tabId) {
             try {
                 const superAdminPanel = document.getElementById("eventos-superadmin-controls");
                 if (superAdminPanel) {
-                    const userEmail = getLoggedInUserEmail();
-                    if (userEmail === "naturamixrepresentacoes@gmail.com") {
+                    const userRole = getLoggedInUserRole();
+                    if (userRole === "Super Admin") {
                         superAdminPanel.style.display = "block";
                     } else {
                         superAdminPanel.style.display = "none";
@@ -1977,6 +1988,7 @@ function populateSelectDropdowns() {
 
 // A. DASHBOARD VIEW
 function renderDashboard() {
+    if (!state) return;
     const now = new Date();
     
     const dashFilter = window.globalDashFilter || 'today';
@@ -2161,6 +2173,7 @@ function renderDashboard() {
 
 // B. CARDAPIO VIEW
 function renderCardapio(searchQuery = "") {
+    if (!state) return;
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
@@ -2207,6 +2220,7 @@ function renderCardapio(searchQuery = "") {
 
 // C. PEDIDOS VIEW
 function renderPedidos() {
+    if (!state) return;
     const cols = {
         "Recebido": document.getElementById("cards-recebido"),
         "Em Produção": document.getElementById("cards-producao"),
@@ -2289,6 +2303,7 @@ function renderPedidos() {
 
 // D. ESTOQUE VIEW
 function renderEstoque(searchQuery = "") {
+    if (!state) return;
     const list = document.getElementById("stock-list");
     list.innerHTML = "";
 
@@ -2329,6 +2344,7 @@ function renderEstoque(searchQuery = "") {
 
 // E. CLIENTES VIEW
 function renderClientes(searchQuery = "") {
+    if (!state) return;
     const list = document.getElementById("clients-list");
     if (!list) return;
     list.innerHTML = "";
@@ -2531,6 +2547,7 @@ function buildRecipeCardHTML(r, showExport = true) {
 }
 
 function renderReceitas(searchQuery = "") {
+    if (!state) return;
     // Aba Precificacao (lista antiga)
     const list = document.getElementById("recipes-list");
     // Aba Receitas (nova)
@@ -2571,6 +2588,7 @@ function renderReceitas(searchQuery = "") {
 
 // G. FINANCEIRO VIEW
 function renderFinanceiro() {
+    if (!state) return;
     const income = state.transactions.filter(t => t.type === "Entrada").reduce((sum, t) => sum + t.val, 0);
     const expense = state.transactions.filter(t => t.type === "Saída").reduce((sum, t) => sum + t.val, 0);
     const profit = income - expense;
@@ -2646,6 +2664,7 @@ function renderFinanceiro() {
 
 // H. CACAU CHAT VIEW
 function renderCacauChat() {
+    if (!state) return;
     const chatContainer = document.getElementById("wa-messages-container");
     chatContainer.innerHTML = "";
 
@@ -4564,6 +4583,7 @@ function handleNextMonth() {
 }
 
 function renderCalendario() {
+    if (!state) return;
     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const currentMonth = calendarDate.getMonth();
     const currentYear = calendarDate.getFullYear();
@@ -4705,6 +4725,7 @@ function showCalendarDayDetails(dateStr, day, month, year) {
 // ==========================================================================
 
 async function renderAdm() {
+    if (!state) return;
     // Populate form fields
     const urlInput = document.getElementById("adm-sb-url");
     const keyInput = document.getElementById("adm-sb-key");
@@ -4722,8 +4743,8 @@ async function renderAdm() {
     const wipeBtn = document.getElementById("btn-adm-wipe");
     const seedBtn = document.getElementById("btn-adm-seed");
     if (wipeBtn && seedBtn) {
-        const userEmail = getLoggedInUserEmail();
-        const isSuperAdmin = userEmail === "naturamixrepresentacoes@gmail.com";
+        const userRole = getLoggedInUserRole();
+        const isSuperAdmin = userRole === "Super Admin";
         const maintenanceCard = wipeBtn.closest('.panel-card');
         if (maintenanceCard) {
             maintenanceCard.style.display = isSuperAdmin ? "block" : "none";
@@ -4883,9 +4904,9 @@ async function handleModeChange(offline) {
 }
 
 async function handleSeedDatabaseClick() {
-    const userEmail = getLoggedInUserEmail();
-    if (userEmail !== "naturamixrepresentacoes@gmail.com") {
-        alert("Acesso negado. Apenas o Super Admin (NaturaMix) pode gerar dados de teste fictícios.");
+    const userRole = getLoggedInUserRole();
+    if (userRole !== "Super Admin") {
+        alert("Acesso negado. Apenas o Super Admin pode gerar dados de teste fictícios.");
         return;
     }
     
@@ -4992,9 +5013,9 @@ async function handleSeedDatabaseClick() {
 }
 
 async function handleWipeDatabaseClick() {
-    const userEmail = getLoggedInUserEmail();
-    if (userEmail !== "naturamixrepresentacoes@gmail.com") {
-        alert("Acesso negado. Apenas o Super Admin (NaturaMix) pode apagar dados do sistema.");
+    const userRole = getLoggedInUserRole();
+    if (userRole !== "Super Admin") {
+        alert("Acesso negado. Apenas o Super Admin pode apagar dados do sistema.");
         return;
     }
     
@@ -5043,6 +5064,7 @@ async function handleWipeDatabaseClick() {
 // ==========================================================================
 
 function renderUsersTable() {
+    if (!state) return;
     const listEl = document.getElementById("users-list");
     if (!listEl) return;
     listEl.innerHTML = "";
@@ -5207,7 +5229,7 @@ async function handleUserSubmit(e) {
                     return;
                 }
             }
-        } catch (err) {}
+        } catch (err) { console.error("Erro silenciado capturado:", err); }
     }
 
     let targetId = id;
@@ -5306,7 +5328,7 @@ async function deleteUser(id) {
                 alert("Segurança: Você não pode excluir seu próprio usuário em sessão!");
                 return;
             }
-        } catch (e) {}
+        } catch (e) { console.error("Erro silenciado capturado:", e); }
     }
 
     if (!confirm(`Tem certeza absoluta de que deseja excluir permanentemente o colaborador "${user.name}"?`)) {
@@ -5349,7 +5371,7 @@ async function toggleUserStatus(id) {
                 alert("Segurança: Você não pode desativar seu próprio usuário em sessão!");
                 return;
             }
-        } catch (e) {}
+        } catch (e) { console.error("Erro silenciado capturado:", e); }
     }
 
     const newStatus = user.status === "Ativo" ? "Inativo" : "Ativo";
