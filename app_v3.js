@@ -293,13 +293,13 @@ async function loadState() {
 
             if (configData) {
                 state.storeConfig = {
-                    name: configData.name || state.storeConfig.name,
-                    slug: configData.slug || state.storeConfig.slug,
-                    phone: configData.phone || state.storeConfig.phone,
-                    hours: configData.hours || state.storeConfig.hours,
-                    logo: configData.logo || state.storeConfig.logo,
-                    banner: configData.banner || state.storeConfig.banner,
-                    desc: configData.desc || state.storeConfig.desc
+                    name: configData.name || "Minha Confeitaria",
+                    slug: configData.slug || storefrontSlug,
+                    phone: configData.phone || "",
+                    hours: configData.hours || "Horário a combinar",
+                    logo: configData.logo || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
+                    banner: configData.banner || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
+                    desc: configData.desc || ""
                 };
 
                 const ownerId = configData.usuario_id;
@@ -328,10 +328,19 @@ async function loadState() {
             } else {
                 console.warn("Loja com slug não cadastrado no Supabase:", storefrontSlug);
                 state.products = [];
+                state.storeConfig = {
+                    name: "Loja não encontrada",
+                    slug: storefrontSlug,
+                    phone: "",
+                    hours: "",
+                    logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
+                    banner: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
+                    desc: "Esta loja ainda não foi configurada pelo proprietário."
+                };
             }
 
-            // Salva no LocalStorage e atualiza formulários
-            saveToLocalStorage();
+            // Não salvar no LocalStorage para não sobrescrever os dados locais do visitante com a loja visitada.
+            // Apenas atualizamos o form por precaução.
             populateStoreForm();
 
         } catch (err) {
