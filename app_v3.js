@@ -5863,3 +5863,137 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ======== FUNÇÕES ADICIONAIS DO NOVO DASHBOARD ========
+
+window.globalDashFilter = "today"; // "today", "7days", "30days", "all", "custom"
+window.globalDashCustomMonth = ""; // format "YYYY-MM"
+let mainDashboardLineChart = null;
+
+window.setDashboardDateFilter = function(type) {
+    window.globalDashFilter = type;
+    const menu = document.getElementById("dash-date-menu");
+    if (menu) menu.classList.remove("active");
+    
+    const label = document.getElementById("dash-date-label");
+    if (type === 'today') label.innerText = "Hoje";
+    if (type === '7days') label.innerText = "Últimos 7 dias";
+    if (type === '30days') label.innerText = "Últimos 30 dias";
+    if (type === 'all') label.innerText = "Tempo todo";
+    
+    if (type === 'custom') {
+        window.globalDashCustomMonth = document.getElementById("dash-custom-month").value;
+        if (!window.globalDashCustomMonth) return;
+        const [y, m] = window.globalDashCustomMonth.split('-');
+        label.innerText = `${m}/${y}`;
+    }
+    renderDashboard();
+};
+
+window.deleteTransaction = async function(id) {
+    if (!confirm("Tem certeza que deseja apagar este lançamento permanentemente?")) return;
+    
+    state.transactions = state.transactions.filter(t => t.id !== id);
+    saveToLocalStorage();
+    renderActiveTab();
+    
+    if (isSupabaseActive) {
+        try {
+            await supabaseClient.from('transacoes').delete().eq('id', id);
+            console.log("Lançamento removido do Supabase.");
+        } catch (err) {
+            console.error("Erro ao apagar no Supabase:", err);
+        }
+    }
+};
+
+window.renderDashboardLineChart = function(transactions) {
+    const canvas = document.getElementById("dashboard-line-chart");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    
+    if (mainDashboardLineChart) {
+        mainDashboardLineChart.destroy();
+    }
+    
+    // Agrupar faturamento por dia
+    const salesByDay = {};
+    
+    if (transactions.length === 0) {
+        // Sem dados, gerar gráfico vazio linear
+        const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        salesByDay[todayStr] = 0;
+    } else {
+        const incomes = transactions.filter(t => t.type === "Entrada");
+        incomes.forEach(t => {
+            const d = new Date(t.date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (!salesByDay[d]) salesByDay[d] = 0;
+            salesByDay[d] += t.val;
+        });
+        
+        // Se não houver entradas, botar o primeiro dia como zero pra gerar a linha
+        if (Object.keys(salesByDay).length === 0) {
+            const anyDayStr = new Date(transactions[0].date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            salesByDay[anyDayStr] = 0;
+        }
+    }
+
+    // Ordenar datas corretamente
+    const labels = Object.keys(salesByDay).sort((a, b) => {
+        const [da, ma] = a.split('/');
+        const [db, mb] = b.split('/');
+        return new Date(`2000-${ma}-${da}`) - new Date(`2000-${mb}-${db}`);
+    });
+    
+    const dataPoints = labels.map(l => salesByDay[l]);
+    
+    const rootStyles = getComputedStyle(document.body);
+    const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
+
+    mainDashboardLineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Faturamento (R$)',
+                data: dataPoints,
+                borderColor: colorPurple,
+                backgroundColor: colorPurple + '20', // Transparent fill
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'white',
+                pointBorderColor: colorPurple,
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return 'R$ ' + value; }
+                    },
+                    grid: { color: '#f1f5f9' }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+};
