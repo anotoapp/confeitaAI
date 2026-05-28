@@ -5097,7 +5097,10 @@ function renderUsersTable() {
 
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${u.name}</strong><br><span style="font-size:11px;color:#888;">@${u.username || '—'}</span></td>
+                <td><strong>${u.name}</strong><br>
+                    <span style="font-size:11px;color:#888;">@${u.username || '—'}</span>
+                    ${u.username ? `<a href="?loja=${u.username}" target="_blank" style="text-decoration:none; margin-left: 4px;" title="Ver Loja">🔗</a>` : ''}
+                </td>
                 <td><code style="font-size:12px;">${u.email || '—'}</code></td>
                 <td style="font-size:12px;color:#64748b;">${lastLogin}</td>
                 <td>${planBadge}</td>
