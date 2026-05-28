@@ -53,6 +53,7 @@ async function initSupabaseClient() {
 
 // Memory Cache State
 let state = {
+    users: [],
     products: [],
     ingredients: [],
     clients: [],
