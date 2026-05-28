@@ -5912,58 +5912,106 @@ window.renderDashboardLineChart = function(transactions) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     
-    if (mainDashboardLineChart) {
-        mainDashboardLineChart.destroy();
+    if (window.mainDashboardLineChart) {
+        window.mainDashboardLineChart.destroy();
     }
     
-    // Agrupar faturamento por dia
-    const salesByDay = {};
+    let labels = [];
+    let dataPoints = [];
+    let counts = [];
     
-    if (transactions.length === 0) {
-        // Sem dados, gerar gráfico vazio linear
-        const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        salesByDay[todayStr] = 0;
-    } else {
-        const incomes = transactions.filter(t => t.type === "Entrada");
-        incomes.forEach(t => {
-            const d = new Date(t.date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            if (!salesByDay[d]) salesByDay[d] = 0;
-            salesByDay[d] += t.val;
-        });
-        
-        // Se não houver entradas, botar o primeiro dia como zero pra gerar a linha
-        if (Object.keys(salesByDay).length === 0) {
-            const anyDayStr = new Date(transactions[0].date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            salesByDay[anyDayStr] = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const incomes = transactions.filter(t => t.type === "Entrada");
+
+    if (window.globalDashFilter === 'today') {
+        labels = ["Hoje, 0:00", "Hoje, 23:59"];
+        const totalToday = incomes.reduce((sum, t) => sum + t.val, 0);
+        const countToday = incomes.length;
+        dataPoints = [totalToday, totalToday];
+        counts = [countToday, countToday];
+    } else if (window.globalDashFilter === '7days') {
+        for(let i=6; i>=0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            labels.push(d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}));
+        }
+    } else if (window.globalDashFilter === '30days') {
+        for(let i=29; i>=0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            labels.push(d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}));
+        }
+    } else if (window.globalDashFilter === 'custom') {
+        if (window.globalDashCustomMonth) {
+            const [y, m] = window.globalDashCustomMonth.split('-');
+            const daysInMonth = new Date(y, m, 0).getDate();
+            for(let i=1; i<=daysInMonth; i++) {
+                labels.push(`${i.toString().padStart(2, '0')}/${m}`);
+            }
         }
     }
 
-    // Ordenar datas corretamente
-    const labels = Object.keys(salesByDay).sort((a, b) => {
-        const [da, ma] = a.split('/');
-        const [db, mb] = b.split('/');
-        return new Date(`2000-${ma}-${da}`) - new Date(`2000-${mb}-${db}`);
-    });
-    
-    const dataPoints = labels.map(l => salesByDay[l]);
+    if (window.globalDashFilter !== 'today' && window.globalDashFilter !== 'all') {
+        const salesByDay = {};
+        const countByDay = {};
+        labels.forEach(l => { salesByDay[l] = 0; countByDay[l] = 0; });
+        
+        incomes.forEach(t => {
+            const dStr = new Date(t.date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            if (salesByDay[dStr] !== undefined) {
+                salesByDay[dStr] += t.val;
+                countByDay[dStr] += 1;
+            }
+        });
+        dataPoints = labels.map(l => salesByDay[l]);
+        counts = labels.map(l => countByDay[l]);
+    } else if (window.globalDashFilter === 'all') {
+        const salesByDay = {};
+        const countByDay = {};
+        incomes.forEach(t => {
+            const dStr = new Date(t.date + "T00:00:00").toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            if (!salesByDay[dStr]) { salesByDay[dStr] = 0; countByDay[dStr] = 0; }
+            salesByDay[dStr] += t.val;
+            countByDay[dStr] += 1;
+        });
+        labels = Object.keys(salesByDay).sort((a, b) => {
+            const [da, ma, ya] = a.split('/');
+            const [db, mb, yb] = b.split('/');
+            return new Date(`20${ya}-${ma}-${da}`) - new Date(`20${yb}-${mb}-${db}`);
+        });
+        if(labels.length === 0) {
+            labels = ["Início", "Hoje"];
+            dataPoints = [0, 0];
+            counts = [0, 0];
+        } else if(labels.length === 1) {
+            labels.push(labels[0] + " (Atual)");
+            dataPoints = [salesByDay[labels[0]], salesByDay[labels[0]]];
+            counts = [countByDay[labels[0]], countByDay[labels[0]]];
+        } else {
+            dataPoints = labels.map(l => salesByDay[l]);
+            counts = labels.map(l => countByDay[l]);
+        }
+    }
     
     const rootStyles = getComputedStyle(document.body);
     const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
 
-    mainDashboardLineChart = new Chart(ctx, {
+    window.mainDashboardLineChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Faturamento (R$)',
+                label: 'Faturamento',
                 data: dataPoints,
                 borderColor: colorPurple,
-                backgroundColor: colorPurple + '20', // Transparent fill
-                borderWidth: 3,
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: 'white',
-                pointBorderColor: colorPurple,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                tension: 0,
+                fill: false,
+                pointBackgroundColor: colorPurple,
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 6
@@ -5972,26 +6020,53 @@ window.renderDashboardLineChart = function(transactions) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
+                    backgroundColor: '#ffffff',
+                    titleColor: '#6e768e',
+                    bodyColor: '#2d3142',
+                    bodyFont: { weight: 'bold', size: 14 },
+                    borderColor: '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
                     callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
                         label: function(context) {
                             return 'R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        },
+                        afterLabel: function(context) {
+                            const idx = context.dataIndex;
+                            return 'Vendas: ' + counts[idx];
                         }
                     }
                 }
             },
             scales: {
                 y: {
+                    position: 'right',
                     beginAtZero: true,
+                    border: { display: false },
+                    grid: { color: '#f1f5f9', drawBorder: false },
                     ticks: {
+                        maxTicksLimit: 3,
                         callback: function(value) { return 'R$ ' + value; }
-                    },
-                    grid: { color: '#f1f5f9' }
+                    }
                 },
                 x: {
-                    grid: { display: false }
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        maxTicksLimit: 2,
+                        maxRotation: 0,
+                        font: { size: 11, color: '#94a3b8' }
+                    }
                 }
             }
         }
