@@ -1596,8 +1596,10 @@ body.theme-dark .top-bar {
     background-color: rgba(45, 49, 66, 0.4);
     backdrop-filter: blur(8px);
     display: none;
-    align-items: center;
+    align-items: flex-start; /* Fixes top clipping on mobile */
     justify-content: center;
+    overflow-y: auto; /* Allows scrolling */
+    padding: 40px 20px; /* Space for scroll */
     z-index: 100;
 }
 
@@ -1606,6 +1608,7 @@ body.theme-dark .top-bar {
 }
 
 .modal-content {
+    margin: auto; /* Centers when space is available, allows scroll when not */
     background-color: white;
     border-radius: var(--border-radius-lg);
     width: 100%;
