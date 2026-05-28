@@ -2171,14 +2171,16 @@ body.theme-dark .top-bar {
     background: radial-gradient(circle at 30% 30%, #fff0f6 0%, #fdeff4 40%, #fae8ff 100%);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; /* Fixes top clipping on small screens */
+    overflow-y: auto; /* Allows scrolling */
     z-index: 99999; /* Ensure it lies above everything */
-    padding: 20px;
+    padding: 40px 20px; /* More padding top and bottom for scroll space */
     box-sizing: border-box;
     transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 
 .login-card {
+    margin: auto; /* Centers the card vertically if there's enough space, but allows scrolling if not */
     max-width: 420px;
     width: 100%;
     background: rgba(255, 255, 255, 0.7);
