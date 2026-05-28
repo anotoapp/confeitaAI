@@ -519,16 +519,60 @@ async function loadState() {
             state.cacauMessages = initialMsgs;
         }
 
+        let configData = null;
         if (storeConfigResult && storeConfigResult.data) {
-            const sc = storeConfigResult.data;
+            configData = storeConfigResult.data;
+        } else if (loggedInUserId) {
+            // Se o usuário está logado mas não possui registro em 'configuracoes',
+            // criamos uma configuração padrão automática baseada no seu username/nome.
+            const userObj = (userData || []).find(u => u.id === loggedInUserId) || {};
+            const defaultSlug = userObj.username || ("confeiteira_" + loggedInUserId.substring(0, 5));
+            const defaultName = userObj.name ? ("Doces da " + userObj.name.split(' ')[0]) : "Minha Confeitaria";
+            
+            const defaultPayload = {
+                id: loggedInUserId,
+                usuario_id: loggedInUserId,
+                name: defaultName,
+                slug: defaultSlug,
+                phone: "",
+                hours: "Horário a combinar",
+                logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
+                banner: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
+                desc: "Bem-vinda à nossa loja! Em breve configuraremos nosso cardápio completo."
+            };
+
+            console.log("Nenhuma configuração encontrada. Criando configuração padrão para:", defaultSlug);
+            try {
+                const { data: insertedData, error: insertErr } = await supabaseClient
+                    .from('configuracoes')
+                    .insert([defaultPayload])
+                    .select()
+                    .maybeSingle();
+
+                if (insertErr) {
+                    console.error("Erro ao auto-criar configurações padrão:", insertErr);
+                    configData = defaultPayload;
+                } else if (insertedData) {
+                    configData = insertedData;
+                    console.log("Configuração padrão criada com sucesso no banco de dados.");
+                } else {
+                    configData = defaultPayload;
+                }
+            } catch (e) {
+                console.error("Erro de conexão ao auto-criar configurações padrão:", e);
+                configData = defaultPayload;
+            }
+        }
+
+        if (configData) {
             state.storeConfig = {
-                name: sc.name || state.storeConfig.name,
-                slug: sc.slug || state.storeConfig.slug,
-                phone: sc.phone || state.storeConfig.phone,
-                hours: sc.hours || state.storeConfig.hours,
-                logo: sc.logo || state.storeConfig.logo,
-                banner: sc.banner || state.storeConfig.banner,
-                desc: sc.desc || state.storeConfig.desc
+                name: configData.name || state.storeConfig.name,
+                slug: configData.slug || state.storeConfig.slug,
+                phone: configData.phone || state.storeConfig.phone,
+                hours: configData.hours || state.storeConfig.hours,
+                logo: configData.logo || state.storeConfig.logo,
+                banner: configData.banner || state.storeConfig.banner,
+                desc: configData.desc || state.storeConfig.desc
             };
         }
 
