@@ -5433,13 +5433,21 @@ function populateStoreForm() {
     const phoneEl = document.getElementById("store-phone");
     const hoursEl = document.getElementById("store-hours");
     const logoEl = document.getElementById("store-logo");
+    const bannerEl = document.getElementById("store-banner");
     const descEl = document.getElementById("store-desc");
     
     if (nameEl) nameEl.value = state.storeConfig.name || "";
     if (slugEl) slugEl.value = state.storeConfig.slug || "";
     if (phoneEl) phoneEl.value = state.storeConfig.phone || "";
     if (hoursEl) hoursEl.value = state.storeConfig.hours || "";
-    if (logoEl) logoEl.value = state.storeConfig.logo || "";
+    if (logoEl) {
+        logoEl.value = state.storeConfig.logo || "";
+        logoEl.dispatchEvent(new Event('input'));
+    }
+    if (bannerEl) {
+        bannerEl.value = state.storeConfig.banner || "";
+        bannerEl.dispatchEvent(new Event('input'));
+    }
     if (descEl) descEl.value = state.storeConfig.desc || "";
     
     updateStoreShowcase();
