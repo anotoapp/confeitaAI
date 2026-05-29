@@ -282,7 +282,7 @@ async function loadState() {
         try {
             console.log("Carregando cardápio digital isolado para a loja:", storefrontSlug);
             // Busca as configurações da loja associada a esse slug
-            const { data: configData, error: configErr } = await supabaseClient
+            let { data: configData, error: configErr } = await supabaseClient
                 .from('configuracoes')
                 .select('*')
                 .eq('slug', storefrontSlug)
@@ -290,6 +290,23 @@ async function loadState() {
                 .maybeSingle();
 
             if (configErr) throw configErr;
+
+            // Se não encontrar diretamente pelo slug, faz uma busca inteligente/aproximada (ex: removendo pontos/caracteres especiais)
+            if (!configData) {
+                const cleanSlug = storefrontSlug.replace(/[^a-z0-9]/g, "");
+                console.log("Slug não encontrado diretamente. Tentando busca inteligente por slug limpo:", cleanSlug);
+                
+                const { data: allConfigs, error: allErr } = await supabaseClient
+                    .from('configuracoes')
+                    .select('*');
+                    
+                if (!allErr && allConfigs) {
+                    configData = allConfigs.find(c => {
+                        const dbClean = (c.slug || "").replace(/[^a-z0-9]/g, "");
+                        return dbClean === cleanSlug;
+                    }) || null;
+                }
+            }
 
             if (configData) {
                 state.storeConfig = {
@@ -1617,7 +1634,7 @@ function initializeConfeitaAI() {
         const nameVal = document.getElementById("store-name").value.trim();
         const slugVal = document.getElementById("store-slug").value.trim().toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9-_]/g, "");
+            .replace(/[^a-z0-9-_.]/g, "");
             
         // Calculate hours based on UI selectors
         const activeDays = Array.from(document.querySelectorAll(".btn-day-toggle.active")).map(btn => btn.getAttribute("data-day"));
@@ -5627,7 +5644,7 @@ function updateGeneratedStoreLink() {
     if (slugEl && urlEl) {
         let val = slugEl.value.trim().toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9-_]/g, "");
+            .replace(/[^a-z0-9-_.]/g, "");
         const origin = window.location.origin;
         urlEl.innerText = `${origin}/${val || "sua-loja"}`;
     }
