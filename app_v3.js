@@ -995,6 +995,44 @@ async function checkSession() {
     }
 }
 
+let lastLoginUpdateTimestamp = 0;
+
+async function updateLastLoginSilently() {
+    if (!isSupabaseActive || !supabaseClient) return;
+    const userId = getLoggedInUserId();
+    if (!userId) return;
+    
+    const now = Date.now();
+    // Throttle: Apenas atualiza no máximo a cada 5 minutos para economizar recursos do banco
+    if (now - lastLoginUpdateTimestamp < 5 * 60 * 1000) return;
+    lastLoginUpdateTimestamp = now;
+    
+    try {
+        const nowStr = new Date().toISOString();
+        await supabaseClient.from('usuarios').update({ last_login: nowStr }).eq('id', userId);
+        
+        // Atualiza no cache de memória local também
+        const localUser = state.users.find(u => u.id === userId);
+        if (localUser) {
+            localUser.last_login = nowStr;
+            saveToLocalStorage();
+        }
+    } catch (e) {
+        console.error("Erro silencioso ao atualizar last_login:", e);
+    }
+}
+
+// Escutar eventos de foco e atividade para atualizar o acesso administrativo
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        updateLastLoginSilently();
+    }
+});
+
+window.addEventListener("focus", () => {
+    updateLastLoginSilently();
+});
+
 
 async function handleLoginSubmit(e) {
     if (e) e.preventDefault();
