@@ -5471,11 +5471,65 @@ window.toggleUserStatus = toggleUserStatus;
 
 // ================= 9. CARDAPIO DIGITAL CORE UTILITIES =================
 
+function parseHours(hoursStr) {
+    const defaultVal = {
+        days: ["Seg", "Ter", "Qua", "Qui", "Sex"],
+        timeStart: "09:00",
+        timeEnd: "18:00"
+    };
+    
+    if (!hoursStr || typeof hoursStr !== 'string') return defaultVal;
+    
+    if (hoursStr.toLowerCase().includes("combinar") || hoursStr.toLowerCase().includes("consulte")) {
+        return {
+            days: [],
+            timeStart: "",
+            timeEnd: ""
+        };
+    }
+    
+    const parts = hoursStr.split(",");
+    if (parts.length < 2) return defaultVal;
+    
+    const daysPart = parts[0].trim();
+    let days = [];
+    
+    if (daysPart === "Seg a Sex") {
+        days = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+    } else if (daysPart === "Seg a Dom") {
+        days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+    } else if (daysPart === "Seg a Sáb") {
+        days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    } else {
+        const lastPart = parts[parts.length - 1].trim();
+        const dayParts = parts.slice(0, parts.length - 1).map(d => d.trim());
+        
+        dayParts.forEach(dp => {
+            if (dp === "Seg a Sex") days.push("Seg", "Ter", "Qua", "Qui", "Sex");
+            else if (dp === "Seg a Dom") days.push("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom");
+            else if (dp === "Seg a Sáb") days.push("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb");
+            else if (["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].includes(dp)) {
+                days.push(dp);
+            }
+        });
+    }
+    
+    let timeStart = "09:00";
+    let timeEnd = "18:00";
+    
+    const timeMatch = hoursStr.match(/(\d{2}:\d{2})\s*(?:às|as|to|-)\s*(\d{2}:\d{2})/i);
+    if (timeMatch) {
+        timeStart = timeMatch[1];
+        timeEnd = timeMatch[2];
+    }
+    
+    return { days, timeStart, timeEnd };
+}
+
 function populateStoreForm() {
     const nameEl = document.getElementById("store-name");
     const slugEl = document.getElementById("store-slug");
     const phoneEl = document.getElementById("store-phone");
-    const hoursEl = document.getElementById("store-hours");
     const logoEl = document.getElementById("store-logo");
     const bannerEl = document.getElementById("store-banner");
     const descEl = document.getElementById("store-desc");
@@ -5483,7 +5537,6 @@ function populateStoreForm() {
     if (nameEl) nameEl.value = state.storeConfig.name || "";
     if (slugEl) slugEl.value = state.storeConfig.slug || "";
     if (phoneEl) phoneEl.value = state.storeConfig.phone || "";
-    if (hoursEl) hoursEl.value = state.storeConfig.hours || "";
     if (logoEl) {
         logoEl.value = state.storeConfig.logo || "";
         logoEl.dispatchEvent(new Event('input'));
@@ -5493,6 +5546,26 @@ function populateStoreForm() {
         bannerEl.dispatchEvent(new Event('input'));
     }
     if (descEl) descEl.value = state.storeConfig.desc || "";
+    
+    // Parse and set the days buttons and times inputs
+    const parsedHours = parseHours(state.storeConfig.hours || "");
+    
+    // Set days buttons active state
+    const dayButtons = document.querySelectorAll(".btn-day-toggle");
+    dayButtons.forEach(btn => {
+        const day = btn.getAttribute("data-day");
+        if (parsedHours.days.includes(day)) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+    
+    // Set time inputs
+    const timeStartEl = document.getElementById("store-time-start");
+    const timeEndEl = document.getElementById("store-time-end");
+    if (timeStartEl) timeStartEl.value = parsedHours.timeStart || "09:00";
+    if (timeEndEl) timeEndEl.value = parsedHours.timeEnd || "18:00";
     
     updateStoreShowcase();
 }
@@ -5791,6 +5864,10 @@ window.downloadShoppingList = downloadShoppingList;
 // ============================================================================
 
 function setupStoreConfigUI() {
+    // Prevent double binding of event listeners if called multiple times
+    if (window.storeConfigUIInitialized) return;
+    window.storeConfigUIInitialized = true;
+
     // 1. Day toggles
     const dayButtons = document.querySelectorAll(".btn-day-toggle");
     dayButtons.forEach(btn => {
