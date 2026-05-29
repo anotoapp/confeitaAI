@@ -179,15 +179,16 @@ body.theme-rosegold textarea {
     border-color: rgba(184, 115, 81, 0.2) !important;
 }
 
-/* Print styles for Financial Reports */
+/* Print styles for Financial Reports and Receipts */
 @media print {
     /* Hide everything in the document */
     body * {
         visibility: hidden !important;
     }
     
-    /* Reveal only our printing container */
-    #print-report-container, #print-report-container * {
+    /* Reveal only our printing containers */
+    #print-report-container, #print-report-container *,
+    #print-receipt-container, #print-receipt-container * {
         visibility: visible !important;
     }
     
@@ -198,6 +199,20 @@ body.theme-rosegold textarea {
         width: 100%;
         color: #000 !important;
         background: #fff !important;
+    }
+
+    #print-receipt-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 72mm; /* standard 80mm thermal roll printing area width */
+        max-width: 100%;
+        color: #000 !important;
+        background: #fff !important;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 11px;
+        line-height: 1.3;
+        padding: 5px;
     }
 }
 

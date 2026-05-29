@@ -2386,6 +2386,7 @@ function renderPedidos() {
                     ${o.status === "Pronto" ? `<button class="btn btn-success btn-sm" style="flex: 1; padding: 2px 5px; font-weight: bold;" onclick="openWhatsAppForOrder('${o.id}')">🟢 Avisar Retirada</button>` : ''}
                     
                     ${o.status === "Entregue" ? `<button class="btn btn-outline btn-sm" title="Baixar Recibo PDF" style="flex: 1; padding: 2px 5px; color: #e11d48; border-color: #fca5a5;" onclick="gerarReciboPDF('${o.id}')">📄 PDF</button>` : ''}
+                    <button class="btn btn-outline btn-sm" title="Imprimir Via de Produção" onclick="imprimirCupomPedido('${o.id}')">🖨️</button>
                     <button class="btn btn-outline btn-sm" title="Excluir" style="color:var(--color-danger)" onclick="deleteOrder('${o.id}')">X</button>
                     ${o.status !== "Entregue" ? `<button class="btn btn-outline btn-sm" title="Avançar fase" onclick="moveOrderStatus('${o.id}', 'next')">→</button>` : ''}
                 </div>
@@ -5918,6 +5919,71 @@ function printFinancialReport() {
     }, 100);
 }
 window.printFinancialReport = printFinancialReport;
+
+function imprimirCupomPedido(orderId) {
+    const order = state.orders.find(o => o.id === orderId);
+    if (!order) {
+        alert("Pedido não encontrado!");
+        return;
+    }
+
+    const client = state.clients.find(c => c.id === order.clientId);
+    const product = state.products.find(p => p.id === order.productId);
+    const storeName = state.storeConfig.name || "Minha Confeitaria";
+    const storePhone = state.storeConfig.phone ? `(${state.storeConfig.phone.substring(0, 2)}) ${state.storeConfig.phone.substring(2, 7)}-${state.storeConfig.phone.substring(7)}` : "";
+
+    let printContainer = document.getElementById("print-receipt-container");
+    if (!printContainer) {
+        printContainer = document.createElement("div");
+        printContainer.id = "print-receipt-container";
+        document.body.appendChild(printContainer);
+    }
+
+    const dateFormatted = new Date(order.date + "T00:00:00").toLocaleDateString('pt-BR');
+    const totalItem = order.qty * order.val;
+
+    // Constrói layout de cupom térmico
+    printContainer.innerHTML = `
+        <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 5px;">
+            ${storeName.toUpperCase()}
+        </div>
+        ${storePhone ? `<div style="text-align: center; margin-bottom: 5px;">Fone: ${storePhone}</div>` : ''}
+        <div style="text-align: center; margin-bottom: 10px;">================================</div>
+        
+        <div><strong>PEDIDO:</strong> #${order.id.substring(0, 8).toUpperCase()}</div>
+        <div><strong>STATUS:</strong> ${order.status.toUpperCase()}</div>
+        <div><strong>DATA:</strong> ${dateFormatted} às ${order.time}</div>
+        <div style="margin-bottom: 10px;">================================</div>
+        
+        <div><strong>CLIENTE:</strong> ${client ? client.name : 'Sem Nome'}</div>
+        ${client && client.phone ? `<div><strong>FONE:</strong> ${client.phone}</div>` : ''}
+        <div style="margin-bottom: 10px;">================================</div>
+        
+        <div style="font-weight: bold; margin-bottom: 5px;">ITENS:</div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
+            <span>${order.qty}x ${product ? product.name : 'Doce Especial'}</span>
+            <span>R$ ${order.val.toFixed(2)}</span>
+        </div>
+        ${order.notes ? `<div style="font-size: 10px; color: #555; padding-left: 10px; margin-bottom: 5px;">* Obs: ${order.notes}</div>` : ''}
+        
+        <div style="margin-top: 5px; margin-bottom: 10px;">--------------------------------</div>
+        
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; margin-bottom: 10px;">
+            <span>TOTAL:</span>
+            <span>R$ ${totalItem.toFixed(2)}</span>
+        </div>
+        
+        <div style="text-align: center; margin-top: 15px; margin-bottom: 5px;">================================</div>
+        <div style="text-align: center; font-size: 10px;">Obrigado pela preferência!</div>
+        <div style="text-align: center; font-size: 8px; color: #666; margin-top: 5px;">Gerado por ConfeitaAI</div>
+        <div style="text-align: center; margin-bottom: 15px;">================================</div>
+    `;
+
+    setTimeout(() => {
+        window.print();
+    }, 100);
+}
+window.imprimirCupomPedido = imprimirCupomPedido;
 
 function downloadShoppingList(text) {
     if (!text) return;
