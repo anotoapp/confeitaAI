@@ -1084,11 +1084,14 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="prod-recipe">🔗 Receita Vinculada * <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(Obrigatório para base de custos e estoque)</span></label>
-                    <select id="prod-recipe" required>
-                        <option value="">Selecione uma receita da sua cozinha...</option>
+                    <label for="prod-recipe">🔗 Receita Vinculada <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(Opcional)</span></label>
+                    <select id="prod-recipe">
+                        <option value="">Sem receita vinculada (não desconta estoque)</option>
                         <!-- populated by JS -->
                     </select>
+                    <div id="recipe-warning-msg" style="display: none; background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 10px 12px; border-radius: 8px; font-size: 12px; margin-top: 8px; font-weight: 500; line-height: 1.4;">
+                        ⚠️ <strong>Atenção:</strong> Sem uma receita vinculada, o estoque de ingredientes não será baixado automaticamente quando este produto for vendido, e os custos de produção não serão calculados.
+                    </div>
                 </div>
                 <input type="hidden" id="prod-recipe-id">
                 <button type="submit" class="btn btn-primary btn-block">Salvar Produto</button>

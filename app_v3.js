@@ -1542,9 +1542,13 @@ function initializeConfeitaAI() {
         document.getElementById("prod-photo-preview-container").style.display = "none";
     });
     
-    // Auto-fill product price when a recipe is selected
+    // Auto-fill product price when a recipe is selected & toggle warning
     safeBind("prod-recipe", "change", (e) => {
         const recipeId = e.target.value;
+        const warningEl = document.getElementById("recipe-warning-msg");
+        if (warningEl) {
+            warningEl.style.display = recipeId ? "none" : "block";
+        }
         if (recipeId) {
             const recipe = state.recipes.find(r => r.id === recipeId);
             if (recipe) {
@@ -2233,8 +2237,8 @@ function renderCardapio(searchQuery = "") {
     list.innerHTML = "";
 
     const filtered = state.products.filter(p => {
-        // Enforce strict business rule: product MUST have a valid associated recipe
-        const hasValidRecipe = state.recipes.some(r => r.id === p.recipeId);
+        // Enforce strict business rule: product MUST have a valid associated recipe OR be independent (no recipeId)
+        const hasValidRecipe = !p.recipeId || state.recipes.some(r => r.id === p.recipeId);
         if (!hasValidRecipe) return false;
         
         return p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -3981,8 +3985,8 @@ function renderStorefrontProducts() {
     
     // Filter products
     let filtered = state.products.filter(p => {
-        // Enforce strict business rule: product MUST have a valid associated recipe
-        return state.recipes.some(r => r.id === p.recipeId);
+        // Enforce strict business rule: product MUST have a valid associated recipe OR be independent (no recipeId)
+        return !p.recipeId || state.recipes.some(r => r.id === p.recipeId);
     });
     if (activeCategoryFilter !== "all") {
         filtered = filtered.filter(p => p.category === activeCategoryFilter);
@@ -5963,15 +5967,21 @@ setTimeout(() => {
 // Helper for Recipe Select
 function populateRecipeSelect(selectElement, selectedValue) {
     if (!selectElement) return;
-    selectElement.innerHTML = `<option value="">Nenhuma receita vinculada</option>`;
+    selectElement.innerHTML = `<option value="">Sem receita vinculada (não desconta estoque)</option>`;
     state.recipes.forEach(r => {
         const option = document.createElement("option");
         option.value = r.id;
         option.textContent = r.name;
         selectElement.appendChild(option);
     });
-    if (selectedValue) {
-        selectElement.value = selectedValue;
+    
+    // Set value (defaulting to empty string for no selection/warning)
+    selectElement.value = selectedValue || "";
+    
+    // Toggle warning display based on selection
+    const warningEl = document.getElementById("recipe-warning-msg");
+    if (warningEl) {
+        warningEl.style.display = (selectedValue || selectElement.value) ? "none" : "block";
     }
 }
 
