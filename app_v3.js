@@ -408,6 +408,7 @@ async function loadState() {
             { data: transData, error: transErr },
             { data: recipeData, error: recipeErr },
             { data: msgData, error: msgErr },
+            userResult,
             storeConfigResult
         ] = await Promise.all([
             prodQuery,
@@ -417,6 +418,7 @@ async function loadState() {
             transQuery,
             recipeQuery,
             msgQuery,
+            userQuery.then(res => res, err => ({ data: null, error: err })),
             configQuery.limit(1).maybeSingle().then(res => res, err => ({ data: null, error: err }))
         ]);
 
@@ -426,15 +428,10 @@ async function loadState() {
 
         // Carregar colaboradores com segurança
         let userData = [];
-        try {
-            const { data, error } = await userQuery;
-            if (error) {
-                console.warn("Tabela 'usuarios' não existe no Supabase. Usando seed local.");
-                userData = JSON.parse(JSON.stringify(seedData.users));
-            } else {
-                userData = data || [];
-            }
-        } catch (e) {
+        if (userResult && userResult.data) {
+            userData = userResult.data;
+        } else {
+            console.warn("Tabela 'usuarios' não existe no Supabase ou falhou. Usando seed local.");
             userData = JSON.parse(JSON.stringify(seedData.users));
         }
 
@@ -4221,6 +4218,7 @@ async function processarEncomendaDigital() {
         let itemRows = "";
         
         // 2. Inserir Pedidos (Kanban)
+        const ordersToInsert = [];
         for (const item of customerCart) {
             const p = state.products.find(prod => prod.id === item.productId);
             if (!p) continue;
@@ -4251,14 +4249,25 @@ async function processarEncomendaDigital() {
             
             if (isSupabaseActive && ownerId) {
                 orderPayload.usuario_id = ownerId;
-                await supabaseClient.from('pedidos').insert([orderPayload]);
-            } else {
-                state.orders.push(orderPayload);
             }
-            
-            // 3. Abater Estoque
-            await deductStockForOrder({ productId: p.id, qty: item.qty });
+            ordersToInsert.push(orderPayload);
+            state.orders.push(orderPayload);
         }
+
+        // 3. Batch insert orders if online
+        if (isSupabaseActive && ownerId && ordersToInsert.length > 0) {
+            await supabaseClient.from('pedidos').insert(ordersToInsert);
+        }
+        
+        // 4. Batch deduct stock in parallel
+        const stockPromises = customerCart.map(item => {
+            const p = state.products.find(prod => prod.id === item.productId);
+            if (p) {
+                return deductStockForOrder({ productId: p.id, qty: item.qty });
+            }
+            return Promise.resolve();
+        });
+        await Promise.all(stockPromises);
         
         saveToLocalStorage();
         
@@ -6018,11 +6027,12 @@ async function deductStockForOrder(order) {
         if (isSupabaseActive) {
             try {
                 const loggedInUserId = getLoggedInUserId();
-                for (const stockIng of updates) {
+                const promises = updates.map(stockIng => {
                     let query = supabaseClient.from('estoque').update({ qty: stockIng.qty }).eq('id', stockIng.id);
                     if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
-                    await query;
-                }
+                    return query;
+                });
+                await Promise.all(promises);
             } catch (e) {
                 console.error("Erro ao sincronizar desconto de estoque:", e);
             }
