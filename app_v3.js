@@ -5276,7 +5276,14 @@ function renderUsersTable() {
         listEl.appendChild(row);
     });
 
-    // Approximate Storage Usage update
+    // Approximate Storage Usage and Users count update
+    const usersCountEl = document.getElementById("saas-users-count");
+    if (usersCountEl) {
+        // Quantifica apenas as confeiteiras cadastradas (exclui o Super Admin da contagem de leads)
+        const leadCount = state.users.filter(u => u.role === 'Confeiteira').length;
+        usersCountEl.innerText = leadCount;
+    }
+
     const storageEl = document.getElementById("saas-storage-usage");
     if (storageEl) {
         const stateStr = JSON.stringify(state);
