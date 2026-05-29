@@ -36,9 +36,22 @@ async function initSupabaseClient() {
         }
 
         if (window.supabase && !forcedOffline && SUPABASE_URL && SUPABASE_KEY) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            const isStorefront = document.body.classList.contains("standalone-storefront-mode");
+            if (isStorefront) {
+                // Se for a vitrine pública, inicializa um cliente 100% anônimo sem ler ou persistir a sessão do painel adm
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+                    auth: {
+                        persistSession: false,
+                        autoRefreshToken: false,
+                        detectSessionInUrl: false
+                    }
+                });
+                console.log("Supabase inicializado para MODO VITRINE (Anônimo e Seguro)! 🌐");
+            } else {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log("Supabase inicializado com sucesso! 🌐");
+            }
             isSupabaseActive = true;
-            console.log("Supabase inicializado com sucesso! 🌐");
         } else {
             supabaseClient = null;
             isSupabaseActive = false;
