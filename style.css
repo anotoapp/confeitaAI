@@ -3801,3 +3801,271 @@ html:not(.landing-html), body:not(.landing-body) {
     }
 }
 
+/* ==========================================================================
+   ConfeitaAI - Destaques & Categorias Customizadas (Storefront)
+   ========================================================================== */
+
+/* Carrossel de Destaques */
+.phone-highlights-scroll::-webkit-scrollbar {
+    display: none; /* Esconde barra de rolagem no Safari/Chrome */
+}
+.phone-highlights-scroll {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Cartão de Destaque */
+.phone-highlight-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.phone-highlight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+/* Badges do Cardápio */
+.storefront-badge-yellow {
+    font-family: var(--font-body);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+/* Modal de Categorias (Playlists) */
+#categories-list-ul li {
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+#categories-list-ul li:hover {
+    background-color: rgba(255, 126, 185, 0.05) !important;
+    border-color: rgba(255, 126, 185, 0.2) !important;
+}
+
+/* Estilos extras para botões do modal de categorias */
+#modal-categories ul button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ================= REDESIGNED CUSTOMER CARDAPIO DIGITAL STOREFRONT ================= */
+
+/* Cabeçalho de Navegação e Dropdown de Categorias */
+.phone-shop-header-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+#phone-category-select {
+    padding: 8px 32px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    outline: none;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-main);
+    background-color: #fafafa;
+    width: 170px;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+#phone-category-select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+#phone-search-toggle-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: #fafafa;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#phone-search-toggle-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary-hover);
+}
+
+#phone-search-bar-container {
+    padding: 10px 16px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+#phone-search-bar-container input {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    outline: none;
+    font-size: 13px;
+    font-weight: 500;
+    background: #fafafa;
+    transition: all 0.2s;
+}
+
+#phone-search-bar-container input:focus {
+    border-color: var(--color-primary);
+    background: #ffffff;
+}
+
+/* Novo Menu de Rodapé */
+.phone-footer-menu {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 6px 0;
+    height: 62px;
+    flex-shrink: 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.phone-footer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    cursor: pointer;
+    flex: 1;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    height: 100%;
+    position: relative;
+}
+
+.phone-footer-svg {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 4px;
+    stroke: #94a3b8;
+    transition: transform 0.25s ease, stroke 0.25s ease, fill 0.25s ease;
+}
+
+.phone-footer-text {
+    font-size: 10px;
+    font-weight: 700;
+    transition: color 0.25s ease;
+}
+
+.phone-footer-item:hover .phone-footer-svg {
+    stroke: var(--color-primary-hover);
+}
+
+.phone-footer-item.active {
+    color: var(--color-primary-hover);
+}
+
+.phone-footer-item.active .phone-footer-svg {
+    stroke: var(--color-primary-hover);
+    transform: translateY(-2px) scale(1.1);
+}
+
+/* Ajustes de Cartões e Imagens Maiores */
+.phone-product-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    background: #ffffff;
+    border-radius: var(--border-radius-md) !important;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.015);
+    border: 1px solid #f1f5f9;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.phone-product-card img, 
+.phone-product-card .phone-prod-emoji {
+    width: 105px !important;
+    height: 105px !important;
+    border-radius: 12px !important;
+    object-fit: cover;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+.phone-product-card .phone-prod-emoji {
+    font-size: 38px !important;
+    background: var(--color-primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Cartões de Destaque Verticais */
+.phone-highlight-card {
+    width: 160px !important;
+    background: #ffffff;
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.03) !important;
+    border: 1px solid #f1f5f9;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.phone-highlight-card img,
+.phone-highlight-card div[style*="background"] {
+    width: 100% !important;
+    height: 140px !important;
+    object-fit: cover;
+}
+
+.phone-highlight-card div[style*="background"] {
+    font-size: 40px !important;
+    background: var(--color-primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Badges bonitos */
+.storefront-badge-yellow, .phone-badge-destaque {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    width: fit-content;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.storefront-badge-yellow {
+    background: #fffbeb !important;
+    color: #d97706 !important;
+    border: 1px solid #fef3c7;
+}
+
+.phone-badge-destaque {
+    background: #fff1f2 !important;
+    color: #e11d48 !important;
+    border: 1px solid #ffe4e6;
+}
+

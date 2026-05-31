@@ -3921,11 +3921,8 @@ function openMenuPreview() {
         });
     }
 
-    // Render category chips
-    renderCategoryChips();
-    
-    // Render product list initially
-    renderStorefrontProducts();
+    // Switch to Home tab initially
+    switchPhoneTab('home');
 
     // Reset bag bar display
     updateCartUI();
@@ -4208,6 +4205,217 @@ function updateCartUI() {
     if (totalValEl) totalValEl.innerText = `R$ ${(totalPrice + deliveryFee).toFixed(2)}`;
 }
 
+// ================= REDESIGNED CUSTOMER CARDAPIO DIGITAL STOREFRONT NAVIGATION =================
+
+function switchPhoneTab(tabName) {
+    // 1. Hide all phone body containers
+    document.getElementById("phone-menu-body").style.display = "none";
+    document.getElementById("phone-tracking-body").style.display = "none";
+    if (document.getElementById("phone-promos-body")) document.getElementById("phone-promos-body").style.display = "none";
+    if (document.getElementById("phone-orders-body")) document.getElementById("phone-orders-body").style.display = "none";
+    if (document.getElementById("phone-profile-body")) document.getElementById("phone-profile-body").style.display = "none";
+
+    // 2. Remove active class from all footer items
+    const footerItems = document.querySelectorAll(".phone-footer-item");
+    footerItems.forEach(item => item.classList.remove("active"));
+
+    // 3. Show selected tab container and add active class to item
+    if (tabName === 'home') {
+        document.getElementById("phone-menu-body").style.display = "block";
+        document.getElementById("phone-footer-item-home").classList.add("active");
+        renderStorefrontProducts(); // Refilter and show all
+    } else if (tabName === 'promos') {
+        const promosBody = document.getElementById("phone-promos-body");
+        if (promosBody) promosBody.style.display = "block";
+        document.getElementById("phone-footer-item-promos").classList.add("active");
+        renderStorefrontPromos();
+    } else if (tabName === 'orders') {
+        const ordersBody = document.getElementById("phone-orders-body");
+        if (ordersBody) ordersBody.style.display = "block";
+        document.getElementById("phone-footer-item-orders").classList.add("active");
+        renderStorefrontOrdersHistory();
+    } else if (tabName === 'profile') {
+        const profileBody = document.getElementById("phone-profile-body");
+        if (profileBody) profileBody.style.display = "block";
+        document.getElementById("phone-footer-item-profile").classList.add("active");
+        renderStorefrontProfileTab();
+    }
+}
+window.switchPhoneTab = switchPhoneTab;
+
+function renderCategoryDropdown() {
+    const select = document.getElementById("phone-category-select");
+    if (!select) return;
+    
+    select.innerHTML = `<option value="all">Lista de categorias</option>`;
+    
+    let cats = state.storeConfig.categorias;
+    if (!cats || cats.length === 0) {
+        cats = [...new Set(state.products.map(p => p.category).filter(Boolean))];
+    }
+    
+    cats.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.innerText = cat;
+        if (activeCategoryFilter === cat) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+    
+    // Bind change listener
+    select.onchange = (e) => {
+        activeCategoryFilter = e.target.value;
+        renderStorefrontProducts();
+    };
+}
+window.renderCategoryDropdown = renderCategoryDropdown;
+
+function renderStorefrontPromos() {
+    const container = document.getElementById("phone-promos-body");
+    if (!container) return;
+    container.innerHTML = `
+        <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">🏷️ Promoções & Destaques</div>
+        <div id="phone-promos-list" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 80px;"></div>
+    `;
+    const list = container.querySelector("#phone-promos-list");
+    
+    const promoProducts = state.products.filter(p => (p.destacado || p.badgeDestaque || p.badge_destaque) && (!p.recipeId || state.recipes.some(r => r.id === p.recipeId)));
+    
+    if (promoProducts.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
+                <div style="font-size: 40px; margin-bottom: 10px;">🏷️</div>
+                <p style="font-size: 14px; font-weight: 500;">Nenhuma promoção ativa no momento.</p>
+                <p style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Volte em breve para conferir novidades!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    promoProducts.forEach(p => {
+        list.appendChild(createProductCard(p));
+    });
+}
+window.renderStorefrontPromos = renderStorefrontPromos;
+
+function renderStorefrontProfileTab() {
+    const container = document.getElementById("phone-profile-body");
+    if (!container) return;
+    
+    const storeName = state?.storeConfig?.name || "Minha Confeitaria";
+    const storeDesc = state?.storeConfig?.desc || "Os melhores doces artesanais, feitos com amor.";
+    const storePhone = state?.storeConfig?.phone || "(11) 99999-9999";
+    const storeHours = state?.storeConfig?.hours || "Segunda a Sexta, 09h às 18h";
+    const storeLogo = state?.storeConfig?.logo || 'imagens/logo.webp';
+    
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 16px; background: white; border-radius: var(--border-radius-md); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 80px;">
+            <div style="text-align: center;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto 12px; border: 2px solid var(--color-primary-light); box-shadow: 0 4px 10px rgba(0,0,0,0.04);">
+                    <img src="${storeLogo}" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <h3 style="font-size: 18px; font-weight: 700; color: var(--color-text-main); margin-bottom: 4px;">${storeName}</h3>
+                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.4;">${storeDesc}</p>
+            </div>
+            
+            <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <span style="font-size: 16px;">🕒</span>
+                    <div>
+                        <div style="font-size: 12px; font-weight: 700; color: var(--color-text-main);">Horário de Atendimento</div>
+                        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px;">${storeHours}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <span style="font-size: 16px;">💬</span>
+                    <div>
+                        <div style="font-size: 12px; font-weight: 700; color: var(--color-text-main);">Contato / WhatsApp</div>
+                        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px;">${storePhone}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <span style="font-size: 16px;">🛵</span>
+                    <div>
+                        <div style="font-size: 12px; font-weight: 700; color: var(--color-text-main);">Opções de Entrega</div>
+                        <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 2px;">Delivery ou Retirada (combine via WhatsApp)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <a href="https://wa.me/${storePhone.replace(/\D/g, '')}" target="_blank" style="background:#25D366; color:white; border:none; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; padding:12px; border-radius:12px; font-size:14px; font-weight:700; margin-top: 10px; box-shadow: 0 4px 10px rgba(37, 211, 102, 0.2);">
+                Enviar Mensagem no WhatsApp
+            </a>
+        </div>
+    `;
+}
+window.renderStorefrontProfileTab = renderStorefrontProfileTab;
+
+function renderStorefrontOrdersHistory() {
+    const container = document.getElementById("phone-orders-body");
+    if (!container) return;
+    
+    let myOrders = [];
+    try {
+        myOrders = JSON.parse(localStorage.getItem("confeitaai_my_orders") || "[]");
+    } catch(e) {
+        console.error(e);
+    }
+    
+    container.innerHTML = `
+        <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">📋 Meus Pedidos</div>
+        <div id="phone-orders-list" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 80px;"></div>
+    `;
+    
+    const list = container.querySelector("#phone-orders-list");
+    
+    if (myOrders.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
+                <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+                <p style="font-size: 14px; font-weight: 500;">Você ainda não fez nenhum pedido.</p>
+                <p style="font-size: 12px; opacity: 0.8; margin-top: 4px; margin-bottom: 15px;">Adicione doces e faça sua encomenda no WhatsApp!</p>
+                <button class="btn btn-primary btn-sm" onclick="switchPhoneTab('home')">Ver Cardápio</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort orders by newest first
+    [...myOrders].reverse().forEach(ord => {
+        const card = document.createElement("div");
+        card.style.background = "white";
+        card.style.borderRadius = "var(--border-radius-md)";
+        card.style.padding = "14px";
+        card.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+        card.style.border = "1px solid #f1f5f9";
+        card.style.display = "flex";
+        card.style.justifyContent = "space-between";
+        card.style.alignItems = "center";
+        card.style.cursor = "pointer";
+        
+        card.innerHTML = `
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--color-text-main);">Pedido #${ord.id}</div>
+                <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 4px;">Data: ${ord.date} &bull; Total: R$ ${parseFloat(ord.subtotal).toFixed(2)}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="badge badge-purple" style="font-size: 10px; padding: 4px 8px;">Acompanhar</span>
+                <span style="font-size: 14px; color: var(--color-text-muted);">&rsaquo;</span>
+            </div>
+        `;
+        
+        card.addEventListener("click", () => {
+            document.getElementById("phone-orders-body").style.display = "none";
+            showTrackingScreen(ord.id);
+        });
+        
+        list.appendChild(card);
+    });
+}
+window.renderStorefrontOrdersHistory = renderStorefrontOrdersHistory;
+
 // ViaCEP Integration
 const cepInput = document.getElementById("phone-cust-cep");
 if (cepInput) {
@@ -4285,6 +4493,9 @@ async function processarEncomendaDigital() {
         
         let subtotal = 0;
         let itemRows = "";
+        const now = new Date();
+        const cartId = "TRK-" + clientId.substring(2) + "-" + now.getTime().toString().substring(8);
+        window.lastOrderCartId = cartId; // To generate the tracking link
         
         // 2. Inserir Pedidos (Kanban)
         const ordersToInsert = [];
@@ -4297,11 +4508,6 @@ async function processarEncomendaDigital() {
             itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
             
             const orderId = "o_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-            const now = new Date();
-            
-            const cartId = "TRK-" + clientId.substring(2) + "-" + now.getTime().toString().substring(8);
-            window.lastOrderCartId = cartId; // To generate the tracking link
-            
             const finalNotes = `[CART:${cartId}]\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
             
             const orderPayload = {
@@ -4338,6 +4544,22 @@ async function processarEncomendaDigital() {
         });
         await Promise.all(stockPromises);
         
+        // Save order tracking ID in customer's local list
+        try {
+            let myOrders = JSON.parse(localStorage.getItem("confeitaai_my_orders") || "[]");
+            if (!myOrders.some(ord => ord.id === cartId)) {
+                myOrders.push({
+                    id: cartId,
+                    date: new Date().toLocaleDateString('pt-BR'),
+                    subtotal: subtotal + (window.currentDeliveryFee || 0),
+                    status: "Em Produção"
+                });
+                localStorage.setItem("confeitaai_my_orders", JSON.stringify(myOrders));
+            }
+        } catch (e) {
+            console.error("Erro ao salvar histórico de pedidos:", e);
+        }
+        
         saveToLocalStorage();
         
         // 4. Sucesso e Preparação WhatsApp
@@ -4350,7 +4572,7 @@ async function processarEncomendaDigital() {
         if (waBtn) {
             let msg = `Olá! Acabei de fazer um pedido no cardápio digital de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
             msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
-            msg += `*💰 TOTAL: R$ ${subtotal.toFixed(2)}*\n\n`;
+            msg += `*💰 TOTAL: R$ ${(subtotal + (window.currentDeliveryFee || 0)).toFixed(2)}*\n\n`;
             msg += `*👤 CLIENTE:*\n• Nome: ${nameVal}\n• Telefone: ${phoneVal}\n\n`;
             msg += `*📦 DETALHES DA ENTREGA:*\n${deliveryNotes}\n\n`;
             msg += `Já foi enviado para o seu sistema! Aguardo a confirmação. 🙏✨`;
@@ -4359,6 +4581,14 @@ async function processarEncomendaDigital() {
                 const phoneTarget = state.storeConfig.phone || "";
                 const url = `https://api.whatsapp.com/send?phone=${phoneTarget}&text=${encodeURIComponent(msg)}`;
                 window.open(url, "_blank");
+            };
+        }
+        
+        const trackBtn = document.getElementById("btn-phone-track-order");
+        if (trackBtn) {
+            trackBtn.onclick = () => {
+                closePhoneCartDrawer();
+                showTrackingScreen(cartId);
             };
         }
         

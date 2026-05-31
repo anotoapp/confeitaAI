@@ -586,6 +586,7 @@
                             <input type="text" id="search-product" placeholder="Procurar doce ou bolo...">
                         </div>
                         <div class="action-buttons" style="display: flex; gap: 10px; align-items: center;">
+                            <button class="btn btn-outline" id="btn-manage-categories">📂 Categorias</button>
                             <button class="btn btn-purple" id="btn-add-product">+ Adicionar Produto</button>
                             <button class="btn btn-outline" id="btn-preview-menu">📱 Ver Cardápio do Cliente</button>
                         </div>
@@ -1090,6 +1091,16 @@
                         <button type="button" id="btn-remove-photo" style="position: absolute; top: 4px; right: 4px; background: rgba(239,68,68,0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold;">X</button>
                     </div>
                 </div>
+                
+                <div class="form-group checkbox-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 10px;">
+                    <input type="checkbox" id="prod-destacado" style="width: auto; margin: 0;">
+                    <label for="prod-destacado" style="margin: 0; font-weight: 600; cursor: pointer;">Destacar no Cardápio (Exibir no topo em Destaques)</label>
+                </div>
+                <div class="form-group" id="group-badge-destaque" style="display: none; margin-top: 10px; margin-bottom: 10px;">
+                    <label for="prod-badge-destaque">Texto do Selo / Badge (Ex: EDIÇÃO LIMITADA, MAIS PEDIDO, NOVIDADE)</label>
+                    <input type="text" id="prod-badge-destaque" placeholder="Ex: EDIÇÃO LIMITADA" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                </div>
+
                 <div class="form-group">
                     <label for="prod-recipe">🔗 Receita Vinculada <span style="font-weight:400;color:var(--color-text-muted);font-size:12px;">(Opcional)</span></label>
                     <select id="prod-recipe">
@@ -1103,6 +1114,30 @@
                 <input type="hidden" id="prod-recipe-id">
                 <button type="submit" class="btn btn-primary btn-block">Salvar Produto</button>
             </form>
+        </div>
+    </div>
+
+    <!-- MODAL: MANAGE CATEGORIES -->
+    <div class="modal" id="modal-categories">
+        <div class="modal-content glass" style="max-width: 500px;">
+            <span class="close-btn" data-modal="modal-categories">&times;</span>
+            <h2>Gerenciar Categorias (Playlists)</h2>
+            <p class="text-muted" style="font-size: 12px; margin-bottom: 16px;">
+                Crie e ordene as categorias de produtos do seu cardápio, como playlists de música!
+            </p>
+            
+            <form id="form-add-category" style="display: flex; gap: 8px; margin-bottom: 20px;">
+                <input type="text" id="new-category-name" placeholder="Ex: Cookies, Combos, Bebidas..." required style="flex: 1; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                <button type="submit" class="btn btn-purple" style="white-space: nowrap;">+ Adicionar</button>
+            </form>
+
+            <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <ul id="categories-list-ul" style="list-style: none; padding: 0; margin: 0;">
+                    <!-- populado dinamicamente -->
+                </ul>
+            </div>
+
+            <button type="button" class="btn btn-outline btn-block" data-modal="modal-categories" onclick="closeModal('modal-categories')">Fechar</button>
         </div>
     </div>
 
@@ -1312,6 +1347,21 @@
                     <!-- Loaded dynamically via JS -->
                 </div>
 
+                <!-- Tela de Promoções (Oculta por padrão) -->
+                <div class="phone-body" id="phone-promos-body" style="display: none; padding: 16px;">
+                    <!-- Carregado via JS -->
+                </div>
+
+                <!-- Tela de Histórico de Pedidos (Oculta por padrão) -->
+                <div class="phone-body" id="phone-orders-body" style="display: none; padding: 16px;">
+                    <!-- Carregado via JS -->
+                </div>
+
+                <!-- Tela de Perfil (Oculta por padrão) -->
+                <div class="phone-body" id="phone-profile-body" style="display: none; padding: 16px;">
+                    <!-- Carregado via JS -->
+                </div>
+
                 <!-- Tela de Rastreio (Oculta por padrão) -->
                 <div class="phone-body" id="phone-tracking-body" style="display: none; padding: 20px; text-align: center;">
                     <div style="font-size: 48px; margin-bottom: 10px;">🛵</div>
@@ -1436,6 +1486,26 @@
                         <button type="button" class="phone-btn-checkout" id="btn-phone-track-order" style="background: var(--color-primary); color: white; margin-top: 10px;">
                             Acompanhar Meu Pedido 📍
                         </button>
+                    </div>
+                </div>
+                
+                <!-- Footer Menu Rodapé -->
+                <div class="phone-footer-menu" id="phone-footer-menu">
+                    <div class="phone-footer-item active" id="phone-footer-item-home" onclick="switchPhoneTab('home')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="phone-footer-svg" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        <span class="phone-footer-text">Início</span>
+                    </div>
+                    <div class="phone-footer-item" id="phone-footer-item-promos" onclick="switchPhoneTab('promos')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="phone-footer-svg" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></svg>
+                        <span class="phone-footer-text">Promoções</span>
+                    </div>
+                    <div class="phone-footer-item" id="phone-footer-item-orders" onclick="switchPhoneTab('orders')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="phone-footer-svg" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                        <span class="phone-footer-text">Pedidos</span>
+                    </div>
+                    <div class="phone-footer-item" id="phone-footer-item-profile" onclick="switchPhoneTab('profile')">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="phone-footer-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <span class="phone-footer-text">Perfil</span>
                     </div>
                 </div>
             </div>
