@@ -2765,62 +2765,61 @@ body.theme-dark .top-bar {
     background-color: var(--color-primary-hover);
 }
 
-/* Floating Bag Bar (now a FAB) */
+/* Floating Bag Bar (Premium Wide Pill) */
 .phone-bag-bar {
     position: absolute;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
-    right: 20px !important;
-    width: 60px;
-    height: 60px;
+    bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 16px !important;
+    right: 16px !important;
+    height: 52px;
     background: var(--color-primary);
-    border-radius: 50%;
+    border-radius: 26px;
     z-index: 80;
     display: flex;
     align-items: center;
-    justify-content: center;
-    box-shadow: 0 10px 25px rgba(147, 51, 234, 0.4);
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     color: white;
     animation: bounceInCart 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    transition: transform 0.2s ease, background-color 0.2s;
+    transition: transform 0.2s ease, background-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
 }
 
 .phone-bag-bar:hover {
-    transform: translateY(-4px) scale(1.05);
-    background: rgba(147, 51, 234, 0.95);
+    transform: translateY(-2px);
+    background-color: var(--color-primary-hover);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
 }
 
 .phone-bag-left {
     display: flex;
     align-items: center;
-    justify-content: center;
-    position: relative;
-    width: 100%;
-    height: 100%;
+    gap: 8px;
 }
 
 .phone-bag-icon {
-    font-size: 24px;
+    font-size: 20px;
 }
 
 .phone-bag-qty {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background-color: #ef4444; /* danger red for notifications */
+    background-color: rgba(255, 255, 255, 0.25);
     color: white;
     font-size: 11px;
     font-weight: 800;
-    border-radius: 50%;
-    min-width: 20px;
-    height: 20px;
-    display: flex;
+    border-radius: 12px;
+    padding: 2px 8px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    margin-left: 4px;
 }
 
 .phone-bag-total {
-    display: none; /* Hide total in FAB to save space */
+    display: block !important;
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .phone-bag-arrow {

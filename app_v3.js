@@ -79,7 +79,8 @@ let state = {
         slug: "docesdaju",
         hours: "Seg a Sex, 09h às 18h",
         logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
-        desc: "Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais."
+        desc: "Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais.",
+        cor_tema: "#ff7eb9"
     }
 };
 
@@ -163,7 +164,8 @@ const seedData = {
         slug: "",
         hours: "Seg a Sex, 09h às 18h",
         logo: "",
-        desc: ""
+        desc: "",
+        cor_tema: "#ff7eb9"
     }
 };
 
@@ -329,8 +331,10 @@ async function loadState() {
                     hours: configData.hours || "Horário a combinar",
                     logo: configData.logo || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
                     banner: configData.banner || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
-                    desc: configData.desc || ""
+                    desc: configData.desc || "",
+                    cor_tema: configData.cor_tema || "#ff7eb9"
                 };
+                applyStorefrontThemeColor(state.storeConfig.cor_tema);
 
                 const ownerId = configData.usuario_id;
                 if (ownerId) {
@@ -367,8 +371,10 @@ async function loadState() {
                     hours: "",
                     logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
                     banner: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
-                    desc: "Esta loja ainda não foi configurada pelo proprietário."
+                    desc: "Esta loja ainda não foi configurada pelo proprietário.",
+                    cor_tema: "#ff7eb9"
                 };
+                applyStorefrontThemeColor(state.storeConfig.cor_tema);
             }
 
             // Não salvar no LocalStorage para não sobrescrever os dados locais do visitante com a loja visitada.
@@ -603,8 +609,10 @@ async function loadState() {
                 hours: configData.hours || state.storeConfig.hours,
                 logo: configData.logo || state.storeConfig.logo,
                 banner: configData.banner || state.storeConfig.banner,
-                desc: configData.desc || state.storeConfig.desc
+                desc: configData.desc || state.storeConfig.desc,
+                cor_tema: configData.cor_tema || state.storeConfig.cor_tema || "#ff7eb9"
             };
+            applyStorefrontThemeColor(state.storeConfig.cor_tema);
         }
 
         // Save fresh fetched state to local storage cache
@@ -1673,6 +1681,7 @@ function initializeConfeitaAI() {
         const bannerVal = document.getElementById("store-banner").value.trim();
         const descVal = document.getElementById("store-desc").value.trim();
         const phoneVal = document.getElementById("store-phone") ? document.getElementById("store-phone").value.trim().replace(/\D/g, '') : '';
+        const themeColorVal = document.getElementById("store-theme-color") ? document.getElementById("store-theme-color").value : '#ff7eb9';
         
         if (!slugVal) {
             alert("Por favor, insira um link personalizado (slug) válido.");
@@ -1687,11 +1696,13 @@ function initializeConfeitaAI() {
             hours: hoursVal,
             logo: logoVal || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
             banner: bannerVal || "",
-            desc: descVal || ""
+            desc: descVal || "",
+            cor_tema: themeColorVal
         };
         
         saveToLocalStorage();
         updateStoreShowcase();
+        applyStorefrontThemeColor(state.storeConfig.cor_tema);
         
         const configPanel = document.getElementById("store-config-panel");
         if (configPanel) configPanel.style.display = "none";
@@ -1711,7 +1722,8 @@ function initializeConfeitaAI() {
                     hours: state.storeConfig.hours,
                     logo: state.storeConfig.logo,
                     banner: state.storeConfig.banner,
-                    desc: state.storeConfig.desc
+                    desc: state.storeConfig.desc,
+                    cor_tema: state.storeConfig.cor_tema
                 }]).then(({ error }) => {
                     if (error) {
                         console.error("Erro ao salvar no Supabase:", error);
@@ -5950,6 +5962,7 @@ function populateStoreForm() {
     const logoEl = document.getElementById("store-logo");
     const bannerEl = document.getElementById("store-banner");
     const descEl = document.getElementById("store-desc");
+    const themeColorEl = document.getElementById("store-theme-color");
     
     if (nameEl) nameEl.value = state.storeConfig.name || "";
     if (slugEl) slugEl.value = state.storeConfig.slug || "";
@@ -5963,6 +5976,10 @@ function populateStoreForm() {
         bannerEl.dispatchEvent(new Event('input'));
     }
     if (descEl) descEl.value = state.storeConfig.desc || "";
+    if (themeColorEl) {
+        themeColorEl.value = state.storeConfig.cor_tema || "#ff7eb9";
+    }
+    applyStorefrontThemeColor(state.storeConfig.cor_tema);
     
     // Parse and set the days buttons and times inputs
     const parsedHours = parseHours(state.storeConfig.hours || "");
@@ -6341,6 +6358,54 @@ function downloadShoppingList(text) {
 }
 window.downloadShoppingList = downloadShoppingList;
 
+// Color theme utility functions
+function darkenColor(hex, percent) {
+    let num = parseInt(hex.replace("#",""), 16),
+        amt = Math.round(2.55 * percent),
+        R = (num >> 16) - amt,
+        G = (num >> 8 & 0x00FF) - amt,
+        B = (num & 0x0000FF) - amt;
+    return "#" + (0x1000000 + (R<0?0:R>255?255:R)*0x10000 + (G<0?0:G>255?255:G)*0x100 + (B<0?0:B>255?255:B)).toString(16).slice(1);
+}
+
+function hexToRgba(hex, alpha) {
+    let num = parseInt(hex.replace("#",""), 16),
+        R = num >> 16,
+        G = num >> 8 & 0x00FF,
+        B = num & 0x0000FF;
+    return `rgba(${R}, ${G}, ${B}, ${alpha})`;
+}
+
+function applyStorefrontThemeColor(color) {
+    let styleEl = document.getElementById("storefront-theme-overrides");
+    if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = "storefront-theme-overrides";
+        document.head.appendChild(styleEl);
+    }
+    
+    if (!color) {
+        color = "#ff7eb9";
+    }
+    
+    const primary = color;
+    const hover = darkenColor(color, 12);
+    const light = hexToRgba(color, 0.1);
+    
+    styleEl.innerHTML = `
+        body.standalone-storefront-mode,
+        #modal-menu-preview,
+        #modal-menu-preview .phone-screen,
+        .phone-screen,
+        .phone-bag-bar {
+            --color-primary: ${primary} !important;
+            --color-primary-hover: ${hover} !important;
+            --color-primary-light: ${light} !important;
+        }
+    `;
+}
+window.applyStorefrontThemeColor = applyStorefrontThemeColor;
+
 // ============================================================================
 // STORE CONFIGURATION UX: Image Upload & Compression + Day Toggles
 // ============================================================================
@@ -6432,6 +6497,42 @@ function setupStoreConfigUI() {
 
     setupImageUpload("store-logo-file", "store-logo", "store-logo-preview");
     setupImageUpload("store-banner-file", "store-banner", "store-banner-preview");
+
+    // 3. Theme Color UI bindings
+    const themeColorEl = document.getElementById("store-theme-color");
+    const presetButtons = document.querySelectorAll(".btn-color-preset");
+    const resetColorBtn = document.getElementById("btn-reset-theme-color");
+    
+    if (themeColorEl) {
+        themeColorEl.addEventListener("input", (e) => {
+            const color = e.target.value;
+            applyStorefrontThemeColor(color);
+        });
+    }
+    
+    presetButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const color = btn.getAttribute("data-color");
+            if (themeColorEl) {
+                themeColorEl.value = color;
+                themeColorEl.dispatchEvent(new Event("input"));
+            } else {
+                applyStorefrontThemeColor(color);
+            }
+        });
+    });
+    
+    if (resetColorBtn) {
+        resetColorBtn.addEventListener("click", () => {
+            const originalColor = "#ff7eb9";
+            if (themeColorEl) {
+                themeColorEl.value = originalColor;
+                themeColorEl.dispatchEvent(new Event("input"));
+            } else {
+                applyStorefrontThemeColor(originalColor);
+            }
+        });
+    }
 }
 
 // Ensure the setup runs

@@ -573,6 +573,25 @@
                                     <label for="store-desc" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Descrição Breve da Loja</label>
                                     <textarea id="store-desc" rows="2" placeholder="Uma breve introdução sobre seus doces incríveis..." style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;"></textarea>
                                 </div>
+                                <div class="form-group" style="margin-top: 16px;">
+                                    <label style="display: block; font-size: 12px; margin-bottom: 8px; font-weight: 600;">Cor do Tema do Cardápio</label>
+                                    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: rgba(255,255,255,0.5); padding: 12px; border-radius: var(--border-radius-md); border: 1px solid rgba(255, 126, 185, 0.1);">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="color" id="store-theme-color" value="#ff7eb9" style="width: 36px; height: 36px; padding: 0; border: 2px solid #e2e8f0; border-radius: 50%; cursor: pointer; outline: none; background: none;">
+                                            <span style="font-size: 12px; font-weight: 500; color: var(--color-text-muted);">Cor personalizada</span>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <button type="button" class="btn-color-preset" data-color="#ff7eb9" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #ff7eb9; cursor: pointer; transition: transform 0.2s;" title="Rosa Original"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#d97706" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #d97706; cursor: pointer; transition: transform 0.2s;" title="Dourado / Gold"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#7c2d12" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #7c2d12; cursor: pointer; transition: transform 0.2s;" title="Chocolate"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#7c3aed" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #7c3aed; cursor: pointer; transition: transform 0.2s;" title="Roxo / Violeta"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#dc2626" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #dc2626; cursor: pointer; transition: transform 0.2s;" title="Vermelho Morango"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#0d9488" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #0d9488; cursor: pointer; transition: transform 0.2s;" title="Menta / Verde"></button>
+                                            <button type="button" class="btn-color-preset" data-color="#2563eb" style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e2e8f0; background-color: #2563eb; cursor: pointer; transition: transform 0.2s;" title="Azul Confeiteiro"></button>
+                                        </div>
+                                        <button type="button" id="btn-reset-theme-color" style="background: none; border: none; color: var(--color-purple); font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0; margin-left: auto;">Voltar ao original</button>
+                                    </div>
+                                </div>
                                 <div style="display: flex; gap: 12px; margin-top: 16px;">
                                     <button type="submit" class="btn btn-purple">Salvar Configurações</button>
                                     <button type="button" class="btn btn-outline" id="btn-cancel-store-config">Cancelar</button>
