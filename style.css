@@ -1763,13 +1763,7 @@ body.theme-dark .top-bar {
 }
 
 .phone-header {
-    background-color: var(--color-primary);
-    color: white;
-    padding: 24px 16px 12px 16px;
-    text-align: center;
-    position: relative;
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
+    display: none !important;
 }
 
 .phone-camera {
@@ -2524,6 +2518,11 @@ body.theme-dark .top-bar {
 }
 
 /* ================= CLIENT DIGITAL MENU IMPROVEMENTS ================= */
+.phone-shop-header-container {
+    margin: -8px -16px 16px -16px;
+    overflow: hidden;
+}
+
 .phone-shop-cover {
     height: 90px;
     background: linear-gradient(135deg, var(--color-primary-light) 0%, rgba(147, 51, 234, 0.2) 100%);
@@ -2695,7 +2694,7 @@ body.theme-dark .top-bar {
 /* Product list corrections */
 .phone-body {
     background-color: #f8fafc;
-    padding: 8px 16px calc(85px + env(safe-area-inset-bottom, 0px)) 16px !important; /* Extra bottom padding for footer and cart bar */
+    padding: 8px 16px calc(150px + env(safe-area-inset-bottom, 0px)) 16px !important; /* Extra bottom padding for footer and cart FAB */
 }
 
 .phone-product-card {
@@ -3083,8 +3082,9 @@ body.theme-dark .top-bar {
 
 /* ================= CUSTOMER STANDALONE STOREFRONT CLIENT MODE ================= */
 body.standalone-storefront-mode {
-    overflow-y: auto !important;
+    overflow: hidden !important;
     height: 100vh !important;
+    height: 100dvh !important;
     background-color: #fafafa !important;
     background-image: none !important;
 }
@@ -3099,6 +3099,7 @@ body.standalone-storefront-mode #modal-menu-preview {
     position: relative !important;
     width: 100vw !important;
     height: 100vh !important;
+    height: 100dvh !important;
     background: #fafafa !important;
     backdrop-filter: none !important;
     z-index: 9999 !important;
@@ -3106,18 +3107,21 @@ body.standalone-storefront-mode #modal-menu-preview {
     justify-content: center;
     padding: 0 !important;
     margin: 0 !important;
+    overflow: hidden !important;
 }
 
 body.standalone-storefront-mode #modal-menu-preview .phone-preview-modal {
     max-width: 600px !important;
     width: 100% !important;
     height: 100vh !important;
+    height: 100dvh !important;
     display: flex !important;
     flex-direction: column !important;
     background: transparent !important;
     box-shadow: none !important;
     border-radius: 0 !important;
     padding: 0 !important;
+    overflow: hidden !important;
 }
 
 body.standalone-storefront-mode #modal-menu-preview .close-btn {
