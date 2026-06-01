@@ -3921,6 +3921,9 @@ function openMenuPreview() {
         });
     }
 
+    // Render category scroll chips
+    renderCategoryChips();
+
     // Switch to Home tab initially
     switchPhoneTab('home');
 
@@ -4006,17 +4009,22 @@ function renderCategoryChips() {
     
     // Default "Todos" chip
     const allChip = document.createElement("div");
-    allChip.className = "phone-cat-chip active";
+    allChip.className = "phone-cat-chip";
+    if (activeCategoryFilter === "all") allChip.classList.add("active");
     allChip.innerText = "Todos";
     allChip.setAttribute("data-cat", "all");
     allChip.addEventListener("click", () => selectCategoryChip("all"));
     scrollContainer.appendChild(allChip);
     
-    // Get unique categories from active products
-    const uniqueCats = [...new Set(state.products.map(p => p.category).filter(Boolean))];
-    uniqueCats.forEach(cat => {
+    let cats = state?.storeConfig?.categorias;
+    if (!cats || cats.length === 0) {
+        cats = [...new Set(state.products.map(p => p.category).filter(Boolean))];
+    }
+    
+    cats.forEach(cat => {
         const chip = document.createElement("div");
         chip.className = "phone-cat-chip";
+        if (activeCategoryFilter === cat) chip.classList.add("active");
         chip.innerText = cat;
         chip.setAttribute("data-cat", cat);
         chip.addEventListener("click", () => selectCategoryChip(cat));
@@ -4067,39 +4075,82 @@ function renderStorefrontProducts() {
         return;
     }
     
-    // Render list
+    // Group products by category
+    const grouped = {};
     filtered.forEach(p => {
-        const card = document.createElement("div");
-        card.className = "phone-product-card";
-        card.style.display = "flex";
-        card.style.alignItems = "center";
-        card.style.justifyContent = "space-between";
-        card.style.gap = "12px";
-        card.style.padding = "12px";
-        card.style.background = "white";
-        card.style.borderRadius = "var(--border-radius-md)";
-        card.style.marginBottom = "8px";
-        
-        const imageElement = p.photo 
-            ? `<div style="width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${p.photo}" style="width:100%; height:100%; object-fit:cover;"></div>`
-            : `<div class="phone-prod-emoji" style="font-size: 24px; width: 44px; height: 44px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0;">${p.emoji || "🧁"}</div>`;
-
-        card.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                ${imageElement}
-                <div class="phone-prod-details" style="flex: 1;">
-                    <div class="phone-prod-name" style="font-size: 13px; font-weight: 600; color: var(--color-text-main);">${p.name}</div>
-                    <p style="font-size: 10px; color: #6e768e; margin: 2px 0 0 0; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                        ${p.desc || p.description || ''}
-                    </p>
-                    <div class="phone-prod-price" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover); margin-top: 4px;">R$ ${p.price.toFixed(2)}</div>
-                </div>
-            </div>
-            <div class="phone-prod-actions" id="prod-action-${p.id}" style="flex-shrink: 0;">
-                <!-- Filled dynamically by updateCartUI -->
-            </div>
+        const cat = p.category || "Outros";
+        if (!grouped[cat]) {
+            grouped[cat] = [];
+        }
+        grouped[cat].push(p);
+    });
+    
+    // Sort category headers to match state.storeConfig.categorias if present
+    let sortedCats = Object.keys(grouped);
+    if (state?.storeConfig?.categorias && state.storeConfig.categorias.length > 0) {
+        const orderMap = {};
+        state.storeConfig.categorias.forEach((cat, index) => {
+            orderMap[cat] = index;
+        });
+        sortedCats.sort((a, b) => {
+            const indexA = orderMap[a] !== undefined ? orderMap[a] : 999;
+            const indexB = orderMap[b] !== undefined ? orderMap[b] : 999;
+            return indexA - indexB;
+        });
+    }
+    
+    // Render groups with category headings
+    sortedCats.forEach(cat => {
+        const catHeader = document.createElement("div");
+        catHeader.className = "phone-category-header";
+        catHeader.style.fontSize = "13px";
+        catHeader.style.fontWeight = "700";
+        catHeader.style.color = "var(--color-text-main)";
+        catHeader.style.margin = "18px 0 8px 0";
+        catHeader.style.paddingLeft = "8px";
+        catHeader.style.borderLeft = "3px solid var(--color-primary)";
+        catHeader.style.display = "flex";
+        catHeader.style.alignItems = "center";
+        catHeader.style.justifyContent = "space-between";
+        catHeader.innerHTML = `
+            <span>${cat}</span>
+            <span style="font-size: 10px; font-weight: 500; color: #94a3b8; padding-right: 4px;">${grouped[cat].length} ${grouped[cat].length === 1 ? 'item' : 'itens'}</span>
         `;
-        container.appendChild(card);
+        container.appendChild(catHeader);
+        
+        grouped[cat].forEach(p => {
+            const card = document.createElement("div");
+            card.className = "phone-product-card";
+            card.style.display = "flex";
+            card.style.alignItems = "center";
+            card.style.justifyContent = "space-between";
+            card.style.gap = "12px";
+            card.style.padding = "12px";
+            card.style.background = "white";
+            card.style.borderRadius = "var(--border-radius-md)";
+            card.style.marginBottom = "8px";
+            
+            const imageElement = p.photo 
+                ? `<div style="width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${p.photo}" style="width:100%; height:100%; object-fit:cover;"></div>`
+                : `<div class="phone-prod-emoji" style="font-size: 24px; width: 44px; height: 44px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0;">${p.emoji || "🧁"}</div>`;
+
+            card.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    ${imageElement}
+                    <div class="phone-prod-details" style="flex: 1;">
+                        <div class="phone-prod-name" style="font-size: 13px; font-weight: 600; color: var(--color-text-main);">${p.name}</div>
+                        <p style="font-size: 10px; color: #6e768e; margin: 2px 0 0 0; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                            ${p.desc || p.description || ''}
+                        </p>
+                        <div class="phone-prod-price" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover); margin-top: 4px;">R$ ${p.price.toFixed(2)}</div>
+                    </div>
+                </div>
+                <div class="phone-prod-actions" id="prod-action-${p.id}" style="flex-shrink: 0;">
+                    <!-- Filled dynamically by updateCartUI -->
+                </div>
+            `;
+            container.appendChild(card);
+        });
     });
     
     // Sync cart quantity actions
