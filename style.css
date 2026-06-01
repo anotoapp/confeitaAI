@@ -2835,7 +2835,7 @@ body.theme-dark .top-bar {
     right: 0;
     bottom: 0;
     background-color: rgba(0,0,0,0.5);
-    z-index: 85;
+    z-index: 1010;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -2855,7 +2855,7 @@ body.theme-dark .top-bar {
     background-color: white;
     border-top-left-radius: 28px;
     border-top-right-radius: 28px;
-    z-index: 90;
+    z-index: 1020;
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 -15px 35px rgba(0,0,0,0.15);
@@ -3028,7 +3028,7 @@ body.theme-dark .top-bar {
 }
 
 .phone-cart-footer {
-    padding: 16px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) 16px;
     border-top: 1px solid #f1f5f9;
     flex-shrink: 0;
 }

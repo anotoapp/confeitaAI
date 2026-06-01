@@ -349,7 +349,9 @@ async function loadState() {
                         category: p.category || "Geral",
                         desc: p.desc || p.description || "",
                         emoji: p.emoji || "🧁",
-                        recipeId: p.recipe_id || null
+                        recipeId: p.recipe_id || null,
+                        destacado: p.destacado || false,
+                        badgeDestaque: p.badge_destaque || ""
                     }));
                 } else {
                     console.warn("Loja sem usuario_id configurado.");
@@ -473,7 +475,9 @@ async function loadState() {
             category: p.category || "Geral",
             desc: p.desc || p.description || "",
             emoji: p.emoji || "🧁",
-            recipeId: p.recipe_id || null
+            recipeId: p.recipe_id || null,
+            destacado: p.destacado || false,
+            badgeDestaque: p.badge_destaque || ""
         }));
         state.users = userData || [];
         
@@ -2320,11 +2324,15 @@ function renderCardapio(searchQuery = "") {
     }
 
     filtered.forEach(p => {
+        const promoBadge = p.destacado ? `<span class="badge product-badge" style="position:relative; z-index:1; background:#eab308; color:white; border:none; margin-left:4px;">⭐ Destaque</span>` : "";
         list.innerHTML += `
             <div class="product-card">
                 <div class="product-emoji-banner" style="position: relative; overflow: hidden; ${p.photo ? 'padding:0;' : ''}">
                     ${p.photo ? `<img src="${p.photo}" style="width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:0;">` : p.emoji}
-                    <span class="badge badge-purple product-badge" style="position:relative; z-index:1;">${p.category}</span>
+                    <div style="display:flex; flex-wrap:wrap; gap:4px; position:absolute; top:8px; left:8px; z-index:1;">
+                        <span class="badge badge-purple product-badge" style="position:static;">${p.category}</span>
+                        ${promoBadge}
+                    </div>
                 </div>
                 <div class="product-info">
                     <h3 class="product-title">${p.name}</h3>
@@ -2864,6 +2872,8 @@ async function handleProductSubmit(e) {
     const emoji = document.getElementById("prod-image").value;
     const recipeId = document.getElementById("prod-recipe")?.value || "";
     let photo = document.getElementById("prod-photo-base64").value || null;
+    const destacado = document.getElementById("prod-destacado")?.checked || false;
+    const badgeDestaque = document.getElementById("prod-badge-destaque")?.value.trim() || "";
 
     const targetId = id || "p_" + Date.now();
     
@@ -2884,7 +2894,9 @@ async function handleProductSubmit(e) {
         description: desc,
         emoji,
         photo,
-        recipeId: recipeId || null
+        recipeId: recipeId || null,
+        destacado,
+        badgeDestaque
     };
 
     if (id) {
@@ -2901,11 +2913,32 @@ async function handleProductSubmit(e) {
         try {
             const loggedInUserId = getLoggedInUserId();
             if (id) {
-                let query = supabaseClient.from('produtos').update({ name, price, category, description: desc, emoji, photo, recipe_id: recipeId || null }).eq('id', id);
+                let query = supabaseClient.from('produtos').update({ 
+                    name, 
+                    price, 
+                    category, 
+                    description: desc, 
+                    emoji, 
+                    photo, 
+                    recipe_id: recipeId || null,
+                    destacado,
+                    badge_destaque: badgeDestaque
+                }).eq('id', id);
                 if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
                 await query;
             } else {
-                const payload = { id: targetId, name, price, category, description: desc, emoji, photo, recipe_id: recipeId || null };
+                const payload = { 
+                    id: targetId, 
+                    name, 
+                    price, 
+                    category, 
+                    description: desc, 
+                    emoji, 
+                    photo, 
+                    recipe_id: recipeId || null,
+                    destacado,
+                    badge_destaque: badgeDestaque
+                };
                 if (loggedInUserId) payload.usuario_id = loggedInUserId;
                 await supabaseClient.from('produtos').insert([payload]);
             }
@@ -2925,6 +2958,11 @@ function editProduct(id) {
     document.getElementById("prod-category").value = prod.category;
     document.getElementById("prod-desc").value = prod.desc || prod.description || "";
     document.getElementById("prod-image").value = prod.emoji;
+    
+    const destCheckbox = document.getElementById("prod-destacado");
+    if (destCheckbox) destCheckbox.checked = prod.destacado || false;
+    const badgeInput = document.getElementById("prod-badge-destaque");
+    if (badgeInput) badgeInput.value = prod.badgeDestaque || prod.badge_destaque || "";
     
     document.getElementById("prod-photo-input").value = "";
     document.getElementById("prod-photo-base64").value = "";
@@ -3196,6 +3234,11 @@ window.exportToMenu = function(recipeId) {
     document.getElementById("prod-name").value = r.name;
     document.getElementById("prod-price").value = suggestedPrice.toFixed(2);
     document.getElementById("prod-desc").value = `Produzido a partir da ficha técnica: ${r.name}`;
+    
+    const destCheckbox = document.getElementById("prod-destacado");
+    if (destCheckbox) destCheckbox.checked = false;
+    const badgeInput = document.getElementById("prod-badge-destaque");
+    if (badgeInput) badgeInput.value = "";
     
     // Ensure the recipe dropdown has the options populated first
     populateRecipeSelect(document.getElementById("prod-recipe"), recipeId);
@@ -4619,21 +4662,25 @@ async function processarEncomendaDigital() {
         if (footerActions) footerActions.style.display = "none";
         if (successActions) successActions.style.display = "block";
         
+        let msg = `Olá! Acabei de fazer um pedido no cardápio digital de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
+        msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
+        msg += `*💰 TOTAL: R$ ${(subtotal + (window.currentDeliveryFee || 0)).toFixed(2)}*\n\n`;
+        msg += `*👤 CLIENTE:*\n• Nome: ${nameVal}\n• Telefone: ${phoneVal}\n\n`;
+        msg += `*📦 DETALHES DA ENTREGA:*\n${deliveryNotes}\n\n`;
+        msg += `Já foi enviado para o seu sistema! Aguardo a confirmação. 🙏✨`;
+        
+        const phoneTarget = (state.storeConfig.phone || "").replace(/\D/g, '');
+        const url = `https://api.whatsapp.com/send?phone=${phoneTarget}&text=${encodeURIComponent(msg)}`;
+        
         const waBtn = document.getElementById("btn-phone-whatsapp-success");
         if (waBtn) {
-            let msg = `Olá! Acabei de fazer um pedido no cardápio digital de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
-            msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
-            msg += `*💰 TOTAL: R$ ${(subtotal + (window.currentDeliveryFee || 0)).toFixed(2)}*\n\n`;
-            msg += `*👤 CLIENTE:*\n• Nome: ${nameVal}\n• Telefone: ${phoneVal}\n\n`;
-            msg += `*📦 DETALHES DA ENTREGA:*\n${deliveryNotes}\n\n`;
-            msg += `Já foi enviado para o seu sistema! Aguardo a confirmação. 🙏✨`;
-            
             waBtn.onclick = () => {
-                const phoneTarget = state.storeConfig.phone || "";
-                const url = `https://api.whatsapp.com/send?phone=${phoneTarget}&text=${encodeURIComponent(msg)}`;
                 window.open(url, "_blank");
             };
         }
+        
+        // Auto-redirect to WhatsApp immediately upon order submission
+        window.open(url, "_blank");
         
         const trackBtn = document.getElementById("btn-phone-track-order");
         if (trackBtn) {
@@ -4648,7 +4695,7 @@ async function processarEncomendaDigital() {
         alert("Ocorreu um erro ao processar o pedido. Tente novamente.");
         if (btn) {
             btn.disabled = false;
-            btn.innerText = "Confirmar Encomenda ✨";
+            btn.innerText = "Enviar Pedido no WhatsApp 💬";
         }
     }
 }
