@@ -29,7 +29,7 @@ module.exports = async function handler(req, res) {
     }
 
     // Whitelist of allowed tables for security
-    const allowedTables = ['produtos', 'clientes', 'estoque', 'pedidos', 'transacoes', 'receitas', 'mensagens_cacau', 'pagamentos_pendentes'];
+    const allowedTables = ['produtos', 'clientes', 'estoque', 'pedidos', 'transacoes', 'receitas', 'mensagens_cacau', 'pagamentos_pendentes', 'configuracoes'];
     if (!allowedTables.includes(table)) {
         return res.status(403).json({ error: `Tabela "${table}" não é permitida.` });
     }
