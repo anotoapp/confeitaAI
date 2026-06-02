@@ -521,16 +521,16 @@ async function loadState() {
 
         if (loggedInUserId) {
             configQuery = configQuery.eq('usuario_id', loggedInUserId);
+            prodQuery = prodQuery.eq('usuario_id', loggedInUserId);
+            clientQuery = clientQuery.eq('usuario_id', loggedInUserId);
+            stockQuery = stockQuery.eq('usuario_id', loggedInUserId);
+            orderQuery = orderQuery.eq('usuario_id', loggedInUserId);
+            transQuery = transQuery.eq('usuario_id', loggedInUserId);
+            recipeQuery = recipeQuery.eq('usuario_id', loggedInUserId);
+            msgQuery = msgQuery.eq('usuario_id', loggedInUserId);
+            fiadoQuery = fiadoQuery.eq('usuario_id', loggedInUserId);
+
             if (!isSuperAdmin || isImpersonating) {
-                prodQuery = prodQuery.eq('usuario_id', loggedInUserId);
-                clientQuery = clientQuery.eq('usuario_id', loggedInUserId);
-                stockQuery = stockQuery.eq('usuario_id', loggedInUserId);
-                orderQuery = orderQuery.eq('usuario_id', loggedInUserId);
-                transQuery = transQuery.eq('usuario_id', loggedInUserId);
-                recipeQuery = recipeQuery.eq('usuario_id', loggedInUserId);
-                msgQuery = msgQuery.eq('usuario_id', loggedInUserId);
-                fiadoQuery = fiadoQuery.eq('usuario_id', loggedInUserId);
-                
                 // Uma confeiteira/auxiliar só vê a si mesma e aos colaboradores sob o mesmo tenant
                 userQuery = userQuery.or(`usuario_id.eq.${loggedInUserId},id.eq.${loggedInUserId}`);
             }
