@@ -2610,6 +2610,19 @@ body.theme-dark .top-bar {
     animation: pulsing 1.5s infinite;
 }
 
+.phone-status-closed {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.phone-status-closed span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    display: inline-block;
+}
+
 .phone-status-hours {
     color: #64748b;
     display: flex;
@@ -4006,13 +4019,24 @@ html:not(.landing-html), body:not(.landing-body) {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.phone-product-card img, 
+.phone-product-card .phone-prod-photo-wrapper, 
 .phone-product-card .phone-prod-emoji {
     width: 105px !important;
     height: 105px !important;
     border-radius: 12px !important;
-    object-fit: cover;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
+}
+
+.phone-product-card .phone-prod-photo-wrapper {
+    overflow: hidden;
+}
+
+.phone-product-card .phone-prod-photo-wrapper img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    display: block;
 }
 
 .phone-product-card .phone-prod-emoji {
@@ -4021,7 +4045,6 @@ html:not(.landing-html), body:not(.landing-body) {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
 }
 
 /* Cartões de Destaque Verticais */

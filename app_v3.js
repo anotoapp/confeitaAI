@@ -20,7 +20,12 @@ let currentView = 'mes';
 // Global Pricing Parameters
 let DEFAULT_MARKUP = parseFloat(localStorage.getItem("confeitaai_default_markup")) || 200;
 let DEFAULT_PACKAGING = parseFloat(localStorage.getItem("confeitaai_default_packaging")) || 5.00;
-let DEFAULT_HOURLY_RATE = parseFloat(localStorage.getItem("confeitaai_default_hourly_rate")) || 15.00;
+function getLocalDateStr(dateObj = new Date()) {
+    const yyyy = dateObj.getFullYear();
+    const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
 
 async function initSupabaseClient() {
     try {
@@ -74,13 +79,15 @@ let state = {
     transactions: [],
     recipes: [],
     cacauMessages: [],
+    fiados: [],
     storeConfig: {
         name: "Doces da Ju",
         slug: "docesdaju",
         hours: "Seg a Sex, 09h às 18h",
         logo: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
         desc: "Nossos doces e bolos gourmet são produzidos com ingredientes nobres e muito amor para adoçar os seus momentos mais especiais.",
-        cor_tema: "#ff7eb9"
+        cor_tema: "#ff7eb9",
+        loja_aberta: true
     }
 };
 
@@ -243,6 +250,7 @@ function sanitizeAndMergeState(loadedState) {
         transactions: Array.isArray(loadedState.transactions) ? loadedState.transactions : [],
         recipes: Array.isArray(loadedState.recipes) ? loadedState.recipes : [],
         cacauMessages: Array.isArray(loadedState.cacauMessages) ? loadedState.cacauMessages : [],
+        fiados: Array.isArray(loadedState.fiados) ? loadedState.fiados : [],
         users: (Array.isArray(loadedState.users) && loadedState.users.length > 0) ? loadedState.users : JSON.parse(JSON.stringify(seedData.users)),
         storeConfig: loadedState.storeConfig || JSON.parse(JSON.stringify(seedData.storeConfig))
     };
@@ -324,20 +332,49 @@ async function loadState() {
             }
 
             if (configData) {
+                let cleanPhone = (configData.phone || "").replace(/\D/g, '');
+                if (cleanPhone && cleanPhone.length <= 11) {
+                    cleanPhone = "55" + cleanPhone;
+                }
                 state.storeConfig = {
+                    usuario_id: configData.usuario_id,
                     name: configData.name || "Minha Confeitaria",
                     slug: configData.slug || storefrontSlug,
-                    phone: configData.phone || "",
+                    phone: cleanPhone,
                     hours: configData.hours || "Horário a combinar",
                     logo: configData.logo || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
                     banner: configData.banner || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
                     desc: configData.desc || "",
-                    cor_tema: configData.cor_tema || "#ff7eb9"
+                    cor_tema: configData.cor_tema || "#ff7eb9",
+                    loja_aberta: configData.loja_aberta !== false
                 };
                 applyStorefrontThemeColor(state.storeConfig.cor_tema);
 
                 const ownerId = configData.usuario_id;
                 if (ownerId) {
+                    // Checa se o plano do dono está expirado ou inativo
+                    let ownerExpired = false;
+                    try {
+                        const { data: ownerUser, error: ownerErr } = await supabaseClient
+                            .from('usuarios')
+                            .select('plan, plan_expires_at, status')
+                            .eq('id', ownerId)
+                            .maybeSingle();
+
+                        if (!ownerErr && ownerUser) {
+                            const plan = ownerUser.plan || 'Trial';
+                            const expires = ownerUser.plan_expires_at ? new Date(ownerUser.plan_expires_at) : null;
+                            const isTrialExpired = plan === 'Trial' && expires && new Date() > expires;
+                            const isInativo = ownerUser.status === 'Inativo';
+                            if (isTrialExpired || isInativo) {
+                                ownerExpired = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Erro ao validar status do plano do dono:", e);
+                    }
+                    state.storeConfig.ownerExpired = ownerExpired;
+
                     // Busca APENAS os produtos do dono dessa loja
                     const { data: prodData, error: prodErr } = await supabaseClient
                         .from('produtos')
@@ -355,7 +392,8 @@ async function loadState() {
                         emoji: p.emoji || "🧁",
                         recipeId: p.recipe_id || null,
                         destacado: p.destacado || false,
-                        badgeDestaque: p.badge_destaque || ""
+                        badgeDestaque: p.badge_destaque || "",
+                        photo: p.photo || ""
                     }));
                 } else {
                     console.warn("Loja sem usuario_id configurado.");
@@ -417,6 +455,7 @@ async function loadState() {
         let msgQuery = supabaseClient.from('mensagens_cacau').select('*').order('created_at', { ascending: true });
         let configQuery = supabaseClient.from('configuracoes').select('*');
         let userQuery = supabaseClient.from('usuarios').select('*');
+        let fiadoQuery = supabaseClient.from('fiados').select('*');
 
         if (loggedInUserId) {
             configQuery = configQuery.eq('usuario_id', loggedInUserId);
@@ -428,6 +467,7 @@ async function loadState() {
                 transQuery = transQuery.eq('usuario_id', loggedInUserId);
                 recipeQuery = recipeQuery.eq('usuario_id', loggedInUserId);
                 msgQuery = msgQuery.eq('usuario_id', loggedInUserId);
+                fiadoQuery = fiadoQuery.eq('usuario_id', loggedInUserId);
                 
                 // Uma confeiteira/auxiliar só vê a si mesma e aos colaboradores sob o mesmo tenant
                 userQuery = userQuery.or(`usuario_id.eq.${loggedInUserId},id.eq.${loggedInUserId}`);
@@ -446,6 +486,7 @@ async function loadState() {
             { data: transData, error: transErr },
             { data: recipeData, error: recipeErr },
             { data: msgData, error: msgErr },
+            { data: fiadoData, error: fiadoErr },
             userResult,
             storeConfigResult
         ] = await Promise.all([
@@ -456,6 +497,7 @@ async function loadState() {
             transQuery,
             recipeQuery,
             msgQuery,
+            fiadoQuery.then(res => res, err => ({ data: [], error: err })),
             userQuery.then(res => res, err => ({ data: null, error: err })),
             configQuery.limit(1).maybeSingle().then(res => res, err => ({ data: null, error: err }))
         ]);
@@ -483,7 +525,8 @@ async function loadState() {
             emoji: p.emoji || "🧁",
             recipeId: p.recipe_id || null,
             destacado: p.destacado || false,
-            badgeDestaque: p.badge_destaque || ""
+            badgeDestaque: p.badge_destaque || "",
+            photo: p.photo || ""
         }));
         state.users = userData || [];
         
@@ -530,7 +573,12 @@ async function loadState() {
             name: r.name,
             yield: r.yield,
             ingredients: r.ingredients || [],
-            margin: parseFloat(r.margin) || 0
+            margin: parseFloat(r.margin) || 0,
+            prep_time: r.prep_time !== undefined && r.prep_time !== null ? parseFloat(r.prep_time) : 1.0,
+            labor_rate: r.labor_rate !== undefined && r.labor_rate !== null ? parseFloat(r.labor_rate) : DEFAULT_HOURLY_RATE,
+            gas_cost: r.gas_cost !== undefined && r.gas_cost !== null ? parseFloat(r.gas_cost) : 2.00,
+            packaging_cost: r.packaging_cost !== undefined && r.packaging_cost !== null ? parseFloat(r.packaging_cost) : 5.00,
+            fixed_overhead: r.fixed_overhead !== undefined && r.fixed_overhead !== null ? parseFloat(r.fixed_overhead) : 1.00
         }));
 
         state.cacauMessages = (msgData || []).map(m => ({
@@ -538,6 +586,18 @@ async function loadState() {
             sender: m.sender,
             text: m.text,
             time: m.time
+        }));
+
+        state.fiados = (fiadoData || []).map(f => ({
+            id: f.id,
+            clientName: f.client_name,
+            clientId: f.client_id,
+            date: f.date,
+            dueDate: f.due_date,
+            description: f.description,
+            totalVal: parseFloat(f.total_val) || 0,
+            status: f.status,
+            type: f.type
         }));
 
         // If mensajes_cacau are empty on fresh Supabase project, auto-seed them
@@ -610,7 +670,8 @@ async function loadState() {
                 logo: configData.logo || state.storeConfig.logo,
                 banner: configData.banner || state.storeConfig.banner,
                 desc: configData.desc || state.storeConfig.desc,
-                cor_tema: configData.cor_tema || state.storeConfig.cor_tema || "#ff7eb9"
+                cor_tema: configData.cor_tema || state.storeConfig.cor_tema || "#ff7eb9",
+                loja_aberta: configData.loja_aberta !== false
             };
             applyStorefrontThemeColor(state.storeConfig.cor_tema);
         }
@@ -677,6 +738,12 @@ async function checkSession() {
         }
         applyPermissions(profile.role);
 
+        // Configura notificações em tempo real para novos pedidos
+        if (isSupabaseActive && profile.id) {
+            setupRealtimeNotifications(profile.id);
+            requestNotificationPermission();
+        }
+
         // Update last_login silently
         const nowStr = new Date().toISOString();
         if (isSupabaseActive && profile.id) {
@@ -705,9 +772,16 @@ async function checkSession() {
                 if (daysLeft <= 3 && daysLeft > 0) {
                     const badge = document.createElement('div');
                     badge.id = 'trial-countdown-banner';
-                    badge.style.cssText = 'position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#ef4444);color:white;text-align:center;padding:8px;font-size:13px;font-weight:600;z-index:9999;';
+                    badge.style.cssText = 'background:linear-gradient(90deg,#f59e0b,#ef4444);color:white;text-align:center;padding:10px 16px;font-size:13px;font-weight:600;z-index:9999;position:relative;width:100%;flex-shrink:0;box-sizing:border-box;';
                     badge.innerHTML = `⏳ Seu período de teste termina em <strong>${daysLeft} dia${daysLeft > 1 ? 's' : ''}</strong>! <a href="#" onclick="showTrialExpiredModal()" style="color:white;text-decoration:underline;margin-left:8px;">Assinar Plano PRO →</a>`;
-                    if (!document.getElementById('trial-countdown-banner')) document.body.prepend(badge);
+                    if (!document.getElementById('trial-countdown-banner')) {
+                        const workspace = document.querySelector('.main-workspace');
+                        if (workspace) {
+                            workspace.prepend(badge);
+                        } else {
+                            document.body.prepend(badge);
+                        }
+                    }
                 }
             }
         }
@@ -976,6 +1050,7 @@ async function checkSession() {
         }
         modal.style.display = 'flex';
     }
+    window.showTrialExpiredModal = showTrialExpiredModal;
 
     // Modo online: Supabase Auth é a fonte da verdade
     if (isSupabaseActive) {
@@ -1034,6 +1109,255 @@ async function checkSession() {
         return applyUserToUI(user);
     } catch (e) {
         return showLogin();
+    }
+}
+
+// ================= REAL-TIME NOTIFICATIONS SYSTEM =================
+let pedidosSubscription = null;
+
+function setupRealtimeNotifications(userId) {
+    if (!isSupabaseActive || !supabaseClient || !userId) return;
+    
+    // Evita duplicidade limpando canal anterior se houver
+    if (pedidosSubscription) {
+        try {
+            supabaseClient.removeChannel(pedidosSubscription);
+        } catch (e) {
+            console.error("Erro ao remover canal anterior:", e);
+        }
+    }
+    
+    console.log("Configurando escuta em tempo real para novos pedidos do usuário:", userId);
+    
+    pedidosSubscription = supabaseClient
+        .channel('pedidos-realtime-changes')
+        .on(
+            'postgres_changes',
+            { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'pedidos', 
+                filter: `usuario_id=eq.${userId}` 
+            },
+            (payload) => {
+                console.log('Novo pedido detectado em tempo real:', payload.new);
+                handleNewOrderNotification(payload.new);
+            }
+        )
+        .subscribe((status) => {
+            console.log("Inscrito no canal de pedidos realtime. Status:", status);
+        });
+}
+
+function requestNotificationPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+            console.log("Permissão de notificações do sistema:", permission);
+        });
+    }
+}
+
+async function handleNewOrderNotification(newOrder) {
+    if (!newOrder || !newOrder.id) return;
+    
+    // Evita duplicar pedidos que já foram carregados
+    const exists = state.orders.some(o => o.id === newOrder.id || o.id === String(newOrder.id));
+    if (exists) return;
+    
+    // Converte o pedido do banco de dados para o modelo do frontend
+    const mappedOrder = {
+        id: String(newOrder.id),
+        clientId: newOrder.client_id,
+        productId: newOrder.product_id,
+        qty: parseInt(newOrder.qty) || 1,
+        val: parseFloat(newOrder.val) || 0,
+        date: newOrder.date,
+        time: newOrder.time ? newOrder.time.substring(0, 5) : "12:00",
+        status: newOrder.status || "Recebido",
+        notes: newOrder.notes || ""
+    };
+    
+    // Garante que o cliente associado esteja carregado localmente para podermos exibir o nome correto
+    let client = state.clients.find(c => c.id === mappedOrder.clientId);
+    if (!client && mappedOrder.clientId && isSupabaseActive) {
+        try {
+            const { data: dbClient, error } = await supabaseClient
+                .from('clientes')
+                .select('*')
+                .eq('id', mappedOrder.clientId)
+                .maybeSingle();
+                
+            if (dbClient && !error) {
+                client = {
+                    id: dbClient.id,
+                    name: dbClient.name,
+                    phone: dbClient.phone,
+                    orderCount: dbClient.order_count || 0,
+                    totalSpent: parseFloat(dbClient.total_spent) || 0
+                };
+                state.clients.push(client);
+            }
+        } catch (err) {
+            console.error("Erro ao sincronizar cliente em tempo real:", err);
+        }
+    }
+    
+    const clientName = client ? client.name : "Sem Nome";
+    
+    // Adiciona o novo pedido no início da lista local
+    state.orders.unshift(mappedOrder);
+    saveToLocalStorage();
+    
+    // Toca som de notificação (Cash Register / Chime digital feito com Web Audio API)
+    playNotificationSound();
+    
+    // Dispara Toast In-app
+    showToastNotification(
+        `🧁 Novo Pedido Recebido!`,
+        `Pedido #${mappedOrder.id} - ${clientName} (R$ ${mappedOrder.val.toFixed(2)})`,
+        () => {
+            // Se clicar no Toast, muda para a aba de encomendas
+            switchTab("encomendas");
+        }
+    );
+    
+    // Dispara notificação nativa do sistema (Desktop/Android)
+    showSystemNotification(
+        `🧁 Novo Pedido - ConfeitaAI`,
+        `Pedido #${mappedOrder.id} de ${clientName} no valor de R$ ${mappedOrder.val.toFixed(2)}`
+    );
+    
+    // Atualiza as interfaces em tempo real sem precisar de reload
+    try {
+        updateOverviewStats();
+        renderPedidos();
+        renderActiveTab();
+    } catch (e) {
+        console.error("Erro ao atualizar interface após notificação:", e);
+    }
+}
+
+function playNotificationSound() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        const playTone = (freq, delay, duration) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+            
+            gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+            gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + delay + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+            
+            osc.start(ctx.currentTime + delay);
+            osc.stop(ctx.currentTime + delay + duration);
+        };
+        
+        // Som digital de sininho (duplo acorde agradável)
+        playTone(587.33, 0, 0.25);      // D5
+        playTone(880.00, 0.12, 0.35);    // A5
+    } catch (e) {
+        console.error("Falha ao tocar som de notificação:", e);
+    }
+}
+
+function showToastNotification(title, message, onClick) {
+    let container = document.getElementById('toast-notification-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-notification-container';
+        container.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = 'in-app-toast';
+    toast.style.cssText = `
+        background: white;
+        color: #1f2937;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        border-left: 5px solid var(--color-purple, #8b5cf6);
+        min-width: 320px;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        pointer-events: auto;
+        cursor: pointer;
+        transform: translateY(50px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    `;
+    
+    toast.innerHTML = `
+        <div style="font-weight: bold; font-size: 15px; color: var(--color-purple, #8b5cf6); display: flex; align-items: center; gap: 8px;">
+            <span>${title}</span>
+        </div>
+        <div style="font-size: 13px; color: #4b5563;">${message}</div>
+    `;
+    
+    if (onClick) {
+        toast.onclick = () => {
+            onClick();
+            dismiss();
+        };
+    }
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+    }, 50);
+    
+    const dismiss = () => {
+        toast.style.transform = 'translateY(-20px)';
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    };
+    
+    // Auto-dismiss após 7 segundos
+    const timerId = setTimeout(dismiss, 7000);
+    
+    // Permite fechar clicando no próprio toast se não tiver ação de clique
+    if (!onClick) {
+        toast.onclick = dismiss;
+    }
+}
+
+function showSystemNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        try {
+            const options = {
+                body: body,
+                icon: 'https://confeita-ai.vercel.app/50-doces-dbtfno8m9v.webp',
+                tag: 'new-order-confeitaai' // Agrupa notificações se vierem várias
+            };
+            new Notification(title, options);
+        } catch (e) {
+            console.error("Erro ao disparar notificação de sistema:", e);
+        }
     }
 }
 
@@ -1147,6 +1471,7 @@ async function handleSetupSubmit(e) {
     e.preventDefault();
     const fullName = document.getElementById("setup-fullname").value.trim();
     const email = document.getElementById("setup-email").value.trim().toLowerCase();
+    const phone = document.getElementById("setup-phone").value.trim();
     const username = document.getElementById("setup-username").value.trim().toLowerCase().replace(/\s+/g, "");
     const password = document.getElementById("setup-password").value;
     const confirm  = document.getElementById("setup-password-confirm").value;
@@ -1157,10 +1482,21 @@ async function handleSetupSubmit(e) {
         errEl.style.display = "block";
     }
 
-    if (!fullName || !email || !username || !password || !confirm) return showSetupError("Preencha todos os campos obrigatórios.");
+    if (!fullName || !email || !phone || !username || !password || !confirm) return showSetupError("Preencha todos os campos obrigatórios.");
     if (username.length < 3) return showSetupError("O nome de usuário deve ter pelo menos 3 caracteres.");
     if (password.length < 6) return showSetupError("A senha deve ter pelo menos 6 caracteres.");
     if (password !== confirm) return showSetupError("As senhas não coincidem. Tente novamente.");
+
+    // Clean and validate phone number
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+        return showSetupError("Por favor, informe um WhatsApp válido com DDD (ex: 11999998888).");
+    }
+
+    let finalPhone = cleanPhone;
+    if (finalPhone.length <= 11) {
+        finalPhone = "55" + finalPhone;
+    }
 
     errEl.style.display = "none";
 
@@ -1191,7 +1527,8 @@ async function handleSetupSubmit(e) {
                 await supabaseClient.from('usuarios').update({
                     plan: 'PRO',
                     plan_expires_at: null,
-                    status: 'Ativo'
+                    status: 'Ativo',
+                    phone: finalPhone
                 }).eq('id', authData.user.id);
 
                 // Remove da fila de pendentes
@@ -1203,7 +1540,8 @@ async function handleSetupSubmit(e) {
                 await supabaseClient.from('usuarios').update({
                     plan: 'Trial',
                     plan_expires_at: expireDate.toISOString(),
-                    status: 'Ativo'
+                    status: 'Ativo',
+                    phone: finalPhone
                 }).eq('id', authData.user.id);
             }
         }
@@ -1327,7 +1665,7 @@ function switchTab(tabId) {
             const user = state.users.find(u => u.username === sessionData.username);
             if (user) {
                 const role = user.role;
-                if (role === "Auxiliar" && ["precificacao", "adm"].includes(tabId)) {
+                if (role === "Auxiliar" && ["receitas", "adm"].includes(tabId)) {
                     tabId = "dashboard";
                 } else if (role === "Confeiteira" && tabId === "adm") {
                     tabId = "dashboard";
@@ -1405,6 +1743,15 @@ function switchTab(tabId) {
                 renderClientes();
             } catch (e) {
                 console.error("Erro ao renderizar Gestão de Clientes:", e);
+            }
+            break;
+        case "fiados":
+            if (headerTitle) headerTitle.innerText = "Controle de Fiados & Consignações";
+            if (headerSubtitle) headerSubtitle.innerText = "Acompanhe seus produtos consignados e contas a prazo de clientes";
+            try {
+                renderFiados();
+            } catch (e) {
+                console.error("Erro ao renderizar Controle de Fiados:", e);
             }
             break;
         case "receitas":
@@ -1688,6 +2035,8 @@ function initializeConfeitaAI() {
             return;
         }
         
+        const isOpen = document.getElementById("store-open-toggle") ? document.getElementById("store-open-toggle").checked : true;
+        
         // Otimista: Salvar localmente e atualizar UI instantaneamente
         state.storeConfig = {
             name: nameVal || "Doces da Ju",
@@ -1697,12 +2046,14 @@ function initializeConfeitaAI() {
             logo: logoVal || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=150&h=150&fit=crop",
             banner: bannerVal || "",
             desc: descVal || "",
-            cor_tema: themeColorVal
+            cor_tema: themeColorVal,
+            loja_aberta: isOpen
         };
         
         saveToLocalStorage();
         updateStoreShowcase();
         applyStorefrontThemeColor(state.storeConfig.cor_tema);
+        updateQuickToggleUI();
         
         const configPanel = document.getElementById("store-config-panel");
         if (configPanel) configPanel.style.display = "none";
@@ -1723,7 +2074,8 @@ function initializeConfeitaAI() {
                     logo: state.storeConfig.logo,
                     banner: state.storeConfig.banner,
                     desc: state.storeConfig.desc,
-                    cor_tema: state.storeConfig.cor_tema
+                    cor_tema: state.storeConfig.cor_tema,
+                    loja_aberta: state.storeConfig.loja_aberta
                 }]).then(({ error }) => {
                     if (error) {
                         console.error("Erro ao salvar no Supabase:", error);
@@ -1944,11 +2296,55 @@ function initializeConfeitaAI() {
     safeBind("filter-clientes", "change", () => renderClientes(document.getElementById("search-client").value));
     safeBind("search-recipe", "input", (e) => renderReceitas(e.target.value));
 
+    // Fiados events
+    safeBind("search-fiados", "input", () => renderFiados());
+    safeBind("filter-fiado-status", "change", () => renderFiados());
+    safeBind("filter-fiado-type", "change", () => renderFiados());
+    safeBind("form-fiado", "submit", handleFiadoSubmit);
+    
+    // Add product to fiado description helper
+    safeBind("btn-fiado-add-product", "click", () => {
+        const prodSelect = document.getElementById("fiado-product-select");
+        const qtyInput = document.getElementById("fiado-product-qty");
+        const descTextarea = document.getElementById("fiado-desc");
+        const totalValInput = document.getElementById("fiado-total-val");
+
+        const prodId = prodSelect.value;
+        const qty = parseInt(qtyInput.value) || 1;
+
+        if (prodId) {
+            const product = state.products.find(p => p.id === prodId);
+            if (product) {
+                const line = `${qty}x ${product.name}`;
+                const currentVal = descTextarea.value.trim();
+                descTextarea.value = currentVal ? `${currentVal}, ${line}` : line;
+
+                const existingTotal = parseFloat(totalValInput.value) || 0;
+                totalValInput.value = (existingTotal + (product.price * qty)).toFixed(2);
+                
+                prodSelect.value = "";
+                qtyInput.value = "1";
+            }
+        }
+    });
+
+    // Populate client text when selecting from dropdown
+    safeBind("fiado-client-select", "change", (e) => {
+        const select = e.target;
+        const nameInput = document.getElementById("fiado-client-name");
+        if (select.value) {
+            nameInput.value = select.options[select.selectedIndex].text.replace(/\s\([^)]+\)/g, '');
+        }
+    });
+
     // Recipe Row dynamic calculations
     safeBind("btn-recipe-add-row", "click", () => addRecipeIngredientRow());
     safeBind("rec-margin", "input", calculateRecipeCostsInRealTime);
     safeBind("rec-prep-time", "input", calculateRecipeCostsInRealTime);
+    safeBind("rec-labor-rate", "input", calculateRecipeCostsInRealTime);
+    safeBind("rec-gas-cost", "input", calculateRecipeCostsInRealTime);
     safeBind("rec-packaging-cost", "input", calculateRecipeCostsInRealTime);
+    safeBind("rec-fixed-overhead", "input", calculateRecipeCostsInRealTime);
     safeBind("rec-yield", "input", calculateRecipeCostsInRealTime);
 
     // Dashboard Navigation (Period Dropdown)
@@ -2079,11 +2475,49 @@ function openModal(modalId) {
         
         const prepTimeInput = document.getElementById("rec-prep-time");
         if (prepTimeInput) prepTimeInput.value = "1.0";
+
+        const laborRateInput = document.getElementById("rec-labor-rate");
+        if (laborRateInput) laborRateInput.value = DEFAULT_HOURLY_RATE.toFixed(2);
+
+        const gasCostInput = document.getElementById("rec-gas-cost");
+        if (gasCostInput) gasCostInput.value = "2.00";
         
         const packagingInput = document.getElementById("rec-packaging-cost");
         if (packagingInput) packagingInput.value = DEFAULT_PACKAGING.toFixed(2);
+
+        const fixedOverheadInput = document.getElementById("rec-fixed-overhead");
+        if (fixedOverheadInput) fixedOverheadInput.value = "1.00";
         
         calculateRecipeCostsInRealTime();
+    }
+    if (modalId === "modal-fiado") {
+        document.getElementById("form-fiado").reset();
+        document.getElementById("fiado-id").value = "";
+        document.getElementById("modal-fiado-title").innerText = "Registrar Novo Fiado / Consignação";
+        
+        // Prefill date
+        const dateInput = document.getElementById("fiado-date");
+        if (dateInput) {
+            dateInput.value = new Date().toISOString().substring(0, 10);
+        }
+
+        // Populate clients select
+        const clientSelect = document.getElementById("fiado-client-select");
+        if (clientSelect) {
+            clientSelect.innerHTML = '<option value="">-- Selecione ou digite abaixo --</option>';
+            state.clients.forEach(c => {
+                clientSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+
+        // Populate products select
+        const prodSelect = document.getElementById("fiado-product-select");
+        if (prodSelect) {
+            prodSelect.innerHTML = '<option value="">Selecione um produto do cardápio...</option>';
+            state.products.forEach(p => {
+                prodSelect.innerHTML += `<option value="${p.id}">${p.emoji || '🧁'} ${p.name} (R$ ${p.price.toFixed(2)})</option>`;
+            });
+        }
     }
     populateSelectDropdowns();
 }
@@ -2212,13 +2646,24 @@ function renderDashboard() {
                 const fmtDate = rawDate.toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit" });
                 const isToday = now.toDateString() === rawDate.toDateString();
                 let badgeClass = "badge";
-                if (o.status === "Em Produção" || o.status === "Em Producao") badgeClass = "badge badge-warning";
+                if (o.status === "Recebido") badgeClass = "badge";
+                else if (o.status === "Em Produção" || o.status === "Em Producao") badgeClass = "badge badge-warning";
                 else if (o.status === "Pronto")  badgeClass = "badge badge-success";
+
+                let typeLabel = "";
+                if (o.notes) {
+                    if (o.notes.includes("Entrega") || o.notes.includes("Delivery")) {
+                        typeLabel = `<span style="color: #1e40af; font-weight: 700; font-size: 10px; padding: 2px 6px; background: #eff6ff; border-radius: 4px; margin-left: 6px;">🛵 Delivery</span>`;
+                    } else if (o.notes.includes("Retirada")) {
+                        typeLabel = `<span style="color: #854d0e; font-weight: 700; font-size: 10px; padding: 2px 6px; background: #fffbeb; border-radius: 4px; margin-left: 6px;">🛍️ Retirada</span>`;
+                    }
+                }
+
                 urgentDiv.innerHTML += `
                     <div class="compact-order-item">
                         <div class="compact-order-info">
                             <span class="compact-order-title">${o.qty}x ${product ? product.name : "Doce Especial"}</span>
-                            <span class="compact-order-client">Cliente: ${client ? client.name : "Convidado"} (${o.time})</span>
+                            <span class="compact-order-client" style="display: flex; align-items: center; flex-wrap: wrap;">Cliente: ${client ? client.name : "Convidado"} (${o.time})${typeLabel}</span>
                         </div>
                         <div class="action-flex">
                             <span class="${isToday ? 'compact-order-date' : 'badge badge-warning'}">${isToday ? 'Hoje' : fmtDate}</span>
@@ -2388,11 +2833,23 @@ function renderPedidos() {
 
         const tagHtml = o.tag ? `<span class="badge badge-tag-${o.tag.toLowerCase()}" style="margin-top: 4px; display: inline-block;">${o.tag}</span>` : "";
 
+        let typeBadge = "";
+        if (o.notes) {
+            if (o.notes.includes("Entrega") || o.notes.includes("Delivery")) {
+                typeBadge = `<span class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 10px; font-weight: 700; margin-top: 4px; display: inline-block;">🛵 Delivery</span>`;
+            } else if (o.notes.includes("Retirada")) {
+                typeBadge = `<span class="badge" style="background: #fffbeb; color: #854d0e; border: 1px solid #fef08a; font-size: 10px; font-weight: 700; margin-top: 4px; display: inline-block;">🛍️ Retirada</span>`;
+            }
+        }
+
         const cardHtml = `
             <div class="kanban-card ${urgentClass}" data-order-id="${o.id}">
                 <div class="kanban-card-title">${product ? product.emoji : "🧁"} ${o.qty}x ${product ? product.name : "Doce Especial"}</div>
                 <div class="kanban-card-client">Cliente: <strong>${client ? client.name : "Sem Nome"}</strong></div>
-                ${tagHtml}
+                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
+                    ${tagHtml}
+                    ${typeBadge}
+                </div>
                 <p style="font-size: 11px; color: var(--color-text-muted); line-height:1.3; margin-top: 4px;">${o.notes || ""}</p>
                 <div class="kanban-card-details">
                     <span class="kanban-card-date">${formattedDate} às ${o.time}</span>
@@ -2614,16 +3071,26 @@ function calcProductionCapacity(recipe) {
 
 // Helper: gerar HTML do card de receita (reutilizável para as duas abas)
 function buildRecipeCardHTML(r, showExport = true) {
-    let totalCost = 0;
+    let ingredientsCost = 0;
     const missingIngredients = [];
     r.ingredients.forEach(ri => {
         const ing = state.ingredients.find(i => i.id === ri.ingId);
         if (ing) {
-            totalCost += ing.unit === 'un' ? ing.price * ri.amount : (ing.price / 1000) * ri.amount;
+            ingredientsCost += ing.unit === 'un' ? ing.price * ri.amount : (ing.price / 1000) * ri.amount;
         } else {
             missingIngredients.push(ri.ingId);
         }
     });
+
+    const prepTime = r.prep_time !== undefined && r.prep_time !== null ? parseFloat(r.prep_time) : 1.0;
+    const laborRate = r.labor_rate !== undefined && r.labor_rate !== null ? parseFloat(r.labor_rate) : DEFAULT_HOURLY_RATE;
+    const gasCost = r.gas_cost !== undefined && r.gas_cost !== null ? parseFloat(r.gas_cost) : 2.00;
+    const packagingCost = r.packaging_cost !== undefined && r.packaging_cost !== null ? parseFloat(r.packaging_cost) : 5.00;
+    const fixedOverhead = r.fixed_overhead !== undefined && r.fixed_overhead !== null ? parseFloat(r.fixed_overhead) : 1.00;
+
+    const laborCost = prepTime * laborRate;
+    const totalCost = ingredientsCost + laborCost + packagingCost + gasCost + fixedOverhead;
+
     const suggestedPrice = totalCost * (1 + (r.margin || 200) / 100);
     const pricePerUnit = suggestedPrice / (r.yield || 1);
     const capacity = calcProductionCapacity(r);
@@ -3097,7 +3564,7 @@ async function quickAddStock(id) {
     const newQty = ing.qty + num;
     const expense = num * (ing.price / 1000);
     const transId = "t_" + Date.now();
-    const transDate = new Date().toISOString().split('T')[0];
+    const transDate = getLocalDateStr();
     const transDesc = `Estoque: +${num}${ing.unit} de ${ing.name}`;
 
     // 1. Update locally instantly
@@ -3417,7 +3884,7 @@ async function moveOrderStatus(id, direction) {
     if (direction === "next" && currIdx < stages.length - 1) {
         const nextStatus = stages[currIdx + 1];
         const transId = "t_" + Date.now();
-        const transDate = new Date().toISOString().split('T')[0];
+        const transDate = getLocalDateStr();
         const prod = state.products.find(p => p.id === order.productId);
         const client = state.clients.find(c => c.id === order.clientId);
         const transDesc = `Entrega: ${prod ? prod.name : 'Doce'} - Cliente: ${client ? client.name : 'Convidado'} (Pedido: ${order.id})`;
@@ -3518,7 +3985,7 @@ async function updateOrderStatus(orderId, targetStatus) {
     if (order && order.status !== targetStatus) {
         const wasEntregue = order.status === "Entregue";
         const transId = "t_" + Date.now();
-        const transDate = new Date().toISOString().split('T')[0];
+        const transDate = getLocalDateStr();
         const prod = state.products.find(p => p.id === order.productId);
         const client = state.clients.find(c => c.id === order.clientId);
         const transDesc = `Entrega: ${prod ? prod.name : 'Doce'} - Cliente: ${client ? client.name : 'Convidado'} (Pedido: ${order.id})`;
@@ -3688,9 +4155,13 @@ function calculateRecipeCostsInRealTime() {
 
     // Read additional factors
     const prepTime = parseFloat(document.getElementById("rec-prep-time").value) || 0;
+    const laborRate = parseFloat(document.getElementById("rec-labor-rate").value) || 0;
+    const gasCost = parseFloat(document.getElementById("rec-gas-cost").value) || 0;
     const packagingCost = parseFloat(document.getElementById("rec-packaging-cost").value) || 0;
-    const laborCost = prepTime * DEFAULT_HOURLY_RATE;
-    const totalCost = ingredientsCost + laborCost + packagingCost;
+    const fixedOverhead = parseFloat(document.getElementById("rec-fixed-overhead").value) || 0;
+
+    const laborCost = prepTime * laborRate;
+    const totalCost = ingredientsCost + laborCost + packagingCost + gasCost + fixedOverhead;
     
     const totalCostEl = document.getElementById("rec-total-cost-calculated");
     if (totalCostEl) {
@@ -3708,14 +4179,14 @@ function calculateRecipeCostsInRealTime() {
     if (sugWholeEl) sugWholeEl.innerText = `R$ ${suggestedPrice.toFixed(2)}`;
     
     // Render donut chart
-    renderRecipeChart(ingredientsCost, packagingCost, laborCost, suggestedPrice - totalCost);
+    renderRecipeChart(ingredientsCost, packagingCost, laborCost, gasCost, fixedOverhead, suggestedPrice - totalCost);
     
     return totalCost;
 }
 
 let recipeChartInstance = null;
 
-function renderRecipeChart(ingCost, packCost, laborCost, profit) {
+function renderRecipeChart(ingCost, packCost, laborCost, gasCost, fixedCost, profit) {
     const ctx = document.getElementById('recipe-cost-chart');
     if (!ctx) return;
     
@@ -3724,7 +4195,7 @@ function renderRecipeChart(ingCost, packCost, laborCost, profit) {
     }
     
     // If everything is 0, don't show an empty chart
-    if (ingCost === 0 && packCost === 0 && laborCost === 0 && profit === 0) {
+    if (ingCost === 0 && packCost === 0 && laborCost === 0 && gasCost === 0 && fixedCost === 0 && profit === 0) {
         return;
     }
     
@@ -3733,6 +4204,8 @@ function renderRecipeChart(ingCost, packCost, laborCost, profit) {
     const colorPurple = rootStyles.getPropertyValue('--color-purple').trim() || '#8b5cf6';
     const colorSuccess = rootStyles.getPropertyValue('--color-success').trim() || '#10b981';
     const colorWarning = '#f59e0b';
+    const colorBlue = '#3b82f6';
+    const colorSlate = '#94a3b8';
     
     // Ensure no negative profit in chart
     const safeProfit = Math.max(0, profit);
@@ -3740,13 +4213,15 @@ function renderRecipeChart(ingCost, packCost, laborCost, profit) {
     recipeChartInstance = new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: ['Ingredientes', 'Embalagem', 'Mão de Obra', 'Lucro Líquido'],
+            labels: ['Ingredientes', 'Embalagem', 'Mão de Obra', 'Gás/Energia', 'Custos Fixos', 'Lucro Líquido'],
             datasets: [{
-                data: [ingCost, packCost, laborCost, safeProfit],
+                data: [ingCost, packCost, laborCost, gasCost, fixedCost, safeProfit],
                 backgroundColor: [
                     colorPrimary,
                     colorWarning,
                     colorPurple,
+                    colorBlue,
+                    colorSlate,
                     colorSuccess
                 ],
                 borderWidth: 0,
@@ -3789,6 +4264,12 @@ async function handleRecipeSubmit(e) {
     const yieldCount = parseInt(document.getElementById("rec-yield").value) || 10;
     const margin = parseFloat(document.getElementById("rec-margin").value) || 200;
 
+    const prepTime = parseFloat(document.getElementById("rec-prep-time").value) || 0;
+    const laborRate = parseFloat(document.getElementById("rec-labor-rate").value) || 0;
+    const gasCost = parseFloat(document.getElementById("rec-gas-cost").value) || 0;
+    const packagingCost = parseFloat(document.getElementById("rec-packaging-cost").value) || 0;
+    const fixedOverhead = parseFloat(document.getElementById("rec-fixed-overhead").value) || 0;
+
     const ingRows = document.querySelectorAll(".recipe-ing-row");
     const ingredients = [];
 
@@ -3801,7 +4282,18 @@ async function handleRecipeSubmit(e) {
     });
 
     const newId = "r_" + Date.now();
-    const newRecipe = { id: newId, name, yield: yieldCount, ingredients, margin };
+    const newRecipe = {
+        id: newId,
+        name,
+        yield: yieldCount,
+        ingredients,
+        margin,
+        prep_time: prepTime,
+        labor_rate: laborRate,
+        gas_cost: gasCost,
+        packaging_cost: packagingCost,
+        fixed_overhead: fixedOverhead
+    };
 
     // 1. Update locally instantly
     state.recipes.push(newRecipe);
@@ -3815,7 +4307,18 @@ async function handleRecipeSubmit(e) {
     if (isSupabaseActive) {
         try {
             const loggedInUserId = getLoggedInUserId();
-            const payload = { id: newId, name, yield: yieldCount, ingredients, margin };
+            const payload = {
+                id: newId,
+                name,
+                yield: yieldCount,
+                ingredients,
+                margin,
+                prep_time: prepTime,
+                labor_rate: laborRate,
+                gas_cost: gasCost,
+                packaging_cost: packagingCost,
+                fixed_overhead: fixedOverhead
+            };
             if (loggedInUserId) {
                 payload.usuario_id = loggedInUserId;
             }
@@ -3851,7 +4354,321 @@ async function deleteRecipe(id) {
     }
 }
 
-// exportRecipeToProduct removed// ================= CARDAPIO DIGITAL CUSTOMER STOREFRONT SIMULATOR =================
+// exportRecipeToProduct removed
+
+// ==========================================================================
+// 11.B FIADOS & CONSIGNÇÕES OPERATIONS
+// ==========================================================================
+
+function renderFiados() {
+    if (!state) return;
+    const listEl = document.getElementById("fiados-list");
+    if (!listEl) return;
+    listEl.innerHTML = "";
+
+    const searchQuery = (document.getElementById("search-fiados").value || "").toLowerCase().trim();
+    const filterStatus = document.getElementById("filter-fiado-status").value;
+    const filterType = document.getElementById("filter-fiado-type").value;
+
+    let pendingTotal = 0;
+    let paidTotal = 0;
+    const uniqueDebtors = new Set();
+    let consignmentCount = 0;
+
+    // Filter and display
+    const filtered = state.fiados.filter(f => {
+        // Search filter
+        const matchSearch = !searchQuery || f.clientName.toLowerCase().includes(searchQuery) || (f.description || "").toLowerCase().includes(searchQuery);
+        
+        // Status filter
+        const matchStatus = filterStatus === "Todos" || f.status === filterStatus;
+        
+        // Type filter
+        const matchType = filterType === "Todos" || f.type === filterType;
+
+        return matchSearch && matchStatus && matchType;
+    });
+
+    // Sort by date descending (newest first)
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Calculate overall stats from ALL fiados (not just filtered ones)
+    state.fiados.forEach(f => {
+        if (f.status === "Pendente") {
+            pendingTotal += f.totalVal;
+            uniqueDebtors.add(f.clientName.toLowerCase().trim());
+            if (f.type === "Consignação") {
+                consignmentCount++;
+            }
+        } else if (f.status === "Pago") {
+            paidTotal += f.totalVal;
+        }
+    });
+
+    // Update stats UI
+    document.getElementById("fiado-stat-pending").innerText = `R$ ${pendingTotal.toFixed(2)}`;
+    document.getElementById("fiado-stat-paid").innerText = `R$ ${paidTotal.toFixed(2)}`;
+    document.getElementById("fiado-stat-debtors").innerText = uniqueDebtors.size;
+    document.getElementById("fiado-stat-consignments").innerText = consignmentCount;
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: 30px;">
+                    🔍 Nenhum fiado ou consignação encontrado com os filtros ativos.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    filtered.forEach(f => {
+        const dateFormatted = f.date ? new Date(f.date).toLocaleDateString('pt-BR') : '—';
+        const dueDateFormatted = f.dueDate ? new Date(f.dueDate).toLocaleDateString('pt-BR') : 'Sem prazo';
+        
+        // Check if overdue
+        const isOverdue = f.status === "Pendente" && f.dueDate && new Date(f.dueDate) < new Date(new Date().setHours(0,0,0,0));
+        const dueDateStyle = isOverdue ? "color: var(--color-danger); font-weight: bold;" : "";
+        const dueDateDisplay = isOverdue ? `⚠️ ${dueDateFormatted} (Atrasado)` : dueDateFormatted;
+
+        const typeBadge = f.type === "Consignação" 
+            ? `<span class="badge" style="background:#dbeafe; color:#1e40af;">🛍️ Consignação</span>` 
+            : `<span class="badge" style="background:#fef3c7; color:#92400e;">👤 Fiado</span>`;
+
+        const statusBadge = f.status === "Pago" 
+            ? `<span class="badge badge-success">🟢 Pago</span>` 
+            : `<span class="badge badge-warning">⏳ Pendente</span>`;
+
+        const actionButtons = f.status === "Pendente" ? `
+            <button class="btn btn-purple btn-sm" onclick="payFiado('${f.id}')" title="Marcar como Recebido e Registrar no Caixa" style="padding: 4px 8px; font-size: 11px;">Quitar ✅</button>
+            <button class="btn btn-outline btn-sm" onclick="sendFiadoReminder('${f.id}')" title="Cobrar por WhatsApp" style="padding: 4px 8px; font-size: 11px; color:#25D366; border-color:#25D366;">Cobrar 📱</button>
+        ` : '';
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td><strong>${f.clientName}</strong></td>
+            <td>${typeBadge}</td>
+            <td style="font-size: 12px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${f.description || ''}">${f.description || '—'}</td>
+            <td><strong>R$ ${f.totalVal.toFixed(2)}</strong></td>
+            <td style="font-size: 12px; color: var(--color-text-muted);">${dateFormatted}</td>
+            <td style="font-size: 12px; ${dueDateStyle}">${dueDateDisplay}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <div style="display:flex; gap:6px;">
+                    ${actionButtons}
+                    <button class="btn btn-outline btn-sm" onclick="deleteFiado('${f.id}')" title="Excluir Registro" style="padding: 4px 8px; font-size: 11px; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3);">Excluir</button>
+                </div>
+            </td>
+        `;
+        listEl.appendChild(row);
+    });
+}
+
+async function handleFiadoSubmit(e) {
+    e.preventDefault();
+    const type = document.getElementById("fiado-type").value;
+    const clientSelect = document.getElementById("fiado-client-select");
+    const clientName = document.getElementById("fiado-client-name").value.trim();
+    const date = document.getElementById("fiado-date").value;
+    const dueDate = document.getElementById("fiado-due-date").value || null;
+    const description = document.getElementById("fiado-desc").value.trim();
+    const totalVal = parseFloat(document.getElementById("fiado-total-val").value) || 0;
+    const status = document.getElementById("fiado-status").value;
+
+    const clientId = clientSelect.value || null;
+
+    if (!clientName || !date || !description || totalVal <= 0) {
+        alert("Preencha todos os campos obrigatórios e garanta que o valor total seja maior que zero.");
+        return;
+    }
+
+    const newId = "f_" + Date.now();
+    const payload = {
+        id: newId,
+        clientName,
+        clientId,
+        date,
+        dueDate,
+        description,
+        totalVal,
+        status,
+        type
+    };
+
+    // If status is 'Pago', we also register a transaction of type 'Entrada' in the cash flow
+    if (status === "Pago") {
+        const transId = "t_" + Date.now() + "_f";
+        const transaction = {
+            id: transId,
+            date: date,
+            desc: `Receb. Fiado/Consig - ${clientName}`,
+            type: "Entrada",
+            category: "Vendas",
+            val: totalVal
+        };
+        state.transactions.push(transaction);
+        
+        if (isSupabaseActive) {
+            try {
+                const loggedInUserId = getLoggedInUserId();
+                const transPayload = {
+                    id: transId,
+                    date: date,
+                    desc: `Receb. Fiado/Consig - ${clientName}`,
+                    type: "Entrada",
+                    category: "Vendas",
+                    val: totalVal
+                };
+                if (loggedInUserId) transPayload.usuario_id = loggedInUserId;
+                await supabaseClient.from('transacoes').insert([transPayload]);
+            } catch(err) {
+                console.error("Erro ao sincronizar transação de fiado:", err);
+            }
+        }
+    }
+
+    // 1. Update locally instantly
+    state.fiados.push(payload);
+    saveToLocalStorage();
+
+    // 2. Clear UI instantly
+    closeModal("modal-fiado");
+    renderFiados();
+
+    // 3. Background sync
+    if (isSupabaseActive) {
+        try {
+            const loggedInUserId = getLoggedInUserId();
+            const dbPayload = {
+                id: newId,
+                client_name: clientName,
+                client_id: clientId,
+                date,
+                due_date: dueDate,
+                description,
+                total_val: totalVal,
+                status,
+                type
+            };
+            if (loggedInUserId) {
+                dbPayload.usuario_id = loggedInUserId;
+            }
+            await supabaseClient.from('fiados').insert([dbPayload]);
+            console.log("Fiado sincronizado com Supabase no plano de fundo.");
+        } catch (err) {
+            console.error("Erro ao sincronizar fiado:", err);
+        }
+    }
+}
+
+async function payFiado(id) {
+    if (!confirm("Confirmar o recebimento deste pagamento? Isso registrará uma Entrada de caixa no fluxo financeiro automaticamente.")) return;
+
+    const fiado = state.fiados.find(f => f.id === id);
+    if (!fiado) return;
+
+    fiado.status = "Pago";
+    
+    // Register transaction of type 'Entrada' in the cash flow
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const transId = "t_" + Date.now() + "_f";
+    const transaction = {
+        id: transId,
+        date: todayStr,
+        desc: `Receb. Fiado/Consig - ${fiado.clientName}`,
+        type: "Entrada",
+        category: "Vendas",
+        val: fiado.totalVal
+    };
+    state.transactions.push(transaction);
+
+    // Save locally
+    saveToLocalStorage();
+    renderFiados();
+
+    // Sync to Supabase in parallel
+    if (isSupabaseActive) {
+        try {
+            const loggedInUserId = getLoggedInUserId();
+            
+            // 1. Update fiado status
+            await supabaseClient.from('fiados').update({ status: 'Pago' }).eq('id', id);
+
+            // 2. Add transaction
+            const transPayload = {
+                id: transId,
+                date: todayStr,
+                desc: `Receb. Fiado/Consig - ${fiado.clientName}`,
+                type: "Entrada",
+                category: "Vendas",
+                val: fiado.totalVal
+            };
+            if (loggedInUserId) transPayload.usuario_id = loggedInUserId;
+            await supabaseClient.from('transacoes').insert([transPayload]);
+            
+            console.log("Fiado quitado e transação registrada no Supabase com sucesso.");
+        } catch (err) {
+            console.error("Erro ao sincronizar quitação de fiado:", err);
+        }
+    }
+}
+
+async function deleteFiado(id) {
+    if (!confirm("Excluir definitivamente este registro de fiado/consignação?")) return;
+
+    // 1. Update locally instantly
+    state.fiados = state.fiados.filter(f => f.id !== id);
+    saveToLocalStorage();
+    renderFiados();
+
+    // 2. Background sync
+    if (isSupabaseActive) {
+        try {
+            await supabaseClient.from('fiados').delete().eq('id', id);
+            console.log("Fiado excluído do Supabase com sucesso.");
+        } catch (err) {
+            console.error("Erro ao excluir fiado:", err);
+        }
+    }
+}
+
+function sendFiadoReminder(id) {
+    const fiado = state.fiados.find(f => f.id === id);
+    if (!fiado) return;
+
+    const formattedVal = fiado.totalVal.toFixed(2);
+    const dueDateFormatted = fiado.dueDate ? new Date(fiado.dueDate).toLocaleDateString('pt-BR') : 'em breve';
+
+    // Find client telephone if associated
+    let phone = "";
+    if (fiado.clientId) {
+        const clientObj = state.clients.find(c => c.id === fiado.clientId);
+        if (clientObj && clientObj.phone) {
+            phone = clientObj.phone.replace(/\D/g, '');
+        }
+    }
+
+    const greeting = "Olá! Tudo bem? 🍰";
+    const body = `Passando para lembrar da sua conta em aberto de *R$ ${formattedVal}* no ConfeitaAI (${fiado.type === 'Consignação' ? 'Mercadoria Consignada' : 'Doces Fiados'}), com vencimento acordado para *${dueDateFormatted}*.\n\nDetalhes dos itens: ${fiado.description || ''}\n\nSe precisar dos dados do Pix para pagamento ou tiver dúvidas, fico à total disposição! Muito obrigada! 🙏✨`;
+    
+    const encodedText = encodeURIComponent(greeting + "\n\n" + body);
+    
+    // Construct link
+    let cleanPhone = phone;
+    if (cleanPhone.length > 0 && cleanPhone.length <= 11) {
+        cleanPhone = "55" + cleanPhone;
+    }
+    
+    const url = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+    window.open(url, "_blank");
+}
+
+// Bind to window to allow inline onclick handlers in table markup
+window.payFiado = payFiado;
+window.deleteFiado = deleteFiado;
+window.sendFiadoReminder = sendFiadoReminder;
+
+// ================= CARDAPIO DIGITAL CUSTOMER STOREFRONT SIMULATOR =================
 
 // Cart Management Functions
 function addToCart(productId) {
@@ -3878,8 +4695,48 @@ function removeFromCart(productId) {
 function openPhoneCartDrawer() {
     const drawer = document.getElementById("phone-cart-drawer");
     const backdrop = document.getElementById("phone-cart-backdrop");
+    
+    // Restaura exibição padrão dos componentes do carrinho
+    const itemsList = document.getElementById("phone-cart-items-list");
+    const summary = document.querySelector(".phone-cart-summary");
+    const checkoutForm = document.querySelector(".phone-checkout-form");
+    const footerActions = document.getElementById("phone-cart-footer-actions");
+    const successActions = document.getElementById("phone-cart-success-actions");
+    
+    if (itemsList) itemsList.style.display = "";
+    if (summary) summary.style.display = "";
+    if (checkoutForm) checkoutForm.style.display = "";
+    if (footerActions) footerActions.style.display = "";
+    if (successActions) successActions.style.display = "none";
+    
+    const successReceipt = document.getElementById("phone-cart-success-receipt");
+    if (successReceipt) successReceipt.style.display = "none";
+
+    // Restaura o texto do botão de envio caso estivesse como "Processando..."
+    const btnSubmit = document.getElementById("btn-phone-submit-order");
+    if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = "Enviar Pedido no WhatsApp 💬";
+    }
+
     if (drawer) drawer.classList.add("active");
     if (backdrop) backdrop.classList.add("active");
+    
+    // Prefill client session details if identified
+    try {
+        const sessionStr = localStorage.getItem("confeitaai_client_session");
+        if (sessionStr) {
+            const session = JSON.parse(sessionStr);
+            const custNameInput = document.getElementById("phone-cust-name");
+            const custPhoneInput = document.getElementById("phone-cust-phone");
+            if (custNameInput && !custNameInput.value) custNameInput.value = session.name || "";
+            if (custPhoneInput && !custPhoneInput.value) custPhoneInput.value = session.phone || "";
+        }
+    } catch(e) {
+        console.error("Erro ao preencher dados de checkout:", e);
+    }
+
+    updateCartUI();
 }
 
 function closePhoneCartDrawer() {
@@ -3899,12 +4756,19 @@ function openMenuPreview() {
     activeCategoryFilter = "all";
     activeSearchFilter = "";
     
-    // Clear form inputs
+    // Prefill form inputs from client session if identified
     const custName = document.getElementById("phone-cust-name");
     const custPhone = document.getElementById("phone-cust-phone");
     const custAddr = document.getElementById("phone-cust-address");
-    if (custName) custName.value = "";
-    if (custPhone) custPhone.value = "";
+    
+    let session = null;
+    try {
+        const sessionStr = localStorage.getItem("confeitaai_client_session");
+        if (sessionStr) session = JSON.parse(sessionStr);
+    } catch(e) {}
+
+    if (custName) custName.value = session ? session.name : "";
+    if (custPhone) custPhone.value = session ? session.phone : "";
     if (custAddr) custAddr.value = "";
     
     // Reset toggle to pickup
@@ -3924,9 +4788,47 @@ function openMenuPreview() {
     if (shopTitle) {
         shopTitle.innerText = "🍰 " + (state?.storeConfig?.name || "ConfeitaAI");
     }
+
+    const footerMenu = document.getElementById("phone-footer-menu");
+    const bagBar = document.getElementById("phone-bag-bar");
+    const phoneBody = document.getElementById("phone-menu-body");
+
+    // Restaura exibição padrão dos menus caso tenham sido ocultados anteriormente
+    if (footerMenu) footerMenu.style.display = "";
+    if (bagBar) bagBar.style.display = "";
+
+    if (state?.storeConfig?.ownerExpired) {
+        if (footerMenu) footerMenu.style.display = "none";
+        if (bagBar) bagBar.style.display = "none";
+        
+        const phoneVal = state?.storeConfig?.phone ? state.storeConfig.phone.replace(/\D/g, '') : '';
+        const whatsappMessage = encodeURIComponent("Oi, não consegui fazer o pedido pelo cardápio digital, gostaria de pedir");
+        const waLink = `https://wa.me/${phoneVal || '5511999999999'}?text=${whatsappMessage}`;
+
+        if (phoneBody) {
+            phoneBody.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px 24px; text-align:center; min-height:380px; background:#fff; font-family:'Outfit', sans-serif;">
+                    <div style="font-size:64px; margin-bottom:20px; animation: pulse 2s infinite;">🏪</div>
+                    <h2 style="font-size:22px; font-weight:800; color:#1e293b; margin-bottom:12px; line-height:1.3;">Vitrine Temporariamente Pausada</h2>
+                    <p style="font-size:14px; color:#64748b; line-height:1.6; margin-bottom:32px; max-width:280px;">
+                        Esta vitrine está temporariamente pausada, mas você ainda pode fazer seu pedido diretamente pelo WhatsApp!
+                    </p>
+                    <a href="${waLink}" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; width:100%; max-width:280px; padding:16px; background:#25D366; color:white; border-radius:16px; font-size:15px; font-weight:700; text-decoration:none; box-shadow:0 10px 20px rgba(37,211,102,0.25); transition:transform 0.2s;">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24" style="margin-right:4px;"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.128.552 4.195 1.6 6.015L.178 24l6.108-1.599c1.764.954 3.743 1.458 5.744 1.458 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.84c-1.802 0-3.568-.485-5.116-1.403l-.367-.217-3.8.995.998-3.705-.238-.378C2.463 15.421 1.94 13.754 1.94 12.03 1.94 6.467 6.467 1.94 12.031 1.94c5.564 0 10.091 4.527 10.091 10.091 0 5.564-4.527 10.091-10.091 10.091zm5.534-7.553c-.303-.152-1.794-.886-2.074-.987-.28-.101-.485-.152-.688.152-.202.303-.783.987-.96 1.189-.177.202-.354.227-.657.076-1.758-.888-3.04-1.845-4.148-3.69-.115-.194-.01-.299.141-.45.136-.137.303-.354.455-.53.152-.177.202-.303.303-.505.101-.202.051-.379-.025-.53-.076-.152-.688-1.658-.94-2.269-.247-.597-.497-.516-.688-.526-.177-.01-.379-.01-.581-.01-.202 0-.53.076-.808.379-.278.303-1.061 1.036-1.061 2.527s1.087 2.932 1.238 3.134c.152.202 2.138 3.262 5.178 4.571 2.062.888 2.871.956 3.931.81.658-.09 1.794-.733 2.046-1.44.253-.707.253-1.314.177-1.44-.076-.126-.278-.202-.581-.354z"/></svg>
+                        Fazer Pedido via WhatsApp
+                    </a>
+                    <div style="margin-top:40px; font-size:11px; color:#cbd5e1; font-weight:600; text-transform:uppercase; letter-spacing:1px;">
+                        Powered by ConfeitaAI
+                    </div>
+                </div>
+            `;
+        }
+        
+        openModal("modal-menu-preview");
+        return;
+    }
     
     // Build storefront DOM
-    const phoneBody = document.getElementById("phone-menu-body");
     phoneBody.innerHTML = `
         <div class="phone-shop-header-container">
             <div class="phone-shop-cover">
@@ -3938,8 +4840,16 @@ function openMenuPreview() {
             <div class="phone-shop-info">
                 <div class="phone-shop-name">
                     ${state?.storeConfig?.name || "Minha Confeitaria"}
-                    <span class="phone-status-badge phone-status-open"><span></span> Aberto</span>
+                    ${state?.storeConfig?.loja_aberta !== false
+                        ? `<span class="phone-status-badge phone-status-open"><span></span> Aberto</span>`
+                        : `<span class="phone-status-badge phone-status-closed"><span></span> Fechado</span>`
+                    }
                 </div>
+                ${state?.storeConfig?.loja_aberta === false ? `
+                <div style="background: #fff5f5; border: 1px solid #ffe3e3; border-radius: 8px; padding: 10px; margin-top: 10px; font-size: 11px; color: #e53e3e; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                    <span>⚠️</span> Loja temporariamente fechada para novos pedidos.
+                </div>
+                ` : ''}
                 <p class="phone-shop-desc">${state?.storeConfig?.desc || "Os melhores doces artesanais."}</p>
                 <div class="phone-shop-meta" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; align-items: center;">
                     <span class="phone-status-hours">🕒 ${state?.storeConfig?.hours || "Consulte nossos horários"}</span>
@@ -3986,7 +4896,6 @@ function openMenuPreview() {
     updateCartUI();
 
     // Bind floating bag bar click to open cart drawer
-    const bagBar = document.getElementById("phone-bag-bar");
     if (bagBar) {
         // Remove existing listener if any and add clean one
         const newBagBar = bagBar.cloneNode(true);
@@ -4186,8 +5095,8 @@ function renderStorefrontProducts() {
             card.style.marginBottom = "8px";
             
             const imageElement = p.photo 
-                ? `<div style="width: 64px; height: 64px; border-radius: 12px; overflow: hidden; flex-shrink: 0;"><img src="${p.photo}" style="width:100%; height:100%; object-fit:cover;"></div>`
-                : `<div class="phone-prod-emoji" style="font-size: 24px; width: 44px; height: 44px; background: var(--color-primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink:0;">${p.emoji || "🧁"}</div>`;
+                ? `<div class="phone-prod-photo-wrapper"><img src="${p.photo}"></div>`
+                : `<div class="phone-prod-emoji">${p.emoji || "🧁"}</div>`;
 
             card.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
@@ -4213,10 +5122,24 @@ function renderStorefrontProducts() {
 }
 
 function updateCartUI() {
+    const isClosed = state.storeConfig && state.storeConfig.loja_aberta === false;
+    if (isClosed) {
+        customerCart = [];
+    }
+
     // 1. Update product cards quantity controls in the active storefront list
     state.products.forEach(p => {
         const actionWrapper = document.getElementById(`prod-action-${p.id}`);
         if (!actionWrapper) return;
+        
+        if (isClosed) {
+            actionWrapper.innerHTML = `
+                <button class="phone-btn-add" style="opacity: 0.5; cursor: not-allowed; background: #94a3b8;" disabled>
+                    Fechado
+                </button>
+            `;
+            return;
+        }
         
         const cartItem = customerCart.find(item => item.productId === p.id);
         if (cartItem && cartItem.qty > 0) {
@@ -4458,29 +5381,147 @@ function renderStorefrontProfileTab() {
 }
 window.renderStorefrontProfileTab = renderStorefrontProfileTab;
 
-function renderStorefrontOrdersHistory() {
+async function renderStorefrontOrdersHistory() {
     const container = document.getElementById("phone-orders-body");
     if (!container) return;
     
-    let myOrders = [];
-    try {
-        myOrders = JSON.parse(localStorage.getItem("confeitaai_my_orders") || "[]");
-    } catch(e) {
-        console.error(e);
+    // Check if client is identified
+    const sessionStr = localStorage.getItem("confeitaai_client_session");
+    if (!sessionStr) {
+        // Render login / identification screen
+        container.innerHTML = `
+            <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">📋 Acompanhar Encomendas</div>
+            <div style="background: white; border-radius: var(--border-radius-md); padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); text-align: center; font-family: 'Outfit', sans-serif;">
+                <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px;">Identifique-se para ver seus pedidos</h4>
+                <p style="font-size: 12px; color: var(--color-text-muted); line-height: 1.4; margin-bottom: 16px;">
+                    Digite seu Nome e WhatsApp para acompanhar o status e o histórico das suas encomendas nesta confeitaria.
+                </p>
+                <form id="phone-client-login-form" onsubmit="handleStorefrontClientLogin(event)" style="text-align: left; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="phone-form-group">
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Seu Nome *</label>
+                        <input type="text" id="phone-login-name" required placeholder="Ex: Amanda Silva" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div class="phone-form-group">
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Seu WhatsApp *</label>
+                        <input type="tel" id="phone-login-phone" required placeholder="Ex: 11988887777" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div class="phone-form-group">
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Data de Aniversário (Opcional)</label>
+                        <input type="date" id="phone-login-birthday" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" style="margin-top: 8px; padding: 12px; font-size: 13px; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: block; width: 100%;">
+                        Ver Meus Pedidos ✨
+                    </button>
+                </form>
+            </div>
+        `;
+        return;
     }
     
+    const clientSession = JSON.parse(sessionStr);
+    
     container.innerHTML = `
-        <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">📋 Meus Pedidos</div>
-        <div id="phone-orders-list" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 80px;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-family: 'Outfit', sans-serif;">
+            <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main);">📋 Meus Pedidos</div>
+            <div style="font-size: 11px; color: var(--color-text-muted);">
+                Olá, <strong>${clientSession.name}</strong> (<a href="#" onclick="handleStorefrontClientLogout(event)" style="color: var(--color-danger); text-decoration: none; font-weight: 600;">Sair</a>)
+            </div>
+        </div>
+        <div id="phone-orders-list" style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 80px;">
+            <div style="text-align: center; padding: 30px; color: var(--color-text-muted); font-size: 13px;">Carregando histórico... ⌛</div>
+        </div>
     `;
     
     const list = container.querySelector("#phone-orders-list");
     
+    // Load orders scoped by store slug
+    let myOrders = [];
+    const slug = state?.storeConfig?.slug || "general";
+    const localKey = `confeitaai_my_orders_${slug}`;
+    try {
+        myOrders = JSON.parse(localStorage.getItem(localKey) || "[]");
+    } catch(e) {
+        console.error("Erro ao ler LocalStorage:", e);
+    }
+    
+    // Query online DB if available
+    if (isSupabaseActive && state.storeConfig.usuario_id) {
+        try {
+            const ownerId = state.storeConfig.usuario_id;
+            
+            // 1. Localizar o ID do cliente nesta loja pelo telefone da sessão
+            const { data: clientData, error: clientErr } = await supabaseClient
+                .from('clientes')
+                .select('id')
+                .eq('usuario_id', ownerId)
+                .eq('phone', clientSession.phone)
+                .limit(1);
+                
+            if (!clientErr && clientData && clientData.length > 0) {
+                const clientId = clientData[0].id;
+                
+                // 2. Buscar todos os pedidos desse cliente
+                const { data: dbOrders, error: dbOrdersErr } = await supabaseClient
+                    .from('pedidos')
+                    .select('*')
+                    .eq('client_id', clientId);
+                    
+                if (!dbOrdersErr && dbOrders) {
+                    const groupedDbOrders = {};
+                    
+                    dbOrders.forEach(o => {
+                        let cartId = null;
+                        if (o.notes) {
+                            const match = o.notes.match(/\[CART:(\d+)\]/);
+                            if (match) cartId = match[1];
+                        }
+                        const key = cartId || o.id;
+                        
+                        if (!groupedDbOrders[key]) {
+                            groupedDbOrders[key] = {
+                                id: key,
+                                date: new Date(o.date + "T00:00:00").toLocaleDateString('pt-BR'),
+                                subtotal: 0,
+                                status: o.status
+                            };
+                        }
+                        groupedDbOrders[key].subtotal += parseFloat(o.val) || 0;
+                        
+                        // Status mais avançado prevalece no resumo do grupo
+                        const stages = ["Recebido", "Em Produção", "Pronto", "Entregue"];
+                        const currentIdx = stages.indexOf(groupedDbOrders[key].status);
+                        const itemIdx = stages.indexOf(o.status);
+                        if (itemIdx > currentIdx) {
+                            groupedDbOrders[key].status = o.status;
+                        }
+                    });
+                    
+                    // Mesclar dados do banco com LocalStorage
+                    Object.values(groupedDbOrders).forEach(dbOrd => {
+                        const localIdx = myOrders.findIndex(lo => lo.id === dbOrd.id);
+                        if (localIdx >= 0) {
+                            myOrders[localIdx].status = dbOrd.status;
+                            myOrders[localIdx].subtotal = dbOrd.subtotal;
+                        } else {
+                            myOrders.push(dbOrd);
+                        }
+                    });
+                    
+                    // Atualizar cache
+                    localStorage.setItem(localKey, JSON.stringify(myOrders));
+                }
+            }
+        } catch(err) {
+            console.error("Erro ao sincronizar histórico com Supabase:", err);
+        }
+    }
+    
     if (myOrders.length === 0) {
         list.innerHTML = `
-            <div style="text-align: center; padding: 40px 20px; color: var(--color-text-muted);">
+            <div style="text-align: center; padding: 40px 20px; color: var(--color-text-muted); font-family: 'Outfit', sans-serif;">
                 <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
-                <p style="font-size: 14px; font-weight: 500;">Você ainda não fez nenhum pedido.</p>
+                <p style="font-size: 14px; font-weight: 500;">Você ainda não fez nenhum pedido nesta confeitaria.</p>
                 <p style="font-size: 12px; opacity: 0.8; margin-top: 4px; margin-bottom: 15px;">Adicione doces e faça sua encomenda no WhatsApp!</p>
                 <button class="btn btn-primary btn-sm" onclick="switchPhoneTab('home')">Ver Cardápio</button>
             </div>
@@ -4488,8 +5529,12 @@ function renderStorefrontOrdersHistory() {
         return;
     }
     
-    // Sort orders by newest first
-    [...myOrders].reverse().forEach(ord => {
+    list.innerHTML = "";
+    
+    // Ordenar por ID/Data decrescente
+    const sortedOrders = [...myOrders].sort((a, b) => b.id.localeCompare(a.id));
+    
+    sortedOrders.forEach(ord => {
         const card = document.createElement("div");
         card.style.background = "white";
         card.style.borderRadius = "var(--border-radius-md)";
@@ -4500,10 +5545,20 @@ function renderStorefrontOrdersHistory() {
         card.style.justifyContent = "space-between";
         card.style.alignItems = "center";
         card.style.cursor = "pointer";
+        card.style.fontFamily = "'Outfit', sans-serif";
+        
+        let statusBadgeClass = "badge-purple";
+        if (ord.status === "Recebido") statusBadgeClass = "badge-purple";
+        else if (ord.status === "Em Produção") statusBadgeClass = "badge-warning";
+        else if (ord.status === "Pronto" || ord.status === "Em Transporte") statusBadgeClass = "badge-success";
+        else if (ord.status === "Entregue" || ord.status === "Concluído") statusBadgeClass = "badge-success";
         
         card.innerHTML = `
             <div>
-                <div style="font-size: 13px; font-weight: 700; color: var(--color-text-main);">Pedido #${ord.id}</div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--color-text-main); display: flex; align-items: center; gap: 6px;">
+                    Pedido #${ord.id}
+                    <span class="badge ${statusBadgeClass}" style="font-size: 9px; padding: 2px 6px;">${ord.status}</span>
+                </div>
                 <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 4px;">Data: ${ord.date} &bull; Total: R$ ${parseFloat(ord.subtotal).toFixed(2)}</div>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
@@ -4521,6 +5576,84 @@ function renderStorefrontOrdersHistory() {
     });
 }
 window.renderStorefrontOrdersHistory = renderStorefrontOrdersHistory;
+
+async function handleStorefrontClientLogin(e) {
+    e.preventDefault();
+    const nameVal = document.getElementById("phone-login-name").value.trim();
+    const phoneVal = document.getElementById("phone-login-phone").value.trim();
+    const birthdayVal = document.getElementById("phone-login-birthday").value;
+    
+    if (!nameVal || !phoneVal) {
+        alert("Por favor, preencha o Nome e WhatsApp.");
+        return;
+    }
+    
+    const cleanPhone = phoneVal.replace(/\D/g, "");
+    
+    // Save session locally
+    const session = { name: nameVal, phone: cleanPhone, birthday: birthdayVal || null };
+    localStorage.setItem("confeitaai_client_session", JSON.stringify(session));
+    
+    // Check or create client on Supabase
+    if (isSupabaseActive && state?.storeConfig?.usuario_id) {
+        try {
+            const ownerId = state.storeConfig.usuario_id;
+            const { data: existing, error: getErr } = await supabaseClient
+                .from('clientes')
+                .select('*')
+                .eq('usuario_id', ownerId)
+                .eq('phone', cleanPhone)
+                .limit(1);
+                
+            if (!getErr && existing && existing.length > 0) {
+                // Update client name and birthday
+                await supabaseClient
+                    .from('clientes')
+                    .update({ name: nameVal, birthday: birthdayVal || null })
+                    .eq('id', existing[0].id);
+            } else {
+                // Insert new client
+                const newId = "c_" + Date.now();
+                await supabaseClient.from('clientes').insert([{
+                    id: newId,
+                    usuario_id: ownerId,
+                    name: nameVal,
+                    phone: cleanPhone,
+                    birthday: birthdayVal || null,
+                    order_count: 0,
+                    total_spent: 0
+                }]);
+            }
+        } catch(err) {
+            console.error("Erro ao salvar cliente no banco:", err);
+        }
+    }
+    
+    // Prefill checkout inputs
+    const custNameInput = document.getElementById("phone-cust-name");
+    const custPhoneInput = document.getElementById("phone-cust-phone");
+    if (custNameInput) custNameInput.value = nameVal;
+    if (custPhoneInput) custPhoneInput.value = cleanPhone;
+
+    renderStorefrontOrdersHistory();
+}
+window.handleStorefrontClientLogin = handleStorefrontClientLogin;
+
+function handleStorefrontClientLogout(e) {
+    e.preventDefault();
+    if (confirm("Tem certeza que deseja sair de seu perfil nesta loja?")) {
+        localStorage.removeItem("confeitaai_client_session");
+        
+        // Clear checkout form prefill
+        const custNameInput = document.getElementById("phone-cust-name");
+        const custPhoneInput = document.getElementById("phone-cust-phone");
+        if (custNameInput) custNameInput.value = "";
+        if (custPhoneInput) custPhoneInput.value = "";
+
+        renderStorefrontOrdersHistory();
+    }
+}
+window.handleStorefrontClientLogout = handleStorefrontClientLogout;
 
 // ViaCEP Integration
 const cepInput = document.getElementById("phone-cust-cep");
@@ -4554,12 +5687,19 @@ async function processarEncomendaDigital() {
     const num = document.getElementById("phone-cust-num").value.trim();
     const comp = document.getElementById("phone-cust-comp").value.trim();
     
+    const btnDelivery = document.getElementById("btn-toggle-delivery-home");
+    const isDelivery = btnDelivery && btnDelivery.classList.contains("active");
+    
     let deliveryNotes = "";
-    if (cep && address && num) {
-        deliveryNotes = `Endereço de Entrega:\n${address}, Nº ${num} ${comp ? '- ' + comp : ''}\nCEP: ${cep}`;
+    if (isDelivery) {
+        if (!cep || !address || !num) {
+            alert("Por favor, preencha o CEP e o Número para calcular a entrega.");
+            return;
+        }
+        deliveryNotes = `Tipo: Entrega (Delivery)\nEndereço: ${address}, Nº ${num} ${comp ? '- ' + comp : ''}\nCEP: ${cep}`;
     } else {
-        alert("Por favor, preencha o CEP e o Número para calcular a entrega.");
-        return;
+        deliveryNotes = `Tipo: Retirada na Loja`;
+        window.currentDeliveryFee = 0;
     }
     
     if (!nameVal || !phoneVal) {
@@ -4582,25 +5722,61 @@ async function processarEncomendaDigital() {
         const ownerId = state.storeConfig.usuario_id || null;
         let clientId = "c_" + Date.now();
         
-        // 1. Criar ou buscar cliente
-        if (isSupabaseActive && ownerId) {
-            const { data: clientData } = await supabaseClient.from('clientes').insert([{
-                id: clientId,
-                usuario_id: ownerId,
-                name: nameVal,
-                phone: phoneVal,
-                order_count: 1,
-                total_spent: 0
-            }]).select();
-            if (clientData && clientData.length > 0) clientId = clientData[0].id;
-        } else {
-            state.clients.push({ id: clientId, name: nameVal, phone: phoneVal, orderCount: 1, totalSpent: 0 });
-        }
-        
+        // Calcula subtotal e linhas de itens primeiro
         let subtotal = 0;
         let itemRows = "";
+        for (const item of customerCart) {
+            const p = state.products.find(prod => prod.id === item.productId);
+            if (!p) continue;
+            const itemSubtotal = item.qty * p.price;
+            subtotal += itemSubtotal;
+            itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
+        }
+
+        const cleanPhoneTarget = phoneVal.replace(/\D/g, "");
+
+        // 1. Criar ou buscar cliente
+        if (isSupabaseActive && ownerId) {
+            // Tenta localizar um cliente com o mesmo telefone para este ateliê
+            const { data: existingClients } = await supabaseClient
+                .from('clientes')
+                .select('*')
+                .eq('usuario_id', ownerId)
+                .eq('phone', cleanPhoneTarget)
+                .limit(1);
+
+            if (existingClients && existingClients.length > 0) {
+                clientId = existingClients[0].id;
+                const newCount = (existingClients[0].order_count || 0) + 1;
+                const newSpent = (parseFloat(existingClients[0].total_spent) || 0) + subtotal;
+                
+                await supabaseClient.from('clientes')
+                    .update({ name: nameVal, order_count: newCount, total_spent: newSpent })
+                    .eq('id', clientId);
+            } else {
+                const { data: clientData } = await supabaseClient.from('clientes').insert([{
+                    id: clientId,
+                    usuario_id: ownerId,
+                    name: nameVal,
+                    phone: cleanPhoneTarget,
+                    order_count: 1,
+                    total_spent: subtotal
+                }]).select();
+                if (clientData && clientData.length > 0) clientId = clientData[0].id;
+            }
+        } else {
+            const existingLocally = state.clients.find(c => c.phone === cleanPhoneTarget);
+            if (existingLocally) {
+                clientId = existingLocally.id;
+                existingLocally.orderCount = (existingLocally.orderCount || 0) + 1;
+                existingLocally.totalSpent = (existingLocally.totalSpent || 0) + subtotal;
+            } else {
+                state.clients.push({ id: clientId, name: nameVal, phone: cleanPhoneTarget, orderCount: 1, totalSpent: subtotal });
+            }
+        }
+        
         const now = new Date();
-        const cartId = "TRK-" + clientId.substring(2) + "-" + now.getTime().toString().substring(8);
+        const cartId = String(Math.floor(10000 + Math.random() * 90000));
         window.lastOrderCartId = cartId; // To generate the tracking link
         
         // 2. Inserir Pedidos (Kanban)
@@ -4610,9 +5786,6 @@ async function processarEncomendaDigital() {
             if (!p) continue;
             
             const itemSubtotal = item.qty * p.price;
-            subtotal += itemSubtotal;
-            itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
-            
             const orderId = "o_" + Date.now() + "_" + Math.floor(Math.random()*1000);
             const finalNotes = `[CART:${cartId}]\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
             
@@ -4622,9 +5795,9 @@ async function processarEncomendaDigital() {
                 product_id: p.id,
                 qty: item.qty,
                 val: itemSubtotal,
-                date: now.toISOString().split('T')[0],
+                date: getLocalDateStr(now),
                 time: now.toTimeString().split(' ')[0].substring(0, 5),
-                status: "Em Produção",
+                status: "Recebido",
                 notes: finalNotes
             };
             
@@ -4632,7 +5805,19 @@ async function processarEncomendaDigital() {
                 orderPayload.usuario_id = ownerId;
             }
             ordersToInsert.push(orderPayload);
-            state.orders.push(orderPayload);
+            
+            // Push to local memory state using camelCase mapping
+            state.orders.push({
+                id: orderId,
+                clientId: clientId,
+                productId: p.id,
+                qty: item.qty,
+                val: itemSubtotal,
+                date: getLocalDateStr(now),
+                time: now.toTimeString().split(' ')[0].substring(0, 5),
+                status: "Recebido",
+                notes: finalNotes
+            });
         }
 
         // 3. Batch insert orders if online
@@ -4650,17 +5835,27 @@ async function processarEncomendaDigital() {
         });
         await Promise.all(stockPromises);
         
-        // Save order tracking ID in customer's local list
+        // Automatically save/login client session upon ordering
         try {
-            let myOrders = JSON.parse(localStorage.getItem("confeitaai_my_orders") || "[]");
+            const session = { name: nameVal, phone: cleanPhoneTarget, birthday: null };
+            localStorage.setItem("confeitaai_client_session", JSON.stringify(session));
+        } catch(e) {
+            console.error("Erro ao salvar sessão do cliente:", e);
+        }
+
+        // Save order tracking ID in customer's local list scoped by store slug
+        try {
+            const slug = state?.storeConfig?.slug || "general";
+            const localKey = `confeitaai_my_orders_${slug}`;
+            let myOrders = JSON.parse(localStorage.getItem(localKey) || "[]");
             if (!myOrders.some(ord => ord.id === cartId)) {
                 myOrders.push({
                     id: cartId,
                     date: new Date().toLocaleDateString('pt-BR'),
                     subtotal: subtotal + (window.currentDeliveryFee || 0),
-                    status: "Em Produção"
+                    status: "Recebido"
                 });
-                localStorage.setItem("confeitaai_my_orders", JSON.stringify(myOrders));
+                localStorage.setItem(localKey, JSON.stringify(myOrders));
             }
         } catch (e) {
             console.error("Erro ao salvar histórico de pedidos:", e);
@@ -4668,11 +5863,53 @@ async function processarEncomendaDigital() {
         
         saveToLocalStorage();
         
-        // 4. Sucesso e Preparação WhatsApp
+        // 4. Sucesso, Recibo e Preparação WhatsApp
         const footerActions = document.getElementById("phone-cart-footer-actions");
         const successActions = document.getElementById("phone-cart-success-actions");
         if (footerActions) footerActions.style.display = "none";
         if (successActions) successActions.style.display = "block";
+
+        // Gera e exibe o resumo/recibo no modal
+        const successReceipt = document.getElementById("phone-cart-success-receipt");
+        if (successReceipt) {
+            successReceipt.innerHTML = `
+                <h4 style="margin-top: 0; margin-bottom: 12px; color: #1e293b; font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; font-weight: 700;">
+                    <span>Resumo do Pedido</span>
+                    <span style="color: var(--color-purple); font-weight: bold;">#${cartId}</span>
+                </h4>
+                <div style="font-size: 13px; color: #475569; line-height: 1.6;">
+                    <p style="margin: 4px 0;"><strong>Cliente:</strong> ${nameVal} (${phoneVal})</p>
+                    <p style="margin: 4px 0;"><strong>Entrega:</strong> ${isDelivery ? 'Delivery 🛵' : 'Retirada na Loja 🛍️'}</p>
+                    ${isDelivery ? `<p style="margin: 4px 0; font-size: 12px; color: #64748b;">${address}, Nº ${num} ${comp ? '(' + comp + ')' : ''}</p>` : ''}
+                    <div style="margin: 12px 0 8px 0; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                        <strong>Itens:</strong>
+                        <ul style="margin: 4px 0; padding-left: 16px; font-size: 13px; list-style-type: disc;">
+                            ${customerCart.map(item => {
+                                const p = state.products.find(prod => prod.id === item.productId);
+                                return `<li>${item.qty}x ${p ? p.name : "Item"} - R$ ${(item.qty * (p ? p.price : 0)).toFixed(2)}</li>`;
+                            }).join('')}
+                        </ul>
+                    </div>
+                    <div style="border-top: 1px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: #0f172a;">
+                        <span>Total:</span>
+                        <span>R$ ${(subtotal + (window.currentDeliveryFee || 0)).toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+            successReceipt.style.display = "block";
+        }
+
+        // Esconde itens, resumo e formulário após sucesso para exibição limpa
+        const itemsList = document.getElementById("phone-cart-items-list");
+        const summary = document.querySelector(".phone-cart-summary");
+        const checkoutForm = document.querySelector(".phone-checkout-form");
+        if (itemsList) itemsList.style.display = "none";
+        if (summary) summary.style.display = "none";
+        if (checkoutForm) checkoutForm.style.display = "none";
+
+        // Limpa o carrinho na memória e reseta os cards de produtos no cardápio
+        customerCart = [];
+        updateCartUI();
         
         let msg = `Olá! Acabei de fazer um pedido no cardápio digital de *${state.storeConfig.name || 'ConfeitaAI'}*:\n\n`;
         msg += `*🧁 ITENS DO PEDIDO:*\n${itemRows}\n`;
@@ -4684,11 +5921,10 @@ async function processarEncomendaDigital() {
         const phoneTarget = (state.storeConfig.phone || "").replace(/\D/g, '');
         const url = `https://api.whatsapp.com/send?phone=${phoneTarget}&text=${encodeURIComponent(msg)}`;
         
-        const waBtn = document.getElementById("btn-phone-whatsapp-success");
-        if (waBtn) {
-            waBtn.onclick = () => {
-                window.open(url, "_blank");
-            };
+        // Define o link de fallback
+        const fallbackLink = document.getElementById("link-phone-whatsapp-fallback");
+        if (fallbackLink) {
+            fallbackLink.href = url;
         }
         
         // Auto-redirect to WhatsApp immediately upon order submission
@@ -4849,7 +6085,7 @@ Deseja que eu gere uma lista de compras formatada para você enviar ao seu forne
         });
 
         const val = priceMatch ? parseFloat(priceMatch[1]) : (foundProduct ? foundProduct.price : 100);
-        const dateStr = dateMatch ? `2026-${dateMatch[1].split('/')[1]}-${dateMatch[1].split('/')[0]}` : new Date().toISOString().split('T')[0];
+        const dateStr = dateMatch ? `2026-${dateMatch[1].split('/')[1]}-${dateMatch[1].split('/')[0]}` : getLocalDateStr();
 
         const newId = "o_" + Date.now();
         const newOrder = {
@@ -5016,8 +6252,9 @@ function gerarReciboPDF(orderId) {
     doc.text("Resumo do Pedido:", 20, 95);
     doc.setFont("helvetica", "normal");
     
-    doc.text(`${order.qty}x ${product.name}`, 20, 105);
-    doc.text(`R$ ${(order.qty * product.price).toFixed(2)}`, 190, 105, null, null, "right");
+    const unitPrice = order.qty > 0 ? (order.val / order.qty) : order.val;
+    doc.text(`${order.qty}x ${product.name} (R$ ${unitPrice.toFixed(2)} un)`, 20, 105);
+    doc.text(`R$ ${order.val.toFixed(2)}`, 190, 105, null, null, "right");
     
     if (order.notes && order.notes.trim() !== "") {
         doc.setFontSize(9);
@@ -5172,15 +6409,28 @@ function showCalendarDayDetails(dateStr, day, month, year) {
         const product = state.products.find(p => p.id === o.productId);
         
         let statusBadgeClass = "badge";
-        if (o.status === "Em Produção") statusBadgeClass = "badge badge-warning";
+        if (o.status === "Recebido") statusBadgeClass = "badge";
+        else if (o.status === "Em Produção") statusBadgeClass = "badge badge-warning";
         else if (o.status === "Pronto") statusBadgeClass = "badge badge-success";
         else if (o.status === "Entregue") statusBadgeClass = "badge badge-purple";
+
+        let typeBadge = "";
+        if (o.notes) {
+            if (o.notes.includes("Entrega") || o.notes.includes("Delivery")) {
+                typeBadge = `<span class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 10px; font-weight: 700;">🛵 Delivery</span>`;
+            } else if (o.notes.includes("Retirada")) {
+                typeBadge = `<span class="badge" style="background: #fffbeb; color: #854d0e; border: 1px solid #fef08a; font-size: 10px; font-weight: 700;">🛍️ Retirada</span>`;
+            }
+        }
 
         listEl.innerHTML += `
             <div class="calendar-detail-order-item">
                 <div class="order-item-header">
                     <span class="order-item-prod">${product ? product.emoji : "🧁"} ${o.qty}x ${product ? product.name : "Doce Especial"}</span>
-                    <span class="${statusBadgeClass}">${o.status}</span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        ${typeBadge}
+                        <span class="${statusBadgeClass}">${o.status}</span>
+                    </div>
                 </div>
                 <div class="order-item-body">
                     <div>👤 Cliente: <strong>${client ? client.name : "Convidado"}</strong></div>
@@ -5190,7 +6440,7 @@ function showCalendarDayDetails(dateStr, day, month, year) {
                 <div class="order-item-footer" style="display: flex; gap: 8px;">
                     <span class="order-item-val" style="flex: 1; align-self: center;">Total: R$ ${o.val.toFixed(2)}</span>
                     <button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 11px;" onclick="window.openRescheduleModal('${o.id}')">📅 Reagendar</button>
-                    <button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 11px;" onclick="switchTab('pedidos')">Ver Kanban</button>
+                    <button class="btn btn-outline btn-sm" style="padding: 4px 8px; font-size: 11px;" onclick="switchTab('encomendas')">Ver Encomendas</button>
                 </div>
             </div>
         `;
@@ -5551,7 +6801,43 @@ function renderUsersTable() {
     try { currentRole = JSON.parse(session || '{}').role || ''; } catch(e) {}
     const isSuperAdmin = currentRole === 'Super Admin';
 
-    state.users.forEach(u => {
+    // Update table header dynamically
+    const tableHeader = document.querySelector("#table-users thead");
+    if (tableHeader) {
+        if (isSuperAdmin) {
+            tableHeader.innerHTML = `
+                <tr>
+                    <th>Loja / Usuário</th>
+                    <th>E-mail</th>
+                    <th>WhatsApp</th>
+                    <th>Último Acesso</th>
+                    <th>Plano</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            `;
+        } else {
+            tableHeader.innerHTML = `
+                <tr>
+                    <th>Usuário</th>
+                    <th>E-mail / Usuário</th>
+                    <th>Função</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            `;
+        }
+    }
+
+    // Sort users: last_login descending, nulls/undefined at the bottom
+    const sortedUsers = [...state.users].sort((a, b) => {
+        if (!a.last_login && !b.last_login) return 0;
+        if (!a.last_login) return 1;
+        if (!b.last_login) return -1;
+        return new Date(b.last_login) - new Date(a.last_login);
+    });
+
+    sortedUsers.forEach(u => {
         // ---- SAAS OWNER VIEW ----
         if (isSuperAdmin) {
             const plan = u.plan || 'Trial';
@@ -5572,6 +6858,27 @@ function renderUsersTable() {
             const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Nunca';
             const statusDot = u.status === 'Ativo' ? '🟢' : '🔴';
 
+            // Phone formatting and link
+            let phoneCell = '—';
+            if (u.phone) {
+                const cleanNum = u.phone.replace(/\D/g, '');
+                let formattedPhone = u.phone;
+                if (cleanNum.startsWith('55') && cleanNum.length >= 12) {
+                    const ddd = cleanNum.substring(2, 4);
+                    const prefix = cleanNum.substring(4, cleanNum.length - 4);
+                    const suffix = cleanNum.substring(cleanNum.length - 4);
+                    formattedPhone = `(${ddd}) ${prefix}-${suffix}`;
+                } else if (cleanNum.length === 11) {
+                    const ddd = cleanNum.substring(0, 2);
+                    const prefix = cleanNum.substring(2, 7);
+                    const suffix = cleanNum.substring(7);
+                    formattedPhone = `(${ddd}) ${prefix}-${suffix}`;
+                }
+                phoneCell = `<a href="https://wa.me/${cleanNum}" target="_blank" style="text-decoration:none; color: #25D366; font-weight: 600;" title="Falar no WhatsApp">
+                    🟢 WhatsApp (${formattedPhone})
+                </a>`;
+            }
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><strong>${u.name}</strong><br>
@@ -5579,6 +6886,7 @@ function renderUsersTable() {
                     ${u.username ? `<a href="/${u.username}" target="_blank" style="text-decoration:none; margin-left: 4px;" title="Ver Loja">🔗</a>` : ''}
                 </td>
                 <td><code style="font-size:12px;">${u.email || '—'}</code></td>
+                <td style="font-size:12px;">${phoneCell}</td>
                 <td style="font-size:12px;color:#64748b;">${lastLogin}</td>
                 <td>${planBadge}</td>
                 <td>${statusDot} ${u.status || 'Ativo'}</td>
@@ -5979,7 +7287,14 @@ function populateStoreForm() {
     if (themeColorEl) {
         themeColorEl.value = state.storeConfig.cor_tema || "#ff7eb9";
     }
+    
+    const openToggleEl = document.getElementById("store-open-toggle");
+    if (openToggleEl) {
+        openToggleEl.checked = state.storeConfig.loja_aberta !== false;
+    }
+    
     applyStorefrontThemeColor(state.storeConfig.cor_tema);
+    updateQuickToggleUI();
     
     // Parse and set the days buttons and times inputs
     const parsedHours = parseHours(state.storeConfig.hours || "");
@@ -6068,8 +7383,12 @@ window.updateStoreShowcase = updateStoreShowcase;
 function applyTheme(theme) {
     document.body.classList.remove("theme-dark", "theme-rosegold");
     if (theme === "dark") {
-        document.body.classList.add("theme-dark");
-    } else if (theme === "rosegold") {
+        theme = "warm-cream";
+        localStorage.setItem("confeitaai_theme", "warm-cream");
+        const themeSelector = document.getElementById("theme-selector");
+        if (themeSelector) themeSelector.value = "warm-cream";
+    }
+    if (theme === "rosegold") {
         document.body.classList.add("theme-rosegold");
     }
 }
@@ -6292,7 +7611,8 @@ function imprimirCupomPedido(orderId) {
     }
 
     const dateFormatted = new Date(order.date + "T00:00:00").toLocaleDateString('pt-BR');
-    const totalItem = order.qty * order.val;
+    const unitPrice = order.qty > 0 ? (order.val / order.qty) : order.val;
+    const totalItem = order.val;
 
     // Constrói layout de cupom térmico
     printContainer.innerHTML = `
@@ -6313,8 +7633,8 @@ function imprimirCupomPedido(orderId) {
         
         <div style="font-weight: bold; margin-bottom: 5px;">ITENS:</div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span>${order.qty}x ${product ? product.name : 'Doce Especial'}</span>
-            <span>R$ ${order.val.toFixed(2)}</span>
+            <span>${order.qty}x ${product ? product.name : 'Doce Especial'} (R$ ${unitPrice.toFixed(2)} un)</span>
+            <span>R$ ${totalItem.toFixed(2)}</span>
         </div>
         ${order.notes ? `<div style="font-size: 10px; color: #555; padding-left: 10px; margin-bottom: 5px;">* Obs: ${order.notes}</div>` : ''}
         
@@ -6357,6 +7677,68 @@ function downloadShoppingList(text) {
     document.body.removeChild(link);
 }
 window.downloadShoppingList = downloadShoppingList;
+
+// Store Open/Close management functions
+function updateQuickToggleUI() {
+    const btn = document.getElementById("btn-quick-toggle-store");
+    const checkbox = document.getElementById("store-open-toggle");
+    if (!btn) return;
+    
+    const isOpen = state.storeConfig.loja_aberta !== false;
+    
+    if (checkbox) {
+        checkbox.checked = isOpen;
+    }
+    
+    if (isOpen) {
+        btn.style.background = "#d1fae5";
+        btn.style.color = "#065f46";
+        btn.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulsing 1.5s infinite;"></span> Aberto (Fechar Loja)`;
+    } else {
+        btn.style.background = "#fee2e2";
+        btn.style.color = "#991b1b";
+        btn.innerHTML = `<span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> Fechado (Abrir Loja)`;
+    }
+}
+window.updateQuickToggleUI = updateQuickToggleUI;
+
+async function toggleStoreStatus() {
+    state.storeConfig.loja_aberta = state.storeConfig.loja_aberta === false ? true : false;
+    
+    saveToLocalStorage();
+    updateQuickToggleUI();
+    
+    // Sync with preview if visible
+    if (document.getElementById("modal-menu-preview") && document.getElementById("modal-menu-preview").style.display !== "none") {
+        openMenuPreview();
+    }
+    
+    // Sincronizar com Supabase se ativo
+    if (isSupabaseActive) {
+        const loggedInUserId = getLoggedInUserId();
+        if (loggedInUserId) {
+            try {
+                await supabaseClient.from('configuracoes').upsert([{
+                    id: loggedInUserId,
+                    usuario_id: loggedInUserId,
+                    name: state.storeConfig.name || "Minha Confeitaria",
+                    slug: state.storeConfig.slug || "docesdaju",
+                    phone: state.storeConfig.phone,
+                    hours: state.storeConfig.hours,
+                    logo: state.storeConfig.logo,
+                    banner: state.storeConfig.banner,
+                    desc: state.storeConfig.desc,
+                    cor_tema: state.storeConfig.cor_tema || "#ff7eb9",
+                    loja_aberta: state.storeConfig.loja_aberta
+                }]);
+                console.log("Status da loja atualizado no Supabase.");
+            } catch (err) {
+                console.error("Erro ao salvar status no Supabase:", err);
+            }
+        }
+    }
+}
+window.toggleStoreStatus = toggleStoreStatus;
 
 // Color theme utility functions
 function darkenColor(hex, percent) {
@@ -6532,6 +7914,12 @@ function setupStoreConfigUI() {
                 applyStorefrontThemeColor(originalColor);
             }
         });
+    }
+
+    // 4. Quick Store Toggle binding
+    const quickToggleBtn = document.getElementById("btn-quick-toggle-store");
+    if (quickToggleBtn) {
+        quickToggleBtn.addEventListener("click", toggleStoreStatus);
     }
 }
 
