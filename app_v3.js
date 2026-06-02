@@ -4729,8 +4729,13 @@ function openPhoneCartDrawer() {
             const session = JSON.parse(sessionStr);
             const custNameInput = document.getElementById("phone-cust-name");
             const custPhoneInput = document.getElementById("phone-cust-phone");
+            const custAddressInput = document.getElementById("phone-cust-address");
+            const custComplementInput = document.getElementById("phone-cust-comp");
+            
             if (custNameInput && !custNameInput.value) custNameInput.value = session.name || "";
             if (custPhoneInput && !custPhoneInput.value) custPhoneInput.value = session.phone || "";
+            if (custAddressInput && !custAddressInput.value) custAddressInput.value = session.address || "";
+            if (custComplementInput && !custComplementInput.value) custComplementInput.value = session.complement || "";
         }
     } catch(e) {
         console.error("Erro ao preencher dados de checkout:", e);
@@ -4749,6 +4754,8 @@ function closePhoneCartDrawer() {
 // Global active category and search filter state for the mobile view
 let activeCategoryFilter = "all";
 let activeSearchFilter = "";
+let isEditingProfile = false;
+
 
 function openMenuPreview() {
     // Reset client cart and filter states
@@ -4760,6 +4767,7 @@ function openMenuPreview() {
     const custName = document.getElementById("phone-cust-name");
     const custPhone = document.getElementById("phone-cust-phone");
     const custAddr = document.getElementById("phone-cust-address");
+    const custComp = document.getElementById("phone-cust-comp");
     
     let session = null;
     try {
@@ -4767,9 +4775,10 @@ function openMenuPreview() {
         if (sessionStr) session = JSON.parse(sessionStr);
     } catch(e) {}
 
-    if (custName) custName.value = session ? session.name : "";
-    if (custPhone) custPhone.value = session ? session.phone : "";
-    if (custAddr) custAddr.value = "";
+    if (custName) custName.value = session ? (session.name || "") : "";
+    if (custPhone) custPhone.value = session ? (session.phone || "") : "";
+    if (custAddr) custAddr.value = session ? (session.address || "") : "";
+    if (custComp) custComp.value = session ? (session.complement || "") : "";
     
     // Reset toggle to pickup
     const btnPickup = document.getElementById("btn-toggle-delivery-pickup");
@@ -5339,14 +5348,151 @@ function renderStorefrontProfileTab() {
     const storeHours = state?.storeConfig?.hours || "Segunda a Sexta, 09h às 18h";
     const storeLogo = state?.storeConfig?.logo || 'imagens/logo.webp';
     
+    // Check if client is identified
+    const sessionStr = localStorage.getItem("confeitaai_client_session");
+    let clientCardHtml = "";
+    
+    if (!sessionStr || window.isEditingProfile) {
+        // Form to identify (login/cadastro)
+        let nameVal = "";
+        let phoneVal = "";
+        let addressVal = "";
+        let complementVal = "";
+        let birthdayVal = "";
+        
+        if (sessionStr) {
+            try {
+                const s = JSON.parse(sessionStr);
+                nameVal = s.name || "";
+                phoneVal = s.phone || "";
+                addressVal = s.address || "";
+                complementVal = s.complement || "";
+                birthdayVal = s.birthday || "";
+            } catch(e) {}
+        }
+        
+        clientCardHtml = `
+            <div style="background: white; border-radius: var(--border-radius-md); padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--color-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    👤 ${window.isEditingProfile ? 'Alterar Meus Dados' : 'Entre ou Cadastre-se'}
+                </h4>
+                <p style="font-size: 12px; color: var(--color-text-muted); line-height: 1.4; margin: 0;">
+                    Salve seus dados para agilizar seus próximos pedidos e acompanhar suas encomendas em tempo real.
+                </p>
+                <form id="phone-client-login-form" onsubmit="handleStorefrontClientLogin(event)" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Nome Completo *</label>
+                        <input type="text" id="phone-login-name" required value="${nameVal}" placeholder="Ex: Amanda Silva" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">WhatsApp (Celular) *</label>
+                        <input type="tel" id="phone-login-phone" required value="${phoneVal}" placeholder="Ex: 11988887777" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Endereço de Entrega (Rua, Número, Bairro)</label>
+                        <input type="text" id="phone-login-address" value="${addressVal}" placeholder="Ex: Rua das Flores, 123 - Centro" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Complemento / Ponto de Referência</label>
+                        <input type="text" id="phone-login-complement" value="${complementVal}" placeholder="Ex: Apto 42, Bloco B" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Data de Aniversário (Opcional)</label>
+                        <input type="date" id="phone-login-birthday" value="${birthdayVal}" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
+                    </div>
+                    
+                    <div style="margin-top: 4px;">
+                        <a href="#" onclick="event.preventDefault(); document.getElementById('lgpd-info-box').style.display = document.getElementById('lgpd-info-box').style.display === 'none' ? 'block' : 'none';" style="font-size: 11px; color: var(--color-primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                            🛡️ Por que coletamos esses dados? (LGPD)
+                        </a>
+                        <div id="lgpd-info-box" style="display: none; margin-top: 8px; padding: 10px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 11px; color: var(--color-text-muted); line-height: 1.4; text-align: left;">
+                            Em conformidade com a LGPD (Lei Geral de Proteção de Dados), coletamos seu nome, WhatsApp, dados de endereço e data de aniversário unicamente para fins operacionais: preenchimento automático no checkout dos seus pedidos, realização de entregas seguras e eventuais campanhas de fidelidade por este ateliê. Seus dados são salvos localmente e em nosso banco de dados seguro, e não são compartilhados com terceiros.
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        ${window.isEditingProfile ? `
+                            <button type="button" onclick="window.isEditingProfile = false; renderStorefrontProfileTab();" class="btn btn-outline" style="flex: 1; padding: 12px; font-size: 13px; font-weight: 700; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; color: var(--color-text-main);">
+                                Cancelar
+                            </button>
+                        ` : ''}
+                        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 12px; font-size: 13px; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            ${window.isEditingProfile ? 'Salvar Alterações ✨' : 'Cadastrar / Entrar ✨'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+    } else {
+        // View Profile
+        let clientSession = { name: "", phone: "", address: "", complement: "", birthday: "" };
+        try {
+            clientSession = JSON.parse(sessionStr);
+        } catch(e) {}
+        
+        let birthdayText = "Não informado";
+        if (clientSession.birthday) {
+            try {
+                const parts = clientSession.birthday.split('-');
+                if (parts.length === 3) {
+                    birthdayText = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } else {
+                    birthdayText = clientSession.birthday;
+                }
+            } catch(e) {}
+        }
+        
+        clientCardHtml = `
+            <div style="background: white; border-radius: var(--border-radius-md); padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); font-family: 'Outfit', sans-serif; display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px;">
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--color-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    👤 Meu Perfil
+                </h4>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--color-text-main);">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                        <span style="color: var(--color-text-muted); font-weight: 500;">Nome:</span>
+                        <span style="font-weight: 600;">${clientSession.name}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                        <span style="color: var(--color-text-muted); font-weight: 500;">WhatsApp:</span>
+                        <span style="font-weight: 600;">${clientSession.phone}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px; gap: 2px;">
+                        <span style="color: var(--color-text-muted); font-weight: 500;">Endereço de Entrega:</span>
+                        <span style="font-weight: 600; word-break: break-all;">${clientSession.address || "Não informado"}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px; gap: 2px;">
+                        <span style="color: var(--color-text-muted); font-weight: 500;">Complemento:</span>
+                        <span style="font-weight: 600; word-break: break-all;">${clientSession.complement || "Não informado"}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
+                        <span style="color: var(--color-text-muted); font-weight: 500;">Data de Aniversário:</span>
+                        <span style="font-weight: 600;">${birthdayText}</span>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                    <button onclick="window.isEditingProfile = true; renderStorefrontProfileTab();" class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; color: var(--color-text-main);">
+                        ✏️ Alterar Dados
+                    </button>
+                    <button onclick="handleStorefrontClientLogout(event)" class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 12px; font-weight: 700; border: 1px solid #fee2e2; background: #fef2f2; border-radius: 8px; cursor: pointer; color: var(--color-danger);">
+                        🚪 Sair da Conta
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
     container.innerHTML = `
-        <div style="display: flex; flex-direction: column; gap: 16px; background: white; border-radius: var(--border-radius-md); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 80px;">
+        ${clientCardHtml}
+        
+        <div style="display: flex; flex-direction: column; gap: 16px; background: white; border-radius: var(--border-radius-md); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.02); border: 1px solid #f1f5f9; padding: 20px; margin-bottom: 80px; font-family: 'Outfit', sans-serif;">
             <div style="text-align: center;">
                 <div style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto 12px; border: 2px solid var(--color-primary-light); box-shadow: 0 4px 10px rgba(0,0,0,0.04);">
                     <img src="${storeLogo}" style="width:100%; height:100%; object-fit:cover;">
                 </div>
-                <h3 style="font-size: 18px; font-weight: 700; color: var(--color-text-main); margin-bottom: 4px;">${storeName}</h3>
-                <p style="font-size: 13px; color: var(--color-text-muted); line-height: 1.4;">${storeDesc}</p>
+                <h3 style="font-size: 17px; font-weight: 700; color: var(--color-text-main); margin-bottom: 4px;">${storeName}</h3>
+                <p style="font-size: 12px; color: var(--color-text-muted); line-height: 1.4; margin: 0;">${storeDesc}</p>
             </div>
             
             <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; display: flex; flex-direction: column; gap: 12px;">
@@ -5388,32 +5534,18 @@ async function renderStorefrontOrdersHistory() {
     // Check if client is identified
     const sessionStr = localStorage.getItem("confeitaai_client_session");
     if (!sessionStr) {
-        // Render login / identification screen
+        // Render redirect guidance to profile tab
         container.innerHTML = `
-            <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">📋 Acompanhar Encomendas</div>
-            <div style="background: white; border-radius: var(--border-radius-md); padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); text-align: center; font-family: 'Outfit', sans-serif;">
+            <div style="font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px; font-family: 'Outfit', sans-serif;">📋 Acompanhar Encomendas</div>
+            <div style="background: white; border-radius: var(--border-radius-md); padding: 30px 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 15px rgba(0,0,0,0.02); text-align: center; font-family: 'Outfit', sans-serif;">
                 <div style="font-size: 40px; margin-bottom: 12px;">👤</div>
-                <h4 style="font-size: 15px; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px;">Identifique-se para ver seus pedidos</h4>
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px;">Identificação Necessária</h4>
                 <p style="font-size: 12px; color: var(--color-text-muted); line-height: 1.4; margin-bottom: 16px;">
-                    Digite seu Nome e WhatsApp para acompanhar o status e o histórico das suas encomendas nesta confeitaria.
+                    Para acompanhar o status e o histórico das suas encomendas nesta confeitaria, identifique-se na aba Perfil.
                 </p>
-                <form id="phone-client-login-form" onsubmit="handleStorefrontClientLogin(event)" style="text-align: left; display: flex; flex-direction: column; gap: 12px;">
-                    <div class="phone-form-group">
-                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Seu Nome *</label>
-                        <input type="text" id="phone-login-name" required placeholder="Ex: Amanda Silva" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
-                    </div>
-                    <div class="phone-form-group">
-                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Seu WhatsApp *</label>
-                        <input type="tel" id="phone-login-phone" required placeholder="Ex: 11988887777" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
-                    </div>
-                    <div class="phone-form-group">
-                        <label style="font-size: 11px; font-weight: 700; color: var(--color-text-main); display: block; margin-bottom: 4px;">Data de Aniversário (Opcional)</label>
-                        <input type="date" id="phone-login-birthday" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; outline: none; box-sizing: border-box;">
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-block" style="margin-top: 8px; padding: 12px; font-size: 13px; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: block; width: 100%;">
-                        Ver Meus Pedidos ✨
-                    </button>
-                </form>
+                <button onclick="switchPhoneTab('profile')" class="btn btn-primary btn-block" style="padding: 12px; font-size: 13px; font-weight: 700; background: var(--color-primary); color: white; border: none; border-radius: 8px; cursor: pointer; display: block; width: 100%;">
+                    Ir para Perfil 👤
+                </button>
             </div>
         `;
         return;
@@ -5581,7 +5713,9 @@ async function handleStorefrontClientLogin(e) {
     e.preventDefault();
     const nameVal = document.getElementById("phone-login-name").value.trim();
     const phoneVal = document.getElementById("phone-login-phone").value.trim();
-    const birthdayVal = document.getElementById("phone-login-birthday").value;
+    const addressVal = document.getElementById("phone-login-address") ? document.getElementById("phone-login-address").value.trim() : "";
+    const complementVal = document.getElementById("phone-login-complement") ? document.getElementById("phone-login-complement").value.trim() : "";
+    const birthdayVal = document.getElementById("phone-login-birthday") ? document.getElementById("phone-login-birthday").value : "";
     
     if (!nameVal || !phoneVal) {
         alert("Por favor, preencha o Nome e WhatsApp.");
@@ -5591,7 +5725,13 @@ async function handleStorefrontClientLogin(e) {
     const cleanPhone = phoneVal.replace(/\D/g, "");
     
     // Save session locally
-    const session = { name: nameVal, phone: cleanPhone, birthday: birthdayVal || null };
+    const session = { 
+        name: nameVal, 
+        phone: cleanPhone, 
+        address: addressVal || null, 
+        complement: complementVal || null,
+        birthday: birthdayVal || null
+    };
     localStorage.setItem("confeitaai_client_session", JSON.stringify(session));
     
     // Check or create client on Supabase
@@ -5606,10 +5746,15 @@ async function handleStorefrontClientLogin(e) {
                 .limit(1);
                 
             if (!getErr && existing && existing.length > 0) {
-                // Update client name and birthday
+                // Update client name, address, complement, birthday
                 await supabaseClient
                     .from('clientes')
-                    .update({ name: nameVal, birthday: birthdayVal || null })
+                    .update({ 
+                        name: nameVal, 
+                        address: addressVal || null, 
+                        complement: complementVal || null,
+                        birthday: birthdayVal || null
+                    })
                     .eq('id', existing[0].id);
             } else {
                 // Insert new client
@@ -5619,6 +5764,8 @@ async function handleStorefrontClientLogin(e) {
                     usuario_id: ownerId,
                     name: nameVal,
                     phone: cleanPhone,
+                    address: addressVal || null,
+                    complement: complementVal || null,
                     birthday: birthdayVal || null,
                     order_count: 0,
                     total_spent: 0
@@ -5632,9 +5779,16 @@ async function handleStorefrontClientLogin(e) {
     // Prefill checkout inputs
     const custNameInput = document.getElementById("phone-cust-name");
     const custPhoneInput = document.getElementById("phone-cust-phone");
+    const custAddressInput = document.getElementById("phone-cust-address");
+    const custComplementInput = document.getElementById("phone-cust-comp");
+    
     if (custNameInput) custNameInput.value = nameVal;
     if (custPhoneInput) custPhoneInput.value = cleanPhone;
+    if (custAddressInput) custAddressInput.value = addressVal;
+    if (custComplementInput) custComplementInput.value = complementVal;
 
+    window.isEditingProfile = false;
+    renderStorefrontProfileTab();
     renderStorefrontOrdersHistory();
 }
 window.handleStorefrontClientLogin = handleStorefrontClientLogin;
@@ -5643,13 +5797,20 @@ function handleStorefrontClientLogout(e) {
     e.preventDefault();
     if (confirm("Tem certeza que deseja sair de seu perfil nesta loja?")) {
         localStorage.removeItem("confeitaai_client_session");
+        window.isEditingProfile = false;
         
         // Clear checkout form prefill
         const custNameInput = document.getElementById("phone-cust-name");
         const custPhoneInput = document.getElementById("phone-cust-phone");
+        const custAddressInput = document.getElementById("phone-cust-address");
+        const custComplementInput = document.getElementById("phone-cust-comp");
+        
         if (custNameInput) custNameInput.value = "";
         if (custPhoneInput) custPhoneInput.value = "";
+        if (custAddressInput) custAddressInput.value = "";
+        if (custComplementInput) custComplementInput.value = "";
 
+        renderStorefrontProfileTab();
         renderStorefrontOrdersHistory();
     }
 }
@@ -5751,7 +5912,13 @@ async function processarEncomendaDigital() {
                 const newSpent = (parseFloat(existingClients[0].total_spent) || 0) + subtotal;
                 
                 await supabaseClient.from('clientes')
-                    .update({ name: nameVal, order_count: newCount, total_spent: newSpent })
+                    .update({ 
+                        name: nameVal, 
+                        order_count: newCount, 
+                        total_spent: newSpent,
+                        address: address ? `${address}, Nº ${num}` : (existingClients[0].address || null),
+                        complement: comp || (existingClients[0].complement || null)
+                    })
                     .eq('id', clientId);
             } else {
                 const { data: clientData } = await supabaseClient.from('clientes').insert([{
@@ -5759,6 +5926,8 @@ async function processarEncomendaDigital() {
                     usuario_id: ownerId,
                     name: nameVal,
                     phone: cleanPhoneTarget,
+                    address: address ? `${address}, Nº ${num}` : null,
+                    complement: comp || null,
                     order_count: 1,
                     total_spent: subtotal
                 }]).select();
@@ -5837,7 +6006,20 @@ async function processarEncomendaDigital() {
         
         // Automatically save/login client session upon ordering
         try {
-            const session = { name: nameVal, phone: cleanPhoneTarget, birthday: null };
+            // Retrieve existing session to keep fields like birthday
+            let existingBday = null;
+            try {
+                const existingSess = JSON.parse(localStorage.getItem("confeitaai_client_session") || "{}");
+                existingBday = existingSess.birthday || null;
+            } catch(e) {}
+            
+            const session = { 
+                name: nameVal, 
+                phone: cleanPhoneTarget, 
+                address: address ? `${address}, Nº ${num}` : null,
+                complement: comp || null,
+                birthday: existingBday
+            };
             localStorage.setItem("confeitaai_client_session", JSON.stringify(session));
         } catch(e) {
             console.error("Erro ao salvar sessão do cliente:", e);
