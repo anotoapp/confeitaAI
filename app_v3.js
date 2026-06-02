@@ -5028,9 +5028,11 @@ function renderStorefrontProducts() {
     container.innerHTML = "";
     
     // Filter products
+    const isStandalone = document.body.classList.contains("standalone-storefront-mode");
     let filtered = state.products.filter(p => {
         // Enforce strict business rule: product MUST have a valid associated recipe OR be independent (no recipeId)
-        return !p.recipeId || state.recipes.some(r => r.id === p.recipeId);
+        // Bypass checks in live storefront since recipes are not loaded client-side
+        return isStandalone || !p.recipeId || state.recipes.some(r => r.id === p.recipeId);
     });
     if (activeCategoryFilter !== "all") {
         filtered = filtered.filter(p => p.category === activeCategoryFilter);
@@ -5319,7 +5321,8 @@ function renderStorefrontPromos() {
     `;
     const list = container.querySelector("#phone-promos-list");
     
-    const promoProducts = state.products.filter(p => (p.destacado || p.badgeDestaque || p.badge_destaque) && (!p.recipeId || state.recipes.some(r => r.id === p.recipeId)));
+    const isStandalone = document.body.classList.contains("standalone-storefront-mode");
+    const promoProducts = state.products.filter(p => (p.destacado || p.badgeDestaque || p.badge_destaque) && (isStandalone || !p.recipeId || state.recipes.some(r => r.id === p.recipeId)));
     
     if (promoProducts.length === 0) {
         list.innerHTML = `
