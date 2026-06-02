@@ -176,11 +176,69 @@ const seedData = {
     }
 };
 
+function isImpersonating() {
+    const session = localStorage.getItem("confeitaai_session");
+    if (!session) return false;
+    try {
+        const sessionData = JSON.parse(session);
+        return sessionData.role === "Super Admin" && !!localStorage.getItem("confeitaai_impersonated_user_id");
+    } catch (e) {
+        return false;
+    }
+}
+
+window.startImpersonation = function(userId, userName) {
+    localStorage.setItem("confeitaai_impersonated_user_id", userId);
+    localStorage.setItem("confeitaai_impersonated_user_name", userName);
+    // Clear target user's local state cache to force fetching clean data from Supabase
+    localStorage.removeItem(`confeitaai_state_${userId}`);
+    location.reload();
+};
+
+window.exitImpersonation = function() {
+    localStorage.removeItem("confeitaai_impersonated_user_id");
+    localStorage.removeItem("confeitaai_impersonated_user_name");
+    location.reload();
+};
+
+function checkAndRenderImpersonationBanner() {
+    if (isImpersonating()) {
+        const targetName = localStorage.getItem("confeitaai_impersonated_user_name") || "Cliente";
+        
+        // Remove existing if any
+        const existing = document.getElementById("impersonation-banner");
+        if (existing) existing.remove();
+        
+        const banner = document.createElement("div");
+        banner.id = "impersonation-banner";
+        banner.style.cssText = "background: linear-gradient(90deg, #d97706, #ef4444); color: white; padding: 12px 24px; text-align: center; font-size: 14px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); position: relative; z-index: 10000; width: 100%; box-sizing: border-box; flex-shrink: 0;";
+        banner.innerHTML = `
+            <span>🕵️ <strong>MODO SUPORTE:</strong> Você está visualizando e configurando o painel de <strong>${targetName}</strong>.</span>
+            <button onclick="exitImpersonation()" style="background: white; color: #ef4444; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">
+                Sair da Simulação
+            </button>
+        `;
+        
+        const workspace = document.querySelector(".main-workspace");
+        if (workspace) {
+            workspace.prepend(banner);
+        } else {
+            document.body.prepend(banner);
+        }
+    }
+}
+
 function getLoggedInUserId() {
     const session = localStorage.getItem("confeitaai_session");
     if (!session) return null;
     try {
         const sessionData = JSON.parse(session);
+        if (sessionData.role === "Super Admin") {
+            const impersonatedId = localStorage.getItem("confeitaai_impersonated_user_id");
+            if (impersonatedId) {
+                return impersonatedId;
+            }
+        }
         return sessionData.id || null;
     } catch (e) {
         return null;
@@ -203,6 +261,9 @@ function getLoggedInUserRole() {
     if (!session) return null;
     try {
         const sessionData = JSON.parse(session);
+        if (sessionData.role === "Super Admin" && localStorage.getItem("confeitaai_impersonated_user_id")) {
+            return "Confeiteira";
+        }
         return sessionData.role || null;
     } catch (e) {
         return null;
@@ -444,6 +505,7 @@ async function loadState() {
             } catch (e) { console.error("Erro silenciado capturado:", e); }
         }
         const isSuperAdmin = userRole === "Super Admin";
+        const isImpersonating = isSuperAdmin && !!localStorage.getItem("confeitaai_impersonated_user_id");
 
         // Construir queries filtradas pelo inquilino ativo
         let prodQuery = supabaseClient.from('produtos').select('*');
@@ -459,7 +521,7 @@ async function loadState() {
 
         if (loggedInUserId) {
             configQuery = configQuery.eq('usuario_id', loggedInUserId);
-            if (!isSuperAdmin) {
+            if (!isSuperAdmin || isImpersonating) {
                 prodQuery = prodQuery.eq('usuario_id', loggedInUserId);
                 clientQuery = clientQuery.eq('usuario_id', loggedInUserId);
                 stockQuery = stockQuery.eq('usuario_id', loggedInUserId);
@@ -787,6 +849,7 @@ async function checkSession() {
         }
 
         renderActiveTab();
+        checkAndRenderImpersonationBanner();
 
         // 🎓 Verificar e iniciar tutorial de onboarding para novos usuários
         setTimeout(() => checkAndStartTutorial(profile.email), 800);
@@ -1590,10 +1653,12 @@ function applyPermissions(role) {
     if (admMenuItem) admMenuItem.style.display = "flex";
     if (precificacaoMenuItem) precificacaoMenuItem.style.display = "flex";
 
-    if (role === "Auxiliar") {
+    const effectiveRole = getLoggedInUserRole();
+
+    if (effectiveRole === "Auxiliar") {
         if (admMenuItem) admMenuItem.style.display = "none";
         if (precificacaoMenuItem) precificacaoMenuItem.style.display = "none";
-    } else if (role === "Confeiteira") {
+    } else if (effectiveRole === "Confeiteira") {
         if (admMenuItem) admMenuItem.style.display = "none";
     }
 }
@@ -1662,14 +1727,19 @@ function switchTab(tabId) {
     if (session) {
         try {
             const sessionData = JSON.parse(session);
-            const user = state.users.find(u => u.username === sessionData.username);
-            if (user) {
-                const role = user.role;
-                if (role === "Auxiliar" && ["receitas", "adm"].includes(tabId)) {
-                    tabId = "dashboard";
-                } else if (role === "Confeiteira" && tabId === "adm") {
-                    tabId = "dashboard";
+            let role = null;
+            if (sessionData.role === "Super Admin" && localStorage.getItem("confeitaai_impersonated_user_id")) {
+                role = "Confeiteira";
+            } else {
+                const user = state.users.find(u => u.username === sessionData.username);
+                if (user) {
+                    role = user.role;
                 }
+            }
+            if (role === "Auxiliar" && ["receitas", "adm"].includes(tabId)) {
+                tabId = "dashboard";
+            } else if (role === "Confeiteira" && tabId === "adm") {
+                tabId = "dashboard";
             }
         } catch (e) {
             console.error("Erro ao validar permissões na aba:", e);
@@ -7079,6 +7149,7 @@ function renderUsersTable() {
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         ${plan !== 'PRO' ? `<button class="btn btn-purple btn-sm" onclick="adminUpgradeToPro('${u.id}')" style="padding:4px 8px;font-size:11px;">→ PRO</button>` : `<button class="btn btn-outline btn-sm" onclick="adminDowngradeToTrial('${u.id}')" style="padding:4px 8px;font-size:11px;color:#f59e0b;">↓ Trial</button>`}
                         <button class="btn btn-outline btn-sm" onclick="toggleUserStatus('${u.id}')" style="padding:4px 8px;font-size:11px;">${u.status === 'Ativo' ? 'Suspender' : 'Ativar'}</button>
+                        ${u.role !== 'Super Admin' ? `<button class="btn btn-purple btn-sm" onclick="startImpersonation('${u.id}', '${u.name.replace(/'/g, "\\'")}')" style="padding:4px 8px;font-size:11px;background-color:#10b981;border-color:#10b981;color:white;">Acessar Painel ⚙️</button>` : ''}
                     </div>
                 </td>`;
             listEl.appendChild(row);
