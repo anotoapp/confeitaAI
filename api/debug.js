@@ -7,24 +7,33 @@ const supabase = createClient(
 
 module.exports = async function handler(req, res) {
     try {
-        console.log("Debug endpoint called");
+        console.log("Debug insert test called");
         
-        // 1. Fetch one row from usuarios to check columns
-        const { data: users, error: usersErr } = await supabase.from('usuarios').select('*').limit(5);
+        // Try inserting a test user with 'phone'
+        const testId = "00000000-0000-0000-0000-" + Date.now().toString().substring(0, 12).padStart(12, "0");
         
-        // 2. Fetch from configuracoes
-        const { data: configs, error: configErr } = await supabase.from('configuracoes').select('*').limit(5);
-        
+        const payload = {
+            id: testId,
+            name: "Test Column Exist",
+            email: `test_column_${Date.now()}@test.com`,
+            username: `test_col_${Date.now()}`,
+            role: 'Confeiteira',
+            status: 'Ativo',
+            phone: '5511999998888'
+        };
+
+        const { data: insertResult, error: insertErr } = await supabase
+            .from('usuarios')
+            .insert([payload])
+            .select();
+
         res.status(200).json({
             status: "success",
             supabaseUrl: process.env.SUPABASE_URL ? "Defined" : "Undefined",
             hasServiceKey: process.env.SUPABASE_KEY ? "Yes" : "No",
-            usersError: usersErr ? { message: usersErr.message, code: usersErr.code } : null,
-            usersCount: users ? users.length : 0,
-            sampleUsers: users,
-            configsError: configErr ? { message: configErr.message, code: configErr.code } : null,
-            configsCount: configs ? configs.length : 0,
-            sampleConfigs: configs
+            insertPayload: payload,
+            insertError: insertErr ? { message: insertErr.message, code: insertErr.code, details: insertErr.details } : null,
+            insertResult: insertResult
         });
     } catch (err) {
         res.status(500).json({
