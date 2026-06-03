@@ -75,7 +75,7 @@ Se houver múltiplos ingredientes na nota, extraia todos na lista. Retorne apena
         };
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
             {
                 method: "POST",
                 headers: {
