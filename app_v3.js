@@ -7615,7 +7615,7 @@ function copyRefLink() {
     input.select();
     input.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(input.value);
-    showToast("Link copiado com sucesso! 🚀", "success");
+    showToastNotification("Copiado!", "Link copiado com sucesso! 🚀");
 }
 
 // 10. PAINEL ADM LOGIC & MAINTENANCE OPERATIONS
@@ -7755,11 +7755,11 @@ window.payReferral = async function(userId, amount) {
         const nextVal = current + amount;
         
         await supabaseClient.from("usuarios").update({ comissao_recebida: nextVal }).eq("id", userId);
-        showToast("Comissão baixada com sucesso!", "success");
+        showToastNotification("Sucesso", "Comissão baixada com sucesso!");
         renderAdminReferrals();
     } catch (e) {
         console.error(e);
-        showToast("Erro ao dar baixa", "error");
+        showToastNotification("Erro", "Erro ao dar baixa na comissão");
     }
 }
 
