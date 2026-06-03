@@ -616,6 +616,68 @@
                                         <button type="button" id="btn-reset-theme-color" style="background: none; border: none; color: var(--color-purple); font-size: 11px; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0; margin-left: auto;">Voltar ao original</button>
                                     </div>
                                 </div>
+                                
+                                <!-- SEÇÃO: MONTE SEU BOLO DE FESTA -->
+                                <div class="form-group" style="margin-top: 24px; border-top: 1px solid rgba(255, 126, 185, 0.15); padding-top: 20px;">
+                                    <label style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px;">
+                                        <span style="display: flex; align-items: center; gap: 6px;">🎂 Cardápio Personalizado: "Monte seu Bolo de Festa"</span>
+                                    </label>
+                                    
+                                    <div style="display: flex; align-items: center; gap: 12px; background: rgba(255, 126, 185, 0.05); padding: 12px; border-radius: var(--border-radius-md); border: 1px dashed rgba(255, 126, 185, 0.3); margin-bottom: 16px;">
+                                        <input type="checkbox" id="store-enable-cake-builder" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-purple);">
+                                        <label for="store-enable-cake-builder" style="font-size: 12px; font-weight: 700; color: var(--color-text-main); cursor: pointer; margin: 0;">Ativar funcionalidade "Monte seu Bolo de Festa" no Cardápio</label>
+                                    </div>
+
+                                    <!-- Área colapsável de configurações do Bolo -->
+                                    <div id="cake-builder-config-area" style="display: none;">
+                                        <div class="form-grid" style="display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px;">
+                                            <div class="form-group">
+                                                <label for="store-cake-max-fillings" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Máximo de Sabores de Recheio por Bolo</label>
+                                                <input type="number" id="store-cake-max-fillings" min="1" max="5" value="3" style="width: 100px; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none;">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                                            <div class="form-group">
+                                                <label for="store-cake-fillings-simples" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Sabores - Recheio Simples <span style="font-weight: 400; color: var(--color-text-muted);">(separados por vírgula)</span></label>
+                                                <textarea id="store-cake-fillings-simples" rows="3" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 12px; font-family: inherit;" placeholder="Ninho, Brigadeiro, Beijinho..."></textarea>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="store-cake-fillings-frutas" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Sabores - Recheio com Frutas <span style="font-weight: 400; color: var(--color-text-muted);">(separados por vírgula)</span></label>
+                                                <textarea id="store-cake-fillings-frutas" rows="3" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 12px; font-family: inherit;" placeholder="Morango com chantilly, Abacaxi com creme..."></textarea>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="store-cake-fillings-gourmet" style="display: block; font-size: 12px; margin-bottom: 6px; font-weight: 600;">Sabores - Recheio Gourmet <span style="font-weight: 400; color: var(--color-text-muted);">(separados por vírgula)</span></label>
+                                                <textarea id="store-cake-fillings-gourmet" rows="3" style="width: 100%; padding: 10px; border-radius: var(--border-radius-sm); border: 1px solid #e2e8f0; outline: none; font-size: 12px; font-family: inherit;" placeholder="Ninho com Nutella, Chocolate trufado..."></textarea>
+                                            </div>
+                                        </div>
+
+                                        <!-- Tabela de Tamanhos e Preços -->
+                                        <div class="form-group">
+                                            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px;">Tamanhos de Bolos e Preços por Categoria</label>
+                                            <div class="table-container" style="background: white; border: 1px solid #e2e8f0; border-radius: var(--border-radius-sm); margin-bottom: 12px; overflow-x: auto;">
+                                                <table class="table" style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; min-width: 700px;">
+                                                    <thead>
+                                                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                                                            <th style="padding: 10px; font-weight: 600;">Tamanho (Nome)</th>
+                                                            <th style="padding: 10px; font-weight: 600;">Rendimento (Fatias)</th>
+                                                            <th style="padding: 10px; font-weight: 600; color: var(--color-purple);">R$ Simples</th>
+                                                            <th style="padding: 10px; font-weight: 600; color: var(--color-purple);">R$ Frutas</th>
+                                                            <th style="padding: 10px; font-weight: 600; color: var(--color-purple);">R$ Gourmet</th>
+                                                            <th style="padding: 10px; font-weight: 600;">R$ Topo Simples</th>
+                                                            <th style="padding: 10px; font-weight: 600;">R$ Topo Personalizado</th>
+                                                            <th style="padding: 10px; font-weight: 600; text-align: center;">Excluir</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="builder-config-sizes-table-body">
+                                                        <!-- Populate dynamically via JS -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <button type="button" class="btn btn-outline btn-sm" id="btn-add-builder-config-row" style="margin-top: 4px;">➕ Adicionar Novo Tamanho</button>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div style="display: flex; gap: 12px; margin-top: 16px;">
                                     <button type="submit" class="btn btn-purple">Salvar Configurações</button>
                                     <button type="button" class="btn btn-outline" id="btn-cancel-store-config">Cancelar</button>
@@ -1618,6 +1680,109 @@
                     <button class="btn btn-outline btn-block" style="margin-top: 20px;" onclick="window.location.reload()">Voltar ao Cardápio</button>
                 </div>
 
+                <!-- Tela de Personalizar Bolo (Oculta por padrão) -->
+                <div class="phone-body" id="phone-cake-builder-body" style="display: none; padding: 16px; background: #fff; overflow-y: auto; height: calc(100% - 60px); font-family: 'Outfit', sans-serif;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                        <button onclick="backToMenuFromBuilder()" type="button" style="background: none; border: none; font-size: 18px; color: var(--color-text-main); cursor: pointer; padding: 0 4px;">&larr;</button>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--color-text-main);">Personalizar seu Bolo 🍰</h3>
+                    </div>
+                    
+                    <form id="form-custom-cake" onsubmit="addCustomCakeToCart(event)">
+                        <!-- 1. TAMANHO / FORMA -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">1. Tamanho do Bolo</label>
+                            <select id="builder-size" onchange="updateBuilderPrice()" required style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbd5e1; outline: none; font-size: 13px; color: var(--color-text-main); background: #f8fafc; font-family: inherit;">
+                                <option value="Mini Bolo" data-slices="6 fatias">Mini Bolo (6 fatias - Forma 10cm)</option>
+                                <option value="10 fatias" data-slices="10 fatias">10 fatias (10 fatias)</option>
+                                <option value="15 cm" data-slices="10 a 12 fatias" selected>15 cm (10 a 12 fatias)</option>
+                                <option value="20 cm" data-slices="15 a 20 fatias">20 cm (15 a 20 fatias)</option>
+                                <option value="25 cm" data-slices="25 a 30 fatias">25 cm (25 a 30 fatias)</option>
+                                <option value="30 cm" data-slices="35 a 45 fatias">30 cm (35 a 45 fatias)</option>
+                                <option value="35 cm" data-slices="50 a 60 fatias">35 cm (50 a 60 fatias)</option>
+                                <option value="40 cm" data-slices="65 a 80 fatias">40 cm (65 a 80 fatias)</option>
+                            </select>
+                        </div>
+
+                        <!-- 2. CATEGORIA DE RECHEIO -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">2. Categoria do Recheio</label>
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc;" class="builder-cat-label">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-category" value="Simples" checked onchange="onBuilderCategoryChange()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 13px; font-weight: 600;">Recheio Simples</span>
+                                    </div>
+                                    <span id="builder-cat-price-simples" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover);">R$ 100,00</span>
+                                </label>
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc;" class="builder-cat-label">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-category" value="Frutas" onchange="onBuilderCategoryChange()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 13px; font-weight: 600;">Recheio com Frutas</span>
+                                    </div>
+                                    <span id="builder-cat-price-frutas" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover);">R$ 130,00</span>
+                                </label>
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc;" class="builder-cat-label">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-category" value="Gourmet" onchange="onBuilderCategoryChange()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 13px; font-weight: 600;">Recheio Gourmet</span>
+                                    </div>
+                                    <span id="builder-cat-price-gourmet" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover);">R$ 155,00</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 3. ESCOLHA DE RECHEIOS (ATÉ 3) -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">3. Sabores do Recheio</label>
+                            <span style="font-size: 10px; color: #64748b; display: block; margin-bottom: 8px;">Escolha até 3 sabores:</span>
+                            
+                            <!-- Container de Sabores -->
+                            <div id="builder-fillings-container" style="display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 140px; overflow-y: auto; padding: 2px; border: 1px solid #e2e8f0; border-radius: 10px; background: white;">
+                                <!-- Dinamicamente preenchido dependendo da categoria -->
+                            </div>
+                        </div>
+
+                        <!-- 4. TOPO DE BOLO -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">4. Topo de Bolo</label>
+                            <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc; margin: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-topper" value="Sem Topo" checked onchange="updateBuilderPrice()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 12px; font-weight: 600;">Sem Topo</span>
+                                    </div>
+                                    <span style="font-size: 11px; font-weight: 700; color: #64748b;">Grátis</span>
+                                </label>
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc; margin: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-topper" value="Topo Simples" onchange="updateBuilderPrice()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 12px; font-weight: 600;">Topo Simples</span>
+                                    </div>
+                                    <span id="builder-topper-price-simples" style="font-size: 11px; font-weight: 700; color: var(--color-primary-hover);">+ R$ 15,00</span>
+                                </label>
+                                <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; cursor: pointer; background: #f8fafc; margin: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="radio" name="builder-topper" value="Topo Personalizado" onchange="updateBuilderPrice()" style="accent-color: var(--color-primary); width: auto; margin: 0;">
+                                        <span style="font-size: 12px; font-weight: 600;">Topo Personalizado</span>
+                                    </div>
+                                    <span id="builder-topper-price-personalizado" style="font-size: 11px; font-weight: 700; color: var(--color-primary-hover);">+ R$ 25,00</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- TOTAL & SUBMIT -->
+                        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-top: 20px;">
+                            <div>
+                                <span style="font-size: 10px; color: #64748b; display: block; font-weight: 600; text-transform: uppercase;">Total:</span>
+                                <strong id="builder-total-price" style="font-size: 16px; color: var(--color-primary-hover); font-weight: 800;">R$ 100,00</strong>
+                            </div>
+                            <button type="submit" class="btn" style="background: var(--color-primary); color: white; border: none; border-radius: 10px; padding: 10px 14px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(255,126,185,0.3); font-family: inherit;">
+                                Adicionar ➔
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
                 <!-- Floating Bag Bar -->
                 <div class="phone-bag-bar" id="phone-bag-bar" style="display: none;">
                     <div class="phone-bag-left">
@@ -1857,6 +2022,13 @@
     </div>
 
     <!-- Core App Logic -->
+    <!-- Floating Support WhatsApp Button -->
+    <a href="https://wa.me/5519995933655?text=Ol%C3%A1%2C+preciso+de+suporte+com+o+ConfeitaAI%21" target="_blank" class="floating-support-btn" title="Suporte ConfeitaAI">
+        <svg viewBox="0 0 448 512">
+            <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7 .9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/>
+        </svg>
+    </a>
     <script src="app_v3.js?v=20260601_1530"></script>
 </body>
 </html>
+

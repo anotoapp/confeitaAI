@@ -176,6 +176,26 @@ const seedData = {
     }
 };
 
+const emptyState = {
+    products: [],
+    ingredients: [],
+    clients: [],
+    orders: [],
+    transactions: [],
+    recipes: [],
+    cacauMessages: [],
+    fiados: [],
+    users: [],
+    storeConfig: {
+        name: "Minha Loja",
+        slug: "",
+        hours: "Seg a Sex, 09h às 18h",
+        logo: "",
+        desc: "",
+        cor_tema: "#ff7eb9"
+    }
+};
+
 function isImpersonating() {
     const session = localStorage.getItem("confeitaai_session");
     if (!session) return false;
@@ -283,7 +303,10 @@ function saveToLocalStorage() {
 function getFromLocalStorage() {
     try {
         const userId = getLoggedInUserId() || "global";
-        return localStorage.getItem(`confeitaai_state_${userId}`) || localStorage.getItem("confeitaai_state");
+        if (userId !== "global") {
+            return localStorage.getItem(`confeitaai_state_${userId}`);
+        }
+        return localStorage.getItem("confeitaai_state");
     } catch (err) {
         console.error("Erro ao ler do LocalStorage:", err);
         return null;
@@ -336,7 +359,9 @@ async function loadState() {
         }
     } else {
         // Safe seeding on fresh startup if no cache exists
-        state = sanitizeAndMergeState(seedData);
+        // If we are logged in or Supabase is active, use empty template to prevent flashing seed data
+        const initialTemplate = (isSupabaseActive || getLoggedInUserId()) ? emptyState : seedData;
+        state = sanitizeAndMergeState(initialTemplate);
         checkSession();
         populateStoreForm();
     }
@@ -407,7 +432,8 @@ async function loadState() {
                     banner: configData.banner || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&h=400&fit=crop",
                     desc: configData.desc || "",
                     cor_tema: configData.cor_tema || "#ff7eb9",
-                    loja_aberta: configData.loja_aberta !== false
+                    loja_aberta: configData.loja_aberta !== false,
+                    cake_builder: configData.cake_builder || null
                 };
                 applyStorefrontThemeColor(state.storeConfig.cor_tema);
 
@@ -733,7 +759,8 @@ async function loadState() {
                 banner: configData.banner || state.storeConfig.banner,
                 desc: configData.desc || state.storeConfig.desc,
                 cor_tema: configData.cor_tema || state.storeConfig.cor_tema || "#ff7eb9",
-                loja_aberta: configData.loja_aberta !== false
+                loja_aberta: configData.loja_aberta !== false,
+                cake_builder: configData.cake_builder || null
             };
             applyStorefrontThemeColor(state.storeConfig.cor_tema);
         }
@@ -1516,7 +1543,7 @@ async function handleLogout() {
     }
     localStorage.removeItem("confeitaai_session");
     // Limpa estado em memória para evitar qualquer vazamento de dados confidenciais
-    state = sanitizeAndMergeState(seedData);
+    state = sanitizeAndMergeState(emptyState);
     
     const loginContainer = document.getElementById("login-container");
     if (loginContainer) loginContainer.style.display = "flex";
@@ -1573,7 +1600,7 @@ async function handleSetupSubmit(e) {
         const { data: authData, error: authErr } = await supabaseClient.auth.signUp({
             email,
             password,
-            options: { data: { name: fullName, username } }
+            options: { data: { name: fullName, username, phone: finalPhone } }
         });
 
         if (authErr) throw authErr;
@@ -2107,6 +2134,58 @@ function initializeConfeitaAI() {
         
         const isOpen = document.getElementById("store-open-toggle") ? document.getElementById("store-open-toggle").checked : true;
         
+        // Parse custom cake builder configurations
+        const enableCakeBuilder = document.getElementById("store-enable-cake-builder") ? document.getElementById("store-enable-cake-builder").checked : false;
+        const maxFillingsVal = parseInt(document.getElementById("store-cake-max-fillings")?.value) || 3;
+        
+        const fillingsSimples = (document.getElementById("store-cake-fillings-simples")?.value || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+        const fillingsFrutas = (document.getElementById("store-cake-fillings-frutas")?.value || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+        const fillingsGourmet = (document.getElementById("store-cake-fillings-gourmet")?.value || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+            
+        const sizeRows = document.querySelectorAll("#builder-config-sizes-table-body tr");
+        const sizesArr = [];
+        sizeRows.forEach(row => {
+            const sizeName = row.querySelector(".config-size-name")?.value.trim();
+            const slices = row.querySelector(".config-size-slices")?.value.trim();
+            const pSimples = parseFloat(row.querySelector(".config-size-simples")?.value) || 0;
+            const pFrutas = parseFloat(row.querySelector(".config-size-frutas")?.value) || 0;
+            const pGourmet = parseFloat(row.querySelector(".config-size-gourmet")?.value) || 0;
+            const topperSimple = parseFloat(row.querySelector(".config-size-topper-simple")?.value) || 0;
+            const topperCustom = parseFloat(row.querySelector(".config-size-topper-custom")?.value) || 0;
+            
+            if (sizeName) {
+                sizesArr.push({
+                    name: sizeName,
+                    slices: slices || "",
+                    price_simples: pSimples,
+                    price_frutas: pFrutas,
+                    price_gourmet: pGourmet,
+                    topper_simple: topperSimple,
+                    topper_custom: topperCustom
+                });
+            }
+        });
+        
+        const cakeBuilderObj = {
+            enabled: enableCakeBuilder,
+            max_fillings: maxFillingsVal,
+            fillings: {
+                Simples: fillingsSimples,
+                Frutas: fillingsFrutas,
+                Gourmet: fillingsGourmet
+            },
+            sizes: sizesArr
+        };
+
         // Otimista: Salvar localmente e atualizar UI instantaneamente
         state.storeConfig = {
             name: nameVal || "Doces da Ju",
@@ -2117,13 +2196,19 @@ function initializeConfeitaAI() {
             banner: bannerVal || "",
             desc: descVal || "",
             cor_tema: themeColorVal,
-            loja_aberta: isOpen
+            loja_aberta: isOpen,
+            cake_builder: cakeBuilderObj
         };
         
         saveToLocalStorage();
         updateStoreShowcase();
         applyStorefrontThemeColor(state.storeConfig.cor_tema);
         updateQuickToggleUI();
+        
+        // Refresh storefront simulation as well to show/hide dynamic custom cake banner
+        if (typeof renderStorefrontProducts === 'function') {
+            renderStorefrontProducts();
+        }
         
         const configPanel = document.getElementById("store-config-panel");
         if (configPanel) configPanel.style.display = "none";
@@ -2145,7 +2230,8 @@ function initializeConfeitaAI() {
                     banner: state.storeConfig.banner,
                     desc: state.storeConfig.desc,
                     cor_tema: state.storeConfig.cor_tema,
-                    loja_aberta: state.storeConfig.loja_aberta
+                    loja_aberta: state.storeConfig.loja_aberta,
+                    cake_builder: state.storeConfig.cake_builder
                 }]).then(({ error }) => {
                     if (error) {
                         console.error("Erro ao salvar no Supabase:", error);
@@ -2241,6 +2327,17 @@ function initializeConfeitaAI() {
 
     // Live update showcase URL while typing slug
     safeBind("store-slug", "input", updateGeneratedStoreLink);
+
+    // Custom cake builder configurations bindings
+    safeBind("store-enable-cake-builder", "change", (e) => {
+        const area = document.getElementById("cake-builder-config-area");
+        if (area) area.style.display = e.target.checked ? "block" : "none";
+    });
+    safeBind("btn-add-builder-config-row", "click", () => {
+        if (typeof window.addBuilderConfigRow === 'function') {
+            window.addBuilderConfigRow();
+        }
+    });
 
     // Phone drawer UI buttons
     safeBind("btn-close-phone-cart", "click", closePhoneCartDrawer);
@@ -2852,6 +2949,11 @@ function renderCardapio(searchQuery = "") {
 
     filtered.forEach(p => {
         const promoBadge = p.destacado ? `<span class="badge product-badge" style="position:relative; z-index:1; background:#eab308; color:white; border:none; margin-left:4px;">⭐ Destaque</span>` : "";
+        const recipeWarning = !p.recipeId ? `
+            <div class="recipe-nudge" onclick="editProduct('${p.id}', true)" title="Clique para vincular uma receita e ativar a baixa de estoque automática" style="display: inline-flex; align-items: center; gap: 4px; background: #fff7ed; border: 1px solid #ffedd5; color: #c2410c; padding: 4px 8px; border-radius: 6px; font-size: 11px; margin-top: 6px; font-weight: 500; cursor: pointer; width: fit-content; transition: background 0.2s;">
+                <span>⚠️</span> Sem estoque automático
+            </div>
+        ` : "";
         list.innerHTML += `
             <div class="product-card">
                 <div class="product-emoji-banner" style="position: relative; overflow: hidden; ${p.photo ? 'padding:0;' : ''}">
@@ -2861,10 +2963,11 @@ function renderCardapio(searchQuery = "") {
                         ${promoBadge}
                     </div>
                 </div>
-                <div class="product-info">
+                <div class="product-info" style="display: flex; flex-direction: column;">
                     <h3 class="product-title">${p.name}</h3>
-                    <p class="product-desc">${p.desc || p.description || "Sem descrição cadastrada."}</p>
-                    <div class="product-footer">
+                    <p class="product-desc" style="flex-grow: 1; margin-bottom: 8px;">${p.desc || p.description || "Sem descrição cadastrada."}</p>
+                    ${recipeWarning}
+                    <div class="product-footer" style="margin-top: 10px;">
                         <span class="product-price">R$ ${p.price.toFixed(2)}</span>
                         <div class="card-actions">
                             <button class="btn btn-outline btn-sm" onclick="editProduct('${p.id}')">Editar</button>
@@ -2912,15 +3015,26 @@ function renderPedidos() {
             }
         }
 
+        let displayTitle = product ? `${product.emoji || "🧁"} ${o.qty}x ${product.name}` : `🧁 ${o.qty}x Doce Especial`;
+        if (o.notes && o.notes.includes("Bolo Personalizado:")) {
+            const lines = o.notes.split('\n');
+            const customTitleLine = lines.find(l => l.includes("Bolo Personalizado:"));
+            if (customTitleLine) {
+                displayTitle = `🍰 ${o.qty}x ${customTitleLine.replace("Bolo Personalizado:", "").trim()}`;
+            }
+        }
+        let displayNotes = o.notes || "";
+        displayNotes = displayNotes.replace(/\[CART:\d+\]\s*/g, ""); // Clean up cart tracking code from view
+
         const cardHtml = `
             <div class="kanban-card ${urgentClass}" data-order-id="${o.id}">
-                <div class="kanban-card-title">${product ? product.emoji : "🧁"} ${o.qty}x ${product ? product.name : "Doce Especial"}</div>
+                <div class="kanban-card-title">${displayTitle}</div>
                 <div class="kanban-card-client">Cliente: <strong>${client ? client.name : "Sem Nome"}</strong></div>
                 <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px;">
                     ${tagHtml}
                     ${typeBadge}
                 </div>
-                <p style="font-size: 11px; color: var(--color-text-muted); line-height:1.3; margin-top: 4px;">${o.notes || ""}</p>
+                <p style="font-size: 11px; color: var(--color-text-muted); line-height:1.3; margin-top: 4px;">${displayNotes}</p>
                 <div class="kanban-card-details">
                     <span class="kanban-card-date">${formattedDate} às ${o.time}</span>
                     <span class="kanban-card-val">R$ ${o.val.toFixed(2)}</span>
@@ -3497,7 +3611,7 @@ async function handleProductSubmit(e) {
     }
 }
 
-function editProduct(id) {
+function editProduct(id, highlightRecipe = false) {
     const prod = state.products.find(p => p.id === id);
     if (!prod) return;
 
@@ -3531,6 +3645,21 @@ function editProduct(id) {
 
     document.getElementById("product-modal-title").innerText = "Editar Produto";
     openModal("modal-product");
+
+    if (highlightRecipe) {
+        setTimeout(() => {
+            const recipeSelect = document.getElementById("prod-recipe");
+            if (recipeSelect) {
+                recipeSelect.focus();
+                recipeSelect.style.border = "2px solid #ea580c";
+                recipeSelect.style.boxShadow = "0 0 0 3px rgba(234, 88, 12, 0.2)";
+                setTimeout(() => {
+                    recipeSelect.style.border = "";
+                    recipeSelect.style.boxShadow = "";
+                }, 2000);
+            }
+        }, 300);
+    }
 }
 
 async function deleteProduct(id) {
@@ -3928,8 +4057,20 @@ function openWhatsAppForOrder(orderId) {
         return;
     }
     
-    const product = state.products.find(p => p.id === order.productId);
-    const prodName = product ? product.name : "sua encomenda";
+    let prodName = "sua encomenda";
+    if (order.productId === "custom_cake") {
+        prodName = "Bolo Personalizado";
+        if (order.notes && order.notes.includes("Bolo Personalizado:")) {
+            const lines = order.notes.split('\n');
+            const customTitleLine = lines.find(l => l.includes("Bolo Personalizado:"));
+            if (customTitleLine) {
+                prodName = customTitleLine.replace("Bolo Personalizado:", "").trim();
+            }
+        }
+    } else {
+        const product = state.products.find(p => p.id === order.productId);
+        prodName = product ? product.name : "sua encomenda";
+    }
     
     let message = "";
     if (order.status === "Em Produção") {
@@ -5062,6 +5203,13 @@ function renderCategoryChips() {
     let cats = state?.storeConfig?.categorias;
     if (!cats || cats.length === 0) {
         cats = [...new Set(state.products.map(p => p.category).filter(Boolean))];
+    } else {
+        cats = [...cats];
+    }
+    
+    const configBuilder = getCakeBuilderConfig();
+    if (configBuilder.enabled && !cats.includes("Bolos")) {
+        cats.push("Bolos");
     }
     
     cats.forEach(cat => {
@@ -5111,15 +5259,6 @@ function renderStorefrontProducts() {
         filtered = filtered.filter(p => p.name.toLowerCase().includes(activeSearchFilter) || (p.desc && p.desc.toLowerCase().includes(activeSearchFilter)) || (p.description && p.description.toLowerCase().includes(activeSearchFilter)));
     }
     
-    if (filtered.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="text-align: center; padding: 24px; color: #94a3b8;">
-                <p>Nenhum doce encontrado. 🧁</p>
-            </div>
-        `;
-        return;
-    }
-    
     // Group products by category
     const grouped = {};
     filtered.forEach(p => {
@@ -5129,6 +5268,27 @@ function renderStorefrontProducts() {
         }
         grouped[cat].push(p);
     });
+    
+    // Check if dynamic custom cake builder card should be displayed
+    const configBuilder = getCakeBuilderConfig();
+    const showCakeBuilder = configBuilder.enabled && 
+        (activeCategoryFilter === "all" || activeCategoryFilter === "Bolos") &&
+        (!activeSearchFilter || "monte seu bolo de festa".includes(activeSearchFilter) || "bolos".includes(activeSearchFilter) || "personalizar".includes(activeSearchFilter));
+        
+    if (showCakeBuilder) {
+        if (!grouped["Bolos"]) {
+            grouped["Bolos"] = [];
+        }
+    }
+    
+    if (Object.keys(grouped).length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 24px; color: #94a3b8;">
+                <p>Nenhum doce encontrado. 🧁</p>
+            </div>
+        `;
+        return;
+    }
     
     // Sort category headers to match state.storeConfig.categorias if present
     let sortedCats = Object.keys(grouped);
@@ -5157,11 +5317,53 @@ function renderStorefrontProducts() {
         catHeader.style.display = "flex";
         catHeader.style.alignItems = "center";
         catHeader.style.justifyContent = "space-between";
+        
+        const count = grouped[cat].length + (cat === "Bolos" && showCakeBuilder ? 1 : 0);
         catHeader.innerHTML = `
             <span>${cat}</span>
-            <span style="font-size: 10px; font-weight: 500; color: #94a3b8; padding-right: 4px;">${grouped[cat].length} ${grouped[cat].length === 1 ? 'item' : 'itens'}</span>
+            <span style="font-size: 10px; font-weight: 500; color: #94a3b8; padding-right: 4px;">${count} ${count === 1 ? 'item' : 'itens'}</span>
         `;
         container.appendChild(catHeader);
+
+        if (cat === "Bolos" && showCakeBuilder) {
+            const minPrice = configBuilder.sizes.reduce((min, s) => {
+                const p = parseFloat(s.price_simples) || 0;
+                return p > 0 ? Math.min(min, p) : min;
+            }, Infinity);
+            const minPriceText = minPrice !== Infinity ? `A partir de R$ ${minPrice.toFixed(2)}` : "A partir de R$ 45,00";
+
+            const bannerCard = document.createElement("div");
+            bannerCard.className = "phone-product-card";
+            bannerCard.style.display = "flex";
+            bannerCard.style.alignItems = "center";
+            bannerCard.style.justifyContent = "space-between";
+            bannerCard.style.gap = "12px";
+            bannerCard.style.padding = "12px";
+            bannerCard.style.background = "white";
+            bannerCard.style.borderRadius = "var(--border-radius-md)";
+            bannerCard.style.marginBottom = "8px";
+            
+            bannerCard.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <div class="phone-prod-photo-wrapper">
+                        <img src="imagens/cake_builder_banner.jpg" alt="Monte seu Bolo" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                    <div class="phone-prod-details" style="flex: 1;">
+                        <div class="phone-prod-name" style="font-size: 13px; font-weight: 600; color: var(--color-text-main);">Monte seu Bolo de Festa 🍰</div>
+                        <p style="font-size: 10px; color: #6e768e; margin: 2px 0 0 0; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
+                            Escolha o tamanho, recheios simples/gourmet e o topo de bolo perfeito!
+                        </p>
+                        <div class="phone-prod-price" style="font-size: 12px; font-weight: 700; color: var(--color-primary-hover); margin-top: 4px;">${minPriceText}</div>
+                    </div>
+                </div>
+                <div class="phone-prod-actions" style="flex-shrink: 0;">
+                    <button class="phone-btn-add" onclick="openCustomCakeBuilder()" style="background-color: var(--color-primary); color: white; border: none; font-weight: 700; border-radius: 20px; padding: 6px 12px; font-size: 11px; cursor: pointer; transition: background 0.2s; white-space: nowrap;">
+                        Personalizar
+                    </button>
+                </div>
+            `;
+            container.appendChild(bannerCard);
+        }
         
         grouped[cat].forEach(p => {
             const card = document.createElement("div");
@@ -5245,10 +5447,15 @@ function updateCartUI() {
     let totalPrice = 0;
     
     customerCart.forEach(item => {
-        const p = state.products.find(prod => prod.id === item.productId);
-        if (p) {
+        if (item.isCustom) {
             totalItems += item.qty;
-            totalPrice += item.qty * p.price;
+            totalPrice += item.qty * item.customPrice;
+        } else {
+            const p = state.products.find(prod => prod.id === item.productId);
+            if (p) {
+                totalItems += item.qty;
+                totalPrice += item.qty * p.price;
+            }
         }
     });
     
@@ -5281,23 +5488,42 @@ function updateCartUI() {
             `;
         } else {
             customerCart.forEach(item => {
-                const p = state.products.find(prod => prod.id === item.productId);
-                if (p) {
+                if (item.isCustom) {
                     const itemDiv = document.createElement("div");
                     itemDiv.className = "phone-cart-item";
                     itemDiv.innerHTML = `
-                        <div class="phone-cart-item-emoji">${p.emoji || "🧁"}</div>
+                        <div class="phone-cart-item-emoji">${item.customEmoji || "🍰"}</div>
                         <div class="phone-cart-item-info">
-                            <div class="phone-cart-item-name">${p.name}</div>
-                            <div class="phone-cart-item-price">R$ ${p.price.toFixed(2)}</div>
+                            <div class="phone-cart-item-name">${item.customName}</div>
+                            <div class="phone-cart-item-price">R$ ${item.customPrice.toFixed(2)}</div>
+                            <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${item.customDetails}</div>
                         </div>
                         <div class="phone-qty-controls">
-                            <button class="phone-qty-btn qty-minus" onclick="removeFromCart('${p.id}')">-</button>
+                            <button class="phone-qty-btn qty-minus" onclick="removeFromCartCustom('${item.customId}')">-</button>
                             <span class="phone-qty-val">${item.qty}</span>
-                            <button class="phone-qty-btn qty-plus" onclick="addToCart('${p.id}')">+</button>
+                            <button class="phone-qty-btn qty-plus" onclick="addToCartCustom('${item.customId}')">+</button>
                         </div>
                     `;
                     drawerList.appendChild(itemDiv);
+                } else {
+                    const p = state.products.find(prod => prod.id === item.productId);
+                    if (p) {
+                        const itemDiv = document.createElement("div");
+                        itemDiv.className = "phone-cart-item";
+                        itemDiv.innerHTML = `
+                            <div class="phone-cart-item-emoji">${p.emoji || "🧁"}</div>
+                            <div class="phone-cart-item-info">
+                                <div class="phone-cart-item-name">${p.name}</div>
+                                <div class="phone-cart-item-price">R$ ${p.price.toFixed(2)}</div>
+                            </div>
+                            <div class="phone-qty-controls">
+                                <button class="phone-qty-btn qty-minus" onclick="removeFromCart('${p.id}')">-</button>
+                                <span class="phone-qty-val">${item.qty}</span>
+                                <button class="phone-qty-btn qty-plus" onclick="addToCart('${p.id}')">+</button>
+                            </div>
+                        `;
+                        drawerList.appendChild(itemDiv);
+                    }
                 }
             });
         }
@@ -5960,11 +6186,18 @@ async function processarEncomendaDigital() {
         let subtotal = 0;
         let itemRows = "";
         for (const item of customerCart) {
-            const p = state.products.find(prod => prod.id === item.productId);
-            if (!p) continue;
-            const itemSubtotal = item.qty * p.price;
-            subtotal += itemSubtotal;
-            itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
+            if (item.isCustom) {
+                const itemSubtotal = item.qty * item.customPrice;
+                subtotal += itemSubtotal;
+                itemRows += `• *${item.qty}x ${item.customName}* (${item.customEmoji || "🍰"}) - R$ ${item.customPrice.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
+                itemRows += `  _Opções: ${item.customDetails}_\n`;
+            } else {
+                const p = state.products.find(prod => prod.id === item.productId);
+                if (!p) continue;
+                const itemSubtotal = item.qty * p.price;
+                subtotal += itemSubtotal;
+                itemRows += `• *${item.qty}x ${p.name}* (${p.emoji || "🧁"}) - R$ ${p.price.toFixed(2)} (Subtotal: R$ ${itemSubtotal.toFixed(2)})\n`;
+            }
         }
 
         const cleanPhoneTarget = phoneVal.replace(/\D/g, "");
@@ -6024,17 +6257,43 @@ async function processarEncomendaDigital() {
         // 2. Inserir Pedidos (Kanban)
         const ordersToInsert = [];
         for (const item of customerCart) {
-            const p = state.products.find(prod => prod.id === item.productId);
-            if (!p) continue;
+            let p = null;
+            let name = "";
+            let price = 0;
+            let emoji = "🧁";
+            let notes = "";
             
-            const itemSubtotal = item.qty * p.price;
+            if (item.isCustom) {
+                name = item.customName;
+                price = item.customPrice;
+                emoji = item.customEmoji || "🍰";
+                notes = item.customDetails || "";
+                
+                // Encontra um bolo existente da loja ou primeiro produto como referência
+                p = state.products.find(prod => prod.category === "Bolos") || state.products[0] || null;
+            } else {
+                p = state.products.find(prod => prod.id === item.productId);
+                if (p) {
+                    name = p.name;
+                    price = p.price;
+                    emoji = p.emoji;
+                }
+            }
+            if (!p && !item.isCustom) continue;
+            
+            const productIdVal = item.isCustom ? "custom_cake" : (p ? p.id : "custom_placeholder");
+            const itemSubtotal = item.qty * price;
             const orderId = "o_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-            const finalNotes = `[CART:${cartId}]\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
+            
+            let finalNotes = `[CART:${cartId}]\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
+            if (item.isCustom) {
+                finalNotes = `[CART:${cartId}] Bolo Personalizado: ${name}\nOpções: ${notes}\n\n${deliveryNotes}\n\n*Frete*: R$ ${(window.currentDeliveryFee || 0).toFixed(2)}`;
+            }
             
             const orderPayload = {
                 id: orderId,
                 client_id: clientId,
-                product_id: p.id,
+                product_id: productIdVal,
                 qty: item.qty,
                 val: itemSubtotal,
                 date: getLocalDateStr(now),
@@ -6052,7 +6311,7 @@ async function processarEncomendaDigital() {
             state.orders.push({
                 id: orderId,
                 clientId: clientId,
-                productId: p.id,
+                productId: productIdVal,
                 qty: item.qty,
                 val: itemSubtotal,
                 date: getLocalDateStr(now),
@@ -6069,6 +6328,7 @@ async function processarEncomendaDigital() {
         
         // 4. Batch deduct stock in parallel
         const stockPromises = customerCart.map(item => {
+            if (item.isCustom) return Promise.resolve();
             const p = state.products.find(prod => prod.id === item.productId);
             if (p) {
                 return deductStockForOrder({ productId: p.id, qty: item.qty });
@@ -6140,8 +6400,17 @@ async function processarEncomendaDigital() {
                         <strong>Itens:</strong>
                         <ul style="margin: 4px 0; padding-left: 16px; font-size: 13px; list-style-type: disc;">
                             ${customerCart.map(item => {
-                                const p = state.products.find(prod => prod.id === item.productId);
-                                return `<li>${item.qty}x ${p ? p.name : "Item"} - R$ ${(item.qty * (p ? p.price : 0)).toFixed(2)}</li>`;
+                                let name = "";
+                                let price = 0;
+                                if (item.isCustom) {
+                                    name = item.customName;
+                                    price = item.customPrice;
+                                } else {
+                                    const p = state.products.find(prod => prod.id === item.productId);
+                                    name = p ? p.name : "Item";
+                                    price = p ? p.price : 0;
+                                }
+                                return `<li>${item.qty}x ${name} - R$ ${(item.qty * price).toFixed(2)}</li>`;
                             }).join('')}
                         </ul>
                     </div>
@@ -6232,7 +6501,7 @@ async function handleWaSend() {
 
     // 2. Background sync user message
     if (isSupabaseActive) {
-        supabaseClient.from('mensagens_cacau').insert([{ id: userMsgId, sender: "user", text: msgText, time: timeStr }]).catch(err => {
+        Promise.resolve(supabaseClient.from('mensagens_cacau').insert([{ id: userMsgId, sender: "user", text: msgText, time: timeStr }])).catch(err => {
             console.error("Erro ao sincronizar mensagem do usuário:", err);
         });
     }
@@ -6293,7 +6562,7 @@ ${profit >= 0 ? "Você está operando no azul! Parabéns pelas vendas! 💵🍰"
             saveToLocalStorage();
             
             if (isSupabaseActive) {
-                supabaseClient.from('clientes').insert([{ id: newId, name: clientName, phone: phoneStr, order_count: 0, total_spent: 0 }]).catch(err => {
+                Promise.resolve(supabaseClient.from('clientes').insert([{ id: newId, name: clientName, phone: phoneStr, order_count: 0, total_spent: 0 }])).catch(err => {
                     console.error("Erro ao cadastrar cliente por voz:", err);
                 });
             }
@@ -6413,14 +6682,14 @@ O pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
             saveToLocalStorage();
             
             if (isSupabaseActive) {
-                supabaseClient.from('produtos').insert([{
+                Promise.resolve(supabaseClient.from('produtos').insert([{
                     id: newId,
                     name: prodName,
                     price: price,
                     category: "Outros",
                     description: "Novo produto cadastrado rapidamente via Cacau AI.",
                     emoji: "🧁"
-                }]).catch(err => {
+                }])).catch(err => {
                     console.error("Erro ao cadastrar produto por voz:", err);
                 });
             }
@@ -6453,7 +6722,7 @@ O que deseja fazer agora? 🍰😊`;
 
     // 2. Background sync
     if (isSupabaseActive) {
-        supabaseClient.from('mensagens_cacau').insert([{ id: cacauMsgId, sender: "cacau", text: reply, time: timeStr }]).catch(err => {
+        Promise.resolve(supabaseClient.from('mensagens_cacau').insert([{ id: cacauMsgId, sender: "cacau", text: reply, time: timeStr }])).catch(err => {
             console.error("Erro ao sincronizar mensagem da Cacau:", err);
         });
     }
@@ -6473,7 +6742,20 @@ function gerarReciboPDF(orderId) {
     if (!order) return;
     
     const client = state.clients.find(c => c.id === order.clientId) || { name: "Cliente Não Identificado", phone: "" };
-    const product = state.products.find(p => p.id === order.productId) || { name: "Produto Excluído", price: 0 };
+    let productName = "Doce Especial";
+    if (order.productId === "custom_cake") {
+        productName = "Bolo Personalizado";
+        if (order.notes && order.notes.includes("Bolo Personalizado:")) {
+            const lines = order.notes.split('\n');
+            const customTitleLine = lines.find(l => l.includes("Bolo Personalizado:"));
+            if (customTitleLine) {
+                productName = customTitleLine.replace("Bolo Personalizado:", "").trim();
+            }
+        }
+    } else {
+        const prod = state.products.find(p => p.id === order.productId);
+        productName = prod ? prod.name : "Produto Excluído";
+    }
     
     const storeName = state.storeConfig.name || "Minha Confeitaria";
     
@@ -6508,7 +6790,7 @@ function gerarReciboPDF(orderId) {
     doc.setFont("helvetica", "normal");
     
     const unitPrice = order.qty > 0 ? (order.val / order.qty) : order.val;
-    doc.text(`${order.qty}x ${product.name} (R$ ${unitPrice.toFixed(2)} un)`, 20, 105);
+    doc.text(`${order.qty}x ${productName} (R$ ${unitPrice.toFixed(2)} un)`, 20, 105);
     doc.text(`R$ ${order.val.toFixed(2)}`, 190, 105, null, null, "right");
     
     if (order.notes && order.notes.trim() !== "") {
@@ -7573,7 +7855,114 @@ function populateStoreForm() {
     if (timeEndEl) timeEndEl.value = parsedHours.timeEnd || "18:00";
     
     updateStoreShowcase();
+
+    // Dynamic Custom Cake Builder Form Populating
+    const enableCakeBuilderEl = document.getElementById("store-enable-cake-builder");
+    const configAreaEl = document.getElementById("cake-builder-config-area");
+    const maxFillingsEl = document.getElementById("store-cake-max-fillings");
+    const fillingsSimplesEl = document.getElementById("store-cake-fillings-simples");
+    const fillingsFrutasEl = document.getElementById("store-cake-fillings-frutas");
+    const fillingsGourmetEl = document.getElementById("store-cake-fillings-gourmet");
+    
+    const builderConfig = getCakeBuilderConfig();
+    
+    if (enableCakeBuilderEl) {
+        enableCakeBuilderEl.checked = builderConfig.enabled;
+        if (configAreaEl) {
+            configAreaEl.style.display = builderConfig.enabled ? "block" : "none";
+        }
+    }
+    
+    if (maxFillingsEl) maxFillingsEl.value = builderConfig.max_fillings;
+    
+    if (fillingsSimplesEl) fillingsSimplesEl.value = (builderConfig.fillings.Simples || []).join(", ");
+    if (fillingsFrutasEl) fillingsFrutasEl.value = (builderConfig.fillings.Frutas || []).join(", ");
+    if (fillingsGourmetEl) fillingsGourmetEl.value = (builderConfig.fillings.Gourmet || []).join(", ");
+    
+    renderBuilderConfigSizesTable(builderConfig.sizes);
 }
+
+function renderBuilderConfigSizesTable(sizes) {
+    const tbody = document.getElementById("builder-config-sizes-table-body");
+    if (!tbody) return;
+    
+    tbody.innerHTML = "";
+    sizes.forEach((size) => {
+        const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid #f1f5f9";
+        
+        tr.innerHTML = `
+            <td style="padding: 8px 10px;">
+                <input type="text" class="config-size-name" value="${size.name || ''}" placeholder="Ex: 15 cm" style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;" required>
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="text" class="config-size-slices" value="${size.slices || ''}" placeholder="Ex: 10 a 12 fatias" style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="number" class="config-size-simples" step="0.01" value="${size.price_simples !== undefined ? parseFloat(size.price_simples).toFixed(2) : '0.00'}" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="number" class="config-size-frutas" step="0.01" value="${size.price_frutas !== undefined ? parseFloat(size.price_frutas).toFixed(2) : '0.00'}" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="number" class="config-size-gourmet" step="0.01" value="${size.price_gourmet !== undefined ? parseFloat(size.price_gourmet).toFixed(2) : '0.00'}" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="number" class="config-size-topper-simple" step="0.01" value="${size.topper_simple !== undefined ? parseFloat(size.topper_simple).toFixed(2) : '15.00'}" style="width: 70px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+            </td>
+            <td style="padding: 8px 10px;">
+                <input type="number" class="config-size-topper-custom" step="0.01" value="${size.topper_custom !== undefined ? parseFloat(size.topper_custom).toFixed(2) : '25.00'}" style="width: 70px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+            </td>
+            <td style="padding: 8px 10px; text-align: center;">
+                <button type="button" class="btn btn-text" onclick="removeBuilderConfigRow(this)" style="color: var(--color-danger); font-size: 16px; padding: 4px; cursor: pointer; border: none; background: none;">&times;</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+window.removeBuilderConfigRow = function(btn) {
+    const row = btn.closest("tr");
+    if (row) {
+        row.remove();
+    }
+};
+
+window.addBuilderConfigRow = function() {
+    const tbody = document.getElementById("builder-config-sizes-table-body");
+    if (!tbody) return;
+    
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid #f1f5f9";
+    
+    tr.innerHTML = `
+        <td style="padding: 8px 10px;">
+            <input type="text" class="config-size-name" value="" placeholder="Ex: 15 cm" style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;" required>
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="text" class="config-size-slices" value="" placeholder="Ex: 10 a 12 fatias" style="width: 100%; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="number" class="config-size-simples" step="0.01" value="0.00" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="number" class="config-size-frutas" step="0.01" value="0.00" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="number" class="config-size-gourmet" step="0.01" value="0.00" style="width: 75px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px; font-weight: bold; color: var(--color-purple);">
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="number" class="config-size-topper-simple" step="0.01" value="15.00" style="width: 70px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+        </td>
+        <td style="padding: 8px 10px;">
+            <input type="number" class="config-size-topper-custom" step="0.01" value="25.00" style="width: 70px; padding: 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+        </td>
+        <td style="padding: 8px 10px; text-align: center;">
+            <button type="button" class="btn btn-text" onclick="removeBuilderConfigRow(this)" style="color: var(--color-danger); font-size: 16px; padding: 4px; cursor: pointer; border: none; background: none;">&times;</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+};
 
 function updateGeneratedStoreLink() {
     const slugEl = document.getElementById("store-slug");
@@ -7855,7 +8244,20 @@ function imprimirCupomPedido(orderId) {
     }
 
     const client = state.clients.find(c => c.id === order.clientId);
-    const product = state.products.find(p => p.id === order.productId);
+    let displayName = "Doce Especial";
+    if (order.productId === "custom_cake") {
+        displayName = "Bolo Personalizado";
+        if (order.notes && order.notes.includes("Bolo Personalizado:")) {
+            const lines = order.notes.split('\n');
+            const customTitleLine = lines.find(l => l.includes("Bolo Personalizado:"));
+            if (customTitleLine) {
+                displayName = customTitleLine.replace("Bolo Personalizado:", "").trim();
+            }
+        }
+    } else {
+        const product = state.products.find(p => p.id === order.productId);
+        displayName = product ? product.name : "Doce Especial";
+    }
     const storeName = state.storeConfig.name || "Minha Confeitaria";
     const storePhone = state.storeConfig.phone ? `(${state.storeConfig.phone.substring(0, 2)}) ${state.storeConfig.phone.substring(2, 7)}-${state.storeConfig.phone.substring(7)}` : "";
 
@@ -7889,7 +8291,7 @@ function imprimirCupomPedido(orderId) {
         
         <div style="font-weight: bold; margin-bottom: 5px;">ITENS:</div>
         <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-            <span>${order.qty}x ${product ? product.name : 'Doce Especial'} (R$ ${unitPrice.toFixed(2)} un)</span>
+            <span>${order.qty}x ${displayName} (R$ ${unitPrice.toFixed(2)} un)</span>
             <span>R$ ${totalItem.toFixed(2)}</span>
         </div>
         ${order.notes ? `<div style="font-size: 10px; color: #555; padding-left: 10px; margin-bottom: 5px;">* Obs: ${order.notes}</div>` : ''}
@@ -8210,6 +8612,7 @@ function populateRecipeSelect(selectElement, selectedValue) {
 
 // Function to deduct stock based on the recipe of the ordered product
 async function deductStockForOrder(order) {
+    if (order.productId === "custom_cake") return;
     if (!order.productId || !order.qty) return;
 
     const prod = state.products.find(p => p.id === order.productId);
@@ -8492,4 +8895,300 @@ window.renderDashboardLineChart = function(transactions) {
             }
         }
     });
+};
+
+// ================= CUSTOM CAKE BUILDER WIDGET =================
+
+const defaultCakeBuilderConfig = {
+    enabled: false,
+    max_fillings: 3,
+    sizes: [
+        { name: "Mini Bolo", slices: "6 fatias", price_simples: 45.00, price_frutas: 0.00, price_gourmet: 60.00, topper_simple: 15.00, topper_custom: 25.00 },
+        { name: "10 fatias", slices: "10 fatias", price_simples: 64.00, price_frutas: 72.00, price_gourmet: 85.00, topper_simple: 15.00, topper_custom: 25.00 },
+        { name: "15 cm", slices: "10 a 12 fatias", price_simples: 100.00, price_frutas: 130.00, price_gourmet: 155.00, topper_simple: 15.00, topper_custom: 25.00 },
+        { name: "20 cm", slices: "15 a 20 fatias", price_simples: 145.00, price_frutas: 180.00, price_gourmet: 215.00, topper_simple: 20.00, topper_custom: 30.00 },
+        { name: "25 cm", slices: "25 a 30 fatias", price_simples: 200.00, price_frutas: 245.00, price_gourmet: 290.00, topper_simple: 25.00, topper_custom: 35.00 },
+        { name: "30 cm", slices: "35 a 45 fatias", price_simples: 270.00, price_frutas: 320.00, price_gourmet: 380.00, topper_simple: 25.00, topper_custom: 35.00 },
+        { name: "35 cm", slices: "50 a 60 fatias", price_simples: 340.00, price_frutas: 410.00, price_gourmet: 470.00, topper_simple: 25.00, topper_custom: 35.00 },
+        { name: "40 cm", slices: "65 a 80 fatias", price_simples: 420.00, price_frutas: 500.00, price_gourmet: 570.00, topper_simple: 25.00, topper_custom: 35.00 }
+    ],
+    fillings: {
+        Simples: [
+            "Ninho",
+            "Brigadeiro",
+            "Beijinho",
+            "Doce de leite",
+            "Baba de moça",
+            "4 leites"
+        ],
+        Frutas: [
+            "Morango com chantilly",
+            "Abacaxi com creme",
+            "Pêssego"
+        ],
+        Gourmet: [
+            "Ninho com Nutella",
+            "Chocolate trufado",
+            "Ferrero / Kinder"
+        ]
+    }
+};
+
+function getCakeBuilderConfig() {
+    if (state.storeConfig && state.storeConfig.cake_builder) {
+        const cfg = state.storeConfig.cake_builder;
+        return {
+            enabled: cfg.enabled === true,
+            max_fillings: parseInt(cfg.max_fillings) || 3,
+            sizes: Array.isArray(cfg.sizes) ? cfg.sizes : defaultCakeBuilderConfig.sizes,
+            fillings: (cfg.fillings && typeof cfg.fillings === 'object') ? cfg.fillings : defaultCakeBuilderConfig.fillings
+        };
+    }
+    return defaultCakeBuilderConfig;
+}
+
+function getCakeFillings(category) {
+    const config = getCakeBuilderConfig();
+    return config.fillings[category] || [];
+}
+
+window.openCustomCakeBuilder = function() {
+    // Hide storefront content and show builder
+    document.getElementById("phone-menu-body").style.display = "none";
+    document.getElementById("phone-cake-builder-body").style.display = "block";
+    
+    // Hide bag bar and footer while configuring cake
+    const bagBar = document.getElementById("phone-bag-bar");
+    if (bagBar) bagBar.style.display = "none";
+    
+    // Render dynamic sizes dropdown options
+    const config = getCakeBuilderConfig();
+    const selectEl = document.getElementById("builder-size");
+    if (selectEl && config.sizes.length > 0) {
+        selectEl.innerHTML = "";
+        config.sizes.forEach((s, idx) => {
+            const opt = document.createElement("option");
+            opt.value = s.name;
+            opt.setAttribute("data-slices", s.slices);
+            opt.innerText = `${s.name} (${s.slices})`;
+            selectEl.appendChild(opt);
+        });
+        
+        // Select the default size "15 cm" or choose first one
+        const hasDefault = config.sizes.some(s => s.name === "15 cm");
+        selectEl.value = hasDefault ? "15 cm" : config.sizes[0].name;
+    }
+    
+    // Reset inputs
+    document.querySelector('input[name="builder-category"][value="Simples"]').checked = true;
+    document.querySelector('input[name="builder-topper"][value="Sem Topo"]').checked = true;
+    
+    onBuilderCategoryChange();
+    updateBuilderPrice();
+};
+
+window.backToMenuFromBuilder = function() {
+    document.getElementById("phone-cake-builder-body").style.display = "none";
+    document.getElementById("phone-menu-body").style.display = "block";
+    updateCartUI();
+};
+
+window.onBuilderCategoryChange = function() {
+    const category = document.querySelector('input[name="builder-category"]:checked').value;
+    const container = document.getElementById("builder-fillings-container");
+    if (!container) return;
+    
+    container.innerHTML = "";
+    const flavors = getCakeFillings(category);
+    
+    flavors.forEach(flavor => {
+        const item = document.createElement("label");
+        item.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; color: var(--color-text-main); border-bottom: 1px solid #f1f5f9; margin: 0;";
+        item.innerHTML = `
+            <input type="checkbox" name="builder-filling" value="${flavor}" onchange="onFillingCheckboxChange(this)" style="width: auto; accent-color: var(--color-primary); margin: 0;">
+            <span>${flavor}</span>
+        `;
+        container.appendChild(item);
+    });
+    
+    updateBuilderPrice();
+};
+
+window.onFillingCheckboxChange = function(checkbox) {
+    const config = getCakeBuilderConfig();
+    const max = config.max_fillings;
+    const checked = document.querySelectorAll('input[name="builder-filling"]:checked');
+    if (checked.length > max) {
+        checkbox.checked = false;
+        alert(`Você pode escolher no máximo ${max} sabores de recheio!`);
+    }
+};
+
+window.updateBuilderPrice = function() {
+    const size = document.getElementById("builder-size").value;
+    if (!size) return;
+    
+    const config = getCakeBuilderConfig();
+    const sizeObj = config.sizes.find(s => s.name === size);
+    
+    const priceSimples = sizeObj ? parseFloat(sizeObj.price_simples) || 0 : 0;
+    const priceFrutas = sizeObj ? parseFloat(sizeObj.price_frutas) || 0 : 0;
+    const priceGourmet = sizeObj ? parseFloat(sizeObj.price_gourmet) || 0 : 0;
+    
+    const topperSimple = sizeObj ? parseFloat(sizeObj.topper_simple) || 0 : 0;
+    const topperCustom = sizeObj ? parseFloat(sizeObj.topper_custom) || 0 : 0;
+    
+    // Disable builder categories that are not available (price 0)
+    const simplesRadio = document.querySelector('input[name="builder-category"][value="Simples"]');
+    const frutasRadio = document.querySelector('input[name="builder-category"][value="Frutas"]');
+    const gourmetRadio = document.querySelector('input[name="builder-category"][value="Gourmet"]');
+    
+    if (simplesRadio) {
+        if (priceSimples === 0) {
+            simplesRadio.disabled = true;
+            simplesRadio.parentElement.style.opacity = "0.5";
+        } else {
+            simplesRadio.disabled = false;
+            simplesRadio.parentElement.style.opacity = "1";
+        }
+    }
+    
+    if (frutasRadio) {
+        if (priceFrutas === 0) {
+            frutasRadio.disabled = true;
+            frutasRadio.parentElement.style.opacity = "0.5";
+            if (frutasRadio.checked) {
+                simplesRadio.checked = true;
+                onBuilderCategoryChange();
+                return;
+            }
+        } else {
+            frutasRadio.disabled = false;
+            frutasRadio.parentElement.style.opacity = "1";
+        }
+    }
+    
+    if (gourmetRadio) {
+        if (priceGourmet === 0) {
+            gourmetRadio.disabled = true;
+            gourmetRadio.parentElement.style.opacity = "0.5";
+            if (gourmetRadio.checked) {
+                simplesRadio.checked = true;
+                onBuilderCategoryChange();
+                return;
+            }
+        } else {
+            gourmetRadio.disabled = false;
+            gourmetRadio.parentElement.style.opacity = "1";
+        }
+    }
+    
+    // Update base price labels
+    const labelSimples = document.getElementById("builder-cat-price-simples");
+    const labelFrutas = document.getElementById("builder-cat-price-frutas");
+    const labelGourmet = document.getElementById("builder-cat-price-gourmet");
+    
+    if (labelSimples) labelSimples.innerText = priceSimples > 0 ? `R$ ${priceSimples.toFixed(2)}` : "Não disponível";
+    if (labelFrutas) labelFrutas.innerText = priceFrutas > 0 ? `R$ ${priceFrutas.toFixed(2)}` : "Não disponível";
+    if (labelGourmet) labelGourmet.innerText = priceGourmet > 0 ? `R$ ${priceGourmet.toFixed(2)}` : "Não disponível";
+    
+    // Update topper prices
+    const labelTopperSimples = document.getElementById("builder-topper-price-simples");
+    const labelTopperPersonalizado = document.getElementById("builder-topper-price-personalizado");
+    
+    if (labelTopperSimples) labelTopperSimples.innerText = `+ R$ ${topperSimple.toFixed(2)}`;
+    if (labelTopperPersonalizado) labelTopperPersonalizado.innerText = `+ R$ ${topperCustom.toFixed(2)}`;
+    
+    // Calculate total price
+    const category = document.querySelector('input[name="builder-category"]:checked').value;
+    const topper = document.querySelector('input[name="builder-topper"]:checked').value;
+    
+    let basePrice = 0;
+    if (category === "Simples") basePrice = priceSimples;
+    else if (category === "Frutas") basePrice = priceFrutas;
+    else if (category === "Gourmet") basePrice = priceGourmet;
+    
+    let topperPrice = 0;
+    if (topper === "Topo Simples") topperPrice = topperSimple;
+    else if (topper === "Topo Personalizado") topperPrice = topperCustom;
+    
+    const total = basePrice + topperPrice;
+    
+    const totalEl = document.getElementById("builder-total-price");
+    if (totalEl) totalEl.innerText = `R$ ${total.toFixed(2)}`;
+};
+
+window.addCustomCakeToCart = function(e) {
+    if (e) e.preventDefault();
+    
+    const size = document.getElementById("builder-size").value;
+    const selectEl = document.getElementById("builder-size");
+    const slices = selectEl.options[selectEl.selectedIndex].getAttribute("data-slices") || "";
+    
+    const category = document.querySelector('input[name="builder-category"]:checked').value;
+    const topper = document.querySelector('input[name="builder-topper"]:checked').value;
+    
+    const selectedFillings = Array.from(document.querySelectorAll('input[name="builder-filling"]:checked')).map(cb => cb.value);
+    
+    if (selectedFillings.length === 0) {
+        alert("Escolha pelo menos 1 sabor de recheio!");
+        return;
+    }
+    
+    const config = getCakeBuilderConfig();
+    const sizeObj = config.sizes.find(s => s.name === size);
+    
+    const priceSimples = sizeObj ? parseFloat(sizeObj.price_simples) || 0 : 0;
+    const priceFrutas = sizeObj ? parseFloat(sizeObj.price_frutas) || 0 : 0;
+    const priceGourmet = sizeObj ? parseFloat(sizeObj.price_gourmet) || 0 : 0;
+    
+    const topperSimple = sizeObj ? parseFloat(sizeObj.topper_simple) || 0 : 0;
+    const topperCustom = sizeObj ? parseFloat(sizeObj.topper_custom) || 0 : 0;
+    
+    let basePrice = 0;
+    if (category === "Simples") basePrice = priceSimples;
+    else if (category === "Frutas") basePrice = priceFrutas;
+    else if (category === "Gourmet") basePrice = priceGourmet;
+    
+    let topperPrice = 0;
+    if (topper === "Topo Simples") topperPrice = topperSimple;
+    else if (topper === "Topo Personalizado") topperPrice = topperCustom;
+    
+    const total = basePrice + topperPrice;
+    
+    const customItem = {
+        customId: "custom_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+        isCustom: true,
+        qty: 1,
+        customName: `Bolo Personalizado ${size} (${slices})`,
+        customPrice: total,
+        customEmoji: "🍰",
+        customDetails: `Recheio ${category}: ${selectedFillings.join(", ")} | Topo: ${topper}`
+    };
+    
+    customerCart.push(customItem);
+    
+    // Go back to storefront
+    document.getElementById("phone-cake-builder-body").style.display = "none";
+    document.getElementById("phone-menu-body").style.display = "block";
+    updateCartUI();
+};
+
+window.addToCartCustom = function(customId) {
+    const item = customerCart.find(i => i.customId === customId);
+    if (item) {
+        item.qty++;
+    }
+    updateCartUI();
+};
+
+window.removeFromCartCustom = function(customId) {
+    const idx = customerCart.findIndex(i => i.customId === customId);
+    if (idx !== -1) {
+        customerCart[idx].qty--;
+        if (customerCart[idx].qty <= 0) {
+            customerCart.splice(idx, 1);
+        }
+    }
+    updateCartUI();
 };
