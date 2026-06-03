@@ -53,41 +53,57 @@ Retorne estritamente um objeto JSON com uma lista sob a chave 'items', no seguin
 
 Se houver múltiplos ingredientes na nota, extraia todos na lista. Retorne apenas o JSON puro, sem blocos de código markdown (como \`\`\`json) e sem explicações.`;
 
-        const payload = {
-            contents: [
-                {
-                    parts: [
+        const models = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+        let response = null;
+        let lastError = null;
+
+        for (const model of models) {
+            try {
+                const payload = {
+                    contents: [
                         {
-                            inlineData: {
-                                mimeType: actualMimeType,
-                                data: base64Data
-                            }
-                        },
-                        {
-                            text: prompt
+                            parts: [
+                                {
+                                    inlineData: {
+                                        mimeType: actualMimeType,
+                                        data: base64Data
+                                    }
+                                },
+                                {
+                                    text: prompt
+                                }
+                            ]
                         }
-                    ]
+                    ],
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
+                };
+
+                response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                if (response.ok) {
+                    break;
+                } else {
+                    const errText = await response.text();
+                    lastError = new Error(`Erro na API do Gemini (${model}): ${response.status} - ${errText}`);
                 }
-            ],
-            generationConfig: {
-                responseMimeType: "application/json"
+            } catch (e) {
+                lastError = e;
             }
-        };
+        }
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            }
-        );
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Erro na API do Gemini: ${response.status} - ${errText}`);
+        if (!response || !response.ok) {
+            throw lastError || new Error("Falha ao se conectar com os modelos do Gemini.");
         }
 
         const resData = await response.json();

@@ -55,39 +55,55 @@ ${contextText}
 
 Seja proativa! Se ela perguntar sobre finanças ou estoque, use os números acima para responder com exatidão e dê sugestões realistas (ex: se o lucro estiver negativo, sugira revisar as fichas técnicas ou precificação; se houver ingredientes baixos, recomende montar a lista de compras).`;
 
-        const payload = {
-            contents: [
-                {
-                    parts: [
+        const models = ["gemini-3.5-flash", "gemini-3.1-flash-lite"];
+        let response = null;
+        let lastError = null;
+
+        for (const model of models) {
+            try {
+                const payload = {
+                    contents: [
                         {
-                            text: message
+                            parts: [
+                                {
+                                    text: message
+                                }
+                            ]
                         }
-                    ]
-                }
-            ],
-            systemInstruction: {
-                parts: [
-                    {
-                        text: systemPrompt
+                    ],
+                    systemInstruction: {
+                        parts: [
+                            {
+                                text: systemPrompt
+                            }
+                        ]
                     }
-                ]
-            }
-        };
+                };
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            }
-        );
+                response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    }
+                );
 
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Erro na API do Gemini: ${response.status} - ${errText}`);
+                if (response.ok) {
+                    break;
+                } else {
+                    const errText = await response.text();
+                    lastError = new Error(`Erro na API do Gemini (${model}): ${response.status} - ${errText}`);
+                }
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        if (!response || !response.ok) {
+            throw lastError || new Error("Falha ao se conectar com os modelos do Gemini.");
         }
 
         const resData = await response.json();
