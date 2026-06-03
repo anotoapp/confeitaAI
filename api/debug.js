@@ -7,19 +7,17 @@ const supabase = createClient(
 
 module.exports = async function handler(req, res) {
     try {
-        console.log("Debug insert test called");
+        console.log("Debug insert test without phone called");
         
-        // Try inserting a test user with 'phone'
         const testId = "00000000-0000-0000-0000-" + Date.now().toString().substring(0, 12).padStart(12, "0");
         
         const payload = {
             id: testId,
-            name: "Test Column Exist",
-            email: `test_column_${Date.now()}@test.com`,
-            username: `test_col_${Date.now()}`,
+            name: "Test Without Phone",
+            email: `test_nophone_${Date.now()}@test.com`,
+            username: `test_no_${Date.now()}`,
             role: 'Confeiteira',
-            status: 'Ativo',
-            phone: '5511999998888'
+            status: 'Ativo'
         };
 
         const { data: insertResult, error: insertErr } = await supabase
