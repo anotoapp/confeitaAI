@@ -388,6 +388,7 @@ async function loadState() {
         }
     }
     if (storefrontSlug) {
+        storefrontSlug = decodeURIComponent(storefrontSlug).trim();
         try {
             console.log("Carregando cardápio digital isolado para a loja:", storefrontSlug);
             // Busca as configurações da loja associada a esse slug
@@ -1562,7 +1563,11 @@ async function handleSetupSubmit(e) {
     const fullName = document.getElementById("setup-fullname").value.trim();
     const email = document.getElementById("setup-email").value.trim().toLowerCase();
     const phone = document.getElementById("setup-phone").value.trim();
-    const username = document.getElementById("setup-username").value.trim().toLowerCase().replace(/\s+/g, "");
+    let username = document.getElementById("setup-username").value.trim().toLowerCase().replace(/\s+/g, "");
+    if (username.includes("@")) {
+        username = username.split("@")[0];
+    }
+    username = username.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-_.]/g, "");
     const password = document.getElementById("setup-password").value;
     const confirm  = document.getElementById("setup-password-confirm").value;
     const errEl    = document.getElementById("setup-error-msg");
@@ -1927,6 +1932,7 @@ function initializeConfeitaAI() {
         }
     }
     if (lojaSlug) {
+        lojaSlug = decodeURIComponent(lojaSlug).trim();
         document.body.classList.add("standalone-storefront-mode");
         state.storeConfig.slug = lojaSlug;
     }
@@ -7716,7 +7722,11 @@ async function handleUserSubmit(e) {
     const id = idInput ? idInput.value : "";
     const name = nameInput.value.trim();
     const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
-    const username = usernameInput.value.trim().toLowerCase();
+    let username = usernameInput.value.trim().toLowerCase();
+    if (username.includes("@")) {
+        username = username.split("@")[0];
+    }
+    username = username.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-_.]/g, "");
     const password = passwordInput.value;
     const role = roleInput.value;
     const status = statusInput.value;
