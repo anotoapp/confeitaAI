@@ -1346,16 +1346,21 @@
     <div class="modal" id="modal-ingredient">
         <div class="modal-content glass">
             <span class="close-btn" data-modal="modal-ingredient">&times;</span>
-            <h2>Adicionar Novo Ingrediente</h2>
+            <h2 id="ingredient-modal-title">Adicionar Novo Ingrediente</h2>
             <form id="form-ingredient">
+                <input type="hidden" id="ing-id">
                 <div class="form-group">
                     <label for="ing-name">Nome do Ingrediente *</label>
                     <input type="text" id="ing-name" required placeholder="Ex: Farinha de Trigo">
                 </div>
-                <div class="form-grid">
+                <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px;">
                     <div class="form-group">
-                        <label for="ing-qty">Quantidade Atual *</label>
+                        <label for="ing-qty">Qtd em Estoque *</label>
                         <input type="number" id="ing-qty" step="0.01" required placeholder="1000">
+                    </div>
+                    <div class="form-group">
+                        <label for="ing-pack-size" title="Peso ou volume da embalagem (ex: 395 para lata de leite condensado, 200 para manteiga). Opcional.">Tam. Embalagem</label>
+                        <input type="number" id="ing-pack-size" step="0.01" placeholder="Ex: 395">
                     </div>
                     <div class="form-group">
                         <label for="ing-unit">Unidade *</label>
@@ -1378,7 +1383,7 @@
                         <input type="number" id="ing-price" step="0.01" required placeholder="0.00">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Salvar Ingrediente</button>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-save-ingredient">Salvar Ingrediente</button>
             </form>
         </div>
     </div>
@@ -1387,8 +1392,9 @@
     <div class="modal" id="modal-client">
         <div class="modal-content glass">
             <span class="close-btn" data-modal="modal-client">&times;</span>
-            <h2>Cadastrar Novo Cliente</h2>
+            <h2 id="client-modal-title">Cadastrar Novo Cliente</h2>
             <form id="form-client">
+                <input type="hidden" id="cli-id">
                 <div class="form-group">
                     <label for="cli-name">Nome Completo *</label>
                     <input type="text" id="cli-name" required placeholder="Ex: Amanda Lima">
@@ -1417,8 +1423,9 @@
     <div class="modal" id="modal-order">
         <div class="modal-content glass">
             <span class="close-btn" data-modal="modal-order">&times;</span>
-            <h2>Nova Encomenda</h2>
+            <h2 id="order-modal-title">Nova Encomenda</h2>
             <form id="form-order">
+                <input type="hidden" id="ord-id">
                 <div class="form-group">
                     <label for="ord-client">Cliente *</label>
                     <select id="ord-client" required>
@@ -1474,8 +1481,9 @@
     <div class="modal" id="modal-recipe">
         <div class="modal-content glass modal-large">
             <span class="close-btn" data-modal="modal-recipe">&times;</span>
-            <h2>Criador de Receita Inteligente & Custos</h2>
+            <h2 id="recipe-modal-title">Criador de Receita Inteligente & Custos</h2>
             <form id="form-recipe">
+                <input type="hidden" id="rec-id">
                 <div class="form-group">
                     <label for="rec-name">Nome da Receita *</label>
                     <input type="text" id="rec-name" required placeholder="Ex: Bolo de Casamento Simples">

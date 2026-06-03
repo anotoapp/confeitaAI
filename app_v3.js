@@ -634,7 +634,8 @@ async function loadState() {
             qty: parseFloat(i.qty) || 0,
             unit: i.unit,
             min: parseFloat(i.min) || 0,
-            price: parseFloat(i.price) || 0
+            price: parseFloat(i.price) || 0,
+            pack_size: i.pack_size !== undefined && i.pack_size !== null ? parseFloat(i.pack_size) : null
         }));
 
         state.orders = (orderData || []).map(o => ({
@@ -1956,7 +1957,10 @@ function initializeConfeitaAI() {
     });
 
     // Bind Quick Actions buttons
-    safeBind("btn-quick-order", "click", () => openModal("modal-order"));
+    safeBind("btn-quick-order", "click", () => {
+        const idField = document.getElementById("ord-id"); if (idField) idField.value = "";
+        openModal("modal-order");
+    });
     safeBind("btn-add-product", "click", () => {
         const form = document.getElementById("form-product");
         if (form) form.reset();
@@ -1968,15 +1972,30 @@ function initializeConfeitaAI() {
         if (modalTitle) modalTitle.innerText = "Adicionar Novo Produto";
         openModal("modal-product");
     });
-    safeBind("btn-add-ingredient", "click", () => openModal("modal-ingredient"));
+    safeBind("btn-add-ingredient", "click", () => {
+        const idField = document.getElementById("ing-id"); if (idField) idField.value = "";
+        openModal("modal-ingredient");
+    });
     safeBind("btn-generate-shopping-list", "click", () => {
         switchTab("cacau-chat");
         sendCacauCommand("Cacau, quais ingredientes estão em estoque baixo e monte uma lista de compras para mim.");
     });
-    safeBind("btn-add-client", "click", () => openModal("modal-client"));
-    safeBind("btn-new-order", "click", () => openModal("modal-order"));
-    safeBind("btn-create-recipe", "click", () => openModal("modal-recipe"));
-    safeBind("btn-create-recipe-tab", "click", () => openModal("modal-recipe"));
+    safeBind("btn-add-client", "click", () => {
+        const idField = document.getElementById("cli-id"); if (idField) idField.value = "";
+        openModal("modal-client");
+    });
+    safeBind("btn-new-order", "click", () => {
+        const idField = document.getElementById("ord-id"); if (idField) idField.value = "";
+        openModal("modal-order");
+    });
+    safeBind("btn-create-recipe", "click", () => {
+        const idField = document.getElementById("rec-id"); if (idField) idField.value = "";
+        openModal("modal-recipe");
+    });
+    safeBind("btn-create-recipe-tab", "click", () => {
+        const idField = document.getElementById("rec-id"); if (idField) idField.value = "";
+        openModal("modal-recipe");
+    });
     safeBind("btn-add-transaction", "click", () => openModal("modal-transaction"));
     // Visit storefront in a new tab
     const openStorefrontInNewTab = () => {
@@ -2644,31 +2663,57 @@ initializeConfeitaAI();
 function openModal(modalId) {
     document.getElementById(modalId).classList.add("active");
     if (modalId === "modal-recipe") {
-        const listDiv = document.getElementById("recipe-ingredients-list-inputs");
-        listDiv.innerHTML = "";
-        addRecipeIngredientRow();
-        addRecipeIngredientRow();
-        
-        // Prefill default parameters
-        const marginInput = document.getElementById("rec-margin");
-        if (marginInput) marginInput.value = DEFAULT_MARKUP;
-        
-        const prepTimeInput = document.getElementById("rec-prep-time");
-        if (prepTimeInput) prepTimeInput.value = "1.0";
+        const recIdInput = document.getElementById("rec-id");
+        if (recIdInput && !recIdInput.value) {
+            document.getElementById("form-recipe").reset();
+            document.getElementById("recipe-modal-title").innerText = "Criador de Receita Inteligente & Custos";
+            const listDiv = document.getElementById("recipe-ingredients-list-inputs");
+            listDiv.innerHTML = "";
+            addRecipeIngredientRow();
+            addRecipeIngredientRow();
+            
+            // Prefill default parameters
+            const marginInput = document.getElementById("rec-margin");
+            if (marginInput) marginInput.value = DEFAULT_MARKUP;
+            
+            const prepTimeInput = document.getElementById("rec-prep-time");
+            if (prepTimeInput) prepTimeInput.value = "1.0";
 
-        const laborRateInput = document.getElementById("rec-labor-rate");
-        if (laborRateInput) laborRateInput.value = DEFAULT_HOURLY_RATE.toFixed(2);
+            const laborRateInput = document.getElementById("rec-labor-rate");
+            if (laborRateInput) laborRateInput.value = DEFAULT_HOURLY_RATE.toFixed(2);
 
-        const gasCostInput = document.getElementById("rec-gas-cost");
-        if (gasCostInput) gasCostInput.value = "2.00";
-        
-        const packagingInput = document.getElementById("rec-packaging-cost");
-        if (packagingInput) packagingInput.value = DEFAULT_PACKAGING.toFixed(2);
+            const gasCostInput = document.getElementById("rec-gas-cost");
+            if (gasCostInput) gasCostInput.value = "2.00";
+            
+            const packagingInput = document.getElementById("rec-packaging-cost");
+            if (packagingInput) packagingInput.value = DEFAULT_PACKAGING.toFixed(2);
 
-        const fixedOverheadInput = document.getElementById("rec-fixed-overhead");
-        if (fixedOverheadInput) fixedOverheadInput.value = "1.00";
-        
-        calculateRecipeCostsInRealTime();
+            const fixedOverheadInput = document.getElementById("rec-fixed-overhead");
+            if (fixedOverheadInput) fixedOverheadInput.value = "1.00";
+            
+            calculateRecipeCostsInRealTime();
+        }
+    }
+    if (modalId === "modal-ingredient") {
+        const ingIdInput = document.getElementById("ing-id");
+        if (ingIdInput && !ingIdInput.value) {
+            document.getElementById("form-ingredient").reset();
+            document.getElementById("ingredient-modal-title").innerText = "Adicionar Novo Ingrediente";
+        }
+    }
+    if (modalId === "modal-client") {
+        const cliIdInput = document.getElementById("cli-id");
+        if (cliIdInput && !cliIdInput.value) {
+            document.getElementById("form-client").reset();
+            document.getElementById("client-modal-title").innerText = "Cadastrar Novo Cliente";
+        }
+    }
+    if (modalId === "modal-order") {
+        const ordIdInput = document.getElementById("ord-id");
+        if (ordIdInput && !ordIdInput.value) {
+            document.getElementById("form-order").reset();
+            document.getElementById("order-modal-title").innerText = "Nova Encomenda";
+        }
     }
     if (modalId === "modal-fiado") {
         document.getElementById("form-fiado").reset();
@@ -3061,6 +3106,7 @@ function renderPedidos() {
                     
                     ${o.status === "Entregue" ? `<button class="btn btn-outline btn-sm" title="Baixar Recibo PDF" style="flex: 1; padding: 2px 5px; color: #e11d48; border-color: #fca5a5;" onclick="gerarReciboPDF('${o.id}')">📄 PDF</button>` : ''}
                     <button class="btn btn-outline btn-sm" title="Imprimir Via de Produção" onclick="imprimirCupomPedido('${o.id}')">🖨️</button>
+                    <button class="btn btn-outline btn-sm" title="Editar" onclick="editOrder('${o.id}')">✏️</button>
                     <button class="btn btn-outline btn-sm" title="Excluir" style="color:var(--color-danger)" onclick="deleteOrder('${o.id}')">X</button>
                     ${o.status !== "Entregue" ? `<button class="btn btn-outline btn-sm" title="Avançar fase" onclick="moveOrderStatus('${o.id}', 'next')">→</button>` : ''}
                 </div>
@@ -3134,6 +3180,7 @@ function renderEstoque(searchQuery = "") {
                 <td>R$ ${i.price.toFixed(2)}</td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick="quickAddStock('${i.id}')">+ Adicionar Qtd</button>
+                    <button class="btn btn-outline btn-sm" onclick="editIngredient('${i.id}')">✏️ Editar</button>
                     <button class="btn btn-outline btn-sm" style="color: var(--color-danger);" onclick="deleteIngredient('${i.id}')">Excluir</button>
                 </td>
             </tr>
@@ -3245,7 +3292,8 @@ function renderClientes(searchQuery = "") {
                 <td><strong>R$ ${c.totalSpent.toFixed(2)}</strong></td>
                 <td>
                     <button class="btn btn-purple btn-sm" onclick="openClientHistoryModal('${c.id}')" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">📋 Histórico</button>
-                    <button class="btn btn-outline btn-sm" onclick="deleteClient('${c.id}')" style="color:var(--color-danger)">Excluir</button>
+                    <button class="btn btn-outline btn-sm" onclick="editClient('${c.id}')" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">✏️ Editar</button>
+                    <button class="btn btn-outline btn-sm" onclick="deleteClient('${c.id}')" style="padding: 4px 8px; font-size: 11px; color:var(--color-danger)">Excluir</button>
                 </td>
             </tr>
         `;
@@ -3268,13 +3316,33 @@ function calcProductionCapacity(recipe) {
 }
 
 // Helper: gerar HTML do card de receita (reutilizável para as duas abas)
+function getIngredientUnitCost(ing) {
+    if (!ing) return 0;
+    if (ing.unit === "un") {
+        return ing.price;
+    }
+    const packSize = ing.pack_size !== undefined && ing.pack_size !== null ? parseFloat(ing.pack_size) : null;
+    if (ing.unit === "kg" || ing.unit === "L") {
+        if (packSize && packSize > 0) {
+            return ing.price / packSize;
+        }
+        return ing.price;
+    } else { // g or ml
+        if (packSize && packSize > 0) {
+            return ing.price / packSize;
+        }
+        return ing.price / 1000;
+    }
+}
+
+// Helper: gerar HTML do card de receita (reutilizável para as duas abas)
 function buildRecipeCardHTML(r, showExport = true) {
     let ingredientsCost = 0;
     const missingIngredients = [];
     r.ingredients.forEach(ri => {
         const ing = state.ingredients.find(i => i.id === ri.ingId);
         if (ing) {
-            ingredientsCost += ing.unit === 'un' ? ing.price * ri.amount : (ing.price / 1000) * ri.amount;
+            ingredientsCost += getIngredientUnitCost(ing) * ri.amount;
         } else {
             missingIngredients.push(ri.ingId);
         }
@@ -3348,9 +3416,12 @@ function buildRecipeCardHTML(r, showExport = true) {
                 </div>
             </div>
 
-            <div style="padding: 0 20px 20px 20px;">
+            <div style="padding: 0 20px 20px 20px; display: flex; flex-direction: column; gap: 8px;">
                 ${exportBtn}
-                <button class="btn btn-outline" style="width: 100%; color: var(--color-danger); border-color: rgba(239, 68, 68, 0.3); font-size: 13px; font-weight: 600;" onclick="deleteRecipe('${r.id}')">Excluir Ficha Técnica</button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-outline btn-sm" style="flex: 1; border-color: rgba(139, 92, 246, 0.3); color: var(--color-purple); font-size: 12px; font-weight: 600;" onclick="editRecipe('${r.id}')">✏️ Editar</button>
+                    <button class="btn btn-outline btn-sm" style="flex: 1; border-color: rgba(239, 68, 68, 0.3); color: var(--color-danger); font-size: 12px; font-weight: 600;" onclick="deleteRecipe('${r.id}')">🗑️ Excluir</button>
+                </div>
             </div>
         </div>
     `;
@@ -3696,38 +3767,94 @@ async function deleteProduct(id) {
 // B. Ingredient CRUD
 async function handleIngredientSubmit(e) {
     e.preventDefault();
+    const id = document.getElementById("ing-id").value;
     const name = document.getElementById("ing-name").value;
     const qty = parseFloat(document.getElementById("ing-qty").value) || 0;
     const unit = document.getElementById("ing-unit").value;
     const min = parseFloat(document.getElementById("ing-min").value) || 0;
     const price = parseFloat(document.getElementById("ing-price").value) || 0;
+    const packSizeVal = document.getElementById("ing-pack-size").value;
+    const pack_size = packSizeVal !== "" ? parseFloat(packSizeVal) : null;
 
-    const newId = "i_" + Date.now();
-    const newIngredient = { id: newId, name, qty, unit, min, price };
+    const isEdit = !!id;
+    const ingId = isEdit ? id : "i_" + Date.now();
+    const ingData = { id: ingId, name, qty, unit, min, price, pack_size };
 
     // 1. Update locally instantly
-    state.ingredients.push(newIngredient);
+    if (isEdit) {
+        const idx = state.ingredients.findIndex(i => i.id === id);
+        if (idx !== -1) {
+            state.ingredients[idx] = ingData;
+        }
+    } else {
+        state.ingredients.push(ingData);
+    }
     saveToLocalStorage();
 
     closeModal("modal-ingredient");
     document.getElementById("form-ingredient").reset();
+    document.getElementById("ing-id").value = "";
     renderActiveTab();
 
     // 2. Background sync
     if (isSupabaseActive) {
         try {
             const loggedInUserId = getLoggedInUserId();
-            const payload = { id: newId, name, qty, unit, min, price };
+            const payload = { id: ingId, name, qty, unit, min, price };
+            if (pack_size !== null) {
+                payload.pack_size = pack_size;
+            }
             if (loggedInUserId) {
                 payload.usuario_id = loggedInUserId;
             }
-            await supabaseClient.from('estoque').insert([payload]);
+            
+            if (isEdit) {
+                let query = supabaseClient.from('estoque').update(payload).eq('id', ingId);
+                if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
+                await query;
+            } else {
+                await supabaseClient.from('estoque').insert([payload]);
+            }
             console.log("Ingrediente sincronizado com Supabase no plano de fundo.");
         } catch (err) {
             console.error("Erro ao sincronizar ingrediente:", err);
+            // Fallback se a coluna pack_size não existir no banco
+            try {
+                const loggedInUserId = getLoggedInUserId();
+                const payload = { id: ingId, name, qty, unit, min, price };
+                if (loggedInUserId) payload.usuario_id = loggedInUserId;
+                
+                if (isEdit) {
+                    let query = supabaseClient.from('estoque').update(payload).eq('id', ingId);
+                    if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
+                    await query;
+                } else {
+                    await supabaseClient.from('estoque').insert([payload]);
+                }
+                console.log("Ingrediente sincronizado com Supabase sem a coluna pack_size (fallback).");
+            } catch (fallbackErr) {
+                console.error("Erro no fallback de sincronização:", fallbackErr);
+            }
         }
     }
 }
+
+function editIngredient(id) {
+    const ing = state.ingredients.find(i => i.id === id);
+    if (!ing) return;
+
+    document.getElementById("ing-id").value = ing.id;
+    document.getElementById("ing-name").value = ing.name;
+    document.getElementById("ing-qty").value = ing.qty;
+    document.getElementById("ing-unit").value = ing.unit;
+    document.getElementById("ing-min").value = ing.min;
+    document.getElementById("ing-price").value = ing.price;
+    document.getElementById("ing-pack-size").value = ing.pack_size !== null && ing.pack_size !== undefined ? ing.pack_size : "";
+
+    document.getElementById("ingredient-modal-title").innerText = "Editar Ingrediente";
+    openModal("modal-ingredient");
+}
+window.editIngredient = editIngredient;
 
 // Real AI OCR processor using Serverless route
 async function processReceiptOCR(file) {
@@ -3921,36 +4048,69 @@ async function deleteIngredient(id) {
 // C. Client CRUD
 async function handleClientSubmit(e) {
     e.preventDefault();
+    const id = document.getElementById("cli-id").value;
     const name = document.getElementById("cli-name").value;
     const phone = document.getElementById("cli-phone").value.replace(/\D/g, "");
 
-    const newId = "c_" + Date.now();
-    const newClient = { id: newId, name, phone, orderCount: 0, totalSpent: 0 };
-
+    const isEdit = !!id;
+    const cliId = isEdit ? id : "c_" + Date.now();
+    
     // 1. Update locally instantly
-    state.clients.push(newClient);
+    if (isEdit) {
+        const client = state.clients.find(c => c.id === id);
+        if (client) {
+            client.name = name;
+            client.phone = phone;
+        }
+    } else {
+        const newClient = { id: cliId, name, phone, orderCount: 0, totalSpent: 0 };
+        state.clients.push(newClient);
+    }
     saveToLocalStorage();
 
     // 2. Clear UI instantly
     closeModal("modal-client");
     document.getElementById("form-client").reset();
+    document.getElementById("cli-id").value = "";
     renderActiveTab();
 
     // 3. Background sync
     if (isSupabaseActive) {
         try {
             const loggedInUserId = getLoggedInUserId();
-            const payload = { id: newId, name, phone, order_count: 0, total_spent: 0 };
+            const payload = { id: cliId, name, phone };
             if (loggedInUserId) {
                 payload.usuario_id = loggedInUserId;
             }
-            await supabaseClient.from('clientes').insert([payload]);
+            
+            if (isEdit) {
+                let query = supabaseClient.from('clientes').update(payload).eq('id', cliId);
+                if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
+                await query;
+            } else {
+                payload.order_count = 0;
+                payload.total_spent = 0;
+                await supabaseClient.from('clientes').insert([payload]);
+            }
             console.log("Cliente sincronizado com Supabase no plano de fundo.");
         } catch (err) {
             console.error("Erro ao sincronizar cliente:", err);
         }
     }
 }
+
+function editClient(id) {
+    const client = state.clients.find(c => c.id === id);
+    if (!client) return;
+
+    document.getElementById("cli-id").value = client.id;
+    document.getElementById("cli-name").value = client.name;
+    document.getElementById("cli-phone").value = client.phone;
+
+    document.getElementById("client-modal-title").innerText = "Editar Cliente";
+    openModal("modal-client");
+}
+window.editClient = editClient;
 
 window.openClientHistoryModal = function(clientId) {
     const client = state.clients.find(c => c.id === clientId);
@@ -4111,6 +4271,8 @@ window.exportToMenu = function(recipeId) {
 // C. Order CRUD
 async function handleOrderSubmit(e) {
     e.preventDefault();
+    const idField = document.getElementById("ord-id");
+    const existingId = idField ? idField.value : "";
     const clientId = document.getElementById("ord-client").value;
     const productId = document.getElementById("ord-product").value;
     const qty = parseInt(document.getElementById("ord-qty").value) || 1;
@@ -4120,25 +4282,61 @@ async function handleOrderSubmit(e) {
     const notes = document.getElementById("ord-notes").value;
     const tag = document.getElementById("ord-tag") ? document.getElementById("ord-tag").value : "";
 
-    const newId = "o_" + Date.now();
-    const newOrder = { id: newId, clientId, productId, qty, val, date, time, status: "Recebido", notes, tag };
+    let isUpdate = false;
+    let oldOrder = null;
+    let targetId = "o_" + Date.now();
+    let status = "Recebido";
+
+    if (existingId) {
+        oldOrder = state.orders.find(o => o.id === existingId);
+        if (oldOrder) {
+            isUpdate = true;
+            targetId = existingId;
+            status = oldOrder.status; // Preserve original status
+        }
+    }
+
+    const newOrder = { id: targetId, clientId, productId, qty, val, date, time, status: status, notes, tag };
 
     // 1. Update locally instantly
-    state.orders.push(newOrder);
-    const client = state.clients.find(c => c.id === clientId);
-    let newCount = 0;
-    let newSpent = 0;
-    if (client) {
-        client.orderCount++;
-        client.totalSpent += val;
-        newCount = client.orderCount;
-        newSpent = client.totalSpent;
+    if (isUpdate) {
+        // Handle client statistics updates
+        if (oldOrder.clientId === clientId) {
+            const client = state.clients.find(c => c.id === clientId);
+            if (client) {
+                client.totalSpent += (val - oldOrder.val);
+            }
+        } else {
+            // Client changed
+            const oldClient = state.clients.find(c => c.id === oldOrder.clientId);
+            if (oldClient) {
+                oldClient.orderCount = Math.max(0, oldClient.orderCount - 1);
+                oldClient.totalSpent = Math.max(0, oldClient.totalSpent - oldOrder.val);
+            }
+            const newClient = state.clients.find(c => c.id === clientId);
+            if (newClient) {
+                newClient.orderCount++;
+                newClient.totalSpent += val;
+            }
+        }
+        
+        const index = state.orders.findIndex(o => o.id === targetId);
+        if (index !== -1) state.orders[index] = newOrder;
+    } else {
+        state.orders.push(newOrder);
+        const client = state.clients.find(c => c.id === clientId);
+        if (client) {
+            client.orderCount++;
+            client.totalSpent += val;
+        }
     }
+    
     saveToLocalStorage();
 
     // 2. Clear UI instantly
     closeModal("modal-order");
     document.getElementById("form-order").reset();
+    if (idField) idField.value = "";
     renderActiveTab();
 
     // 3. Background sync
@@ -4147,33 +4345,92 @@ async function handleOrderSubmit(e) {
             const loggedInUserId = getLoggedInUserId();
             const formattedTime = time.includes(":") && time.split(":").length === 2 ? time + ":00" : time;
             const orderPayload = {
-                id: newId,
                 client_id: clientId,
                 product_id: productId,
                 qty: qty,
                 val: val,
                 date: date,
                 time: formattedTime,
-                status: "Recebido",
+                status: status,
                 notes: notes
             };
             if (loggedInUserId) {
                 orderPayload.usuario_id = loggedInUserId;
             }
-            await supabaseClient.from('pedidos').insert([orderPayload]);
 
-            if (client) {
-                let clientUpdateQuery = supabaseClient.from('clientes').update({ order_count: newCount, total_spent: newSpent }).eq('id', clientId);
+            let clientQuery1 = null;
+            let clientQuery2 = null;
+
+            if (isUpdate) {
+                let updateQuery = supabaseClient.from('pedidos').update(orderPayload).eq('id', targetId);
                 if (loggedInUserId) {
-                    clientUpdateQuery = clientUpdateQuery.eq('usuario_id', loggedInUserId);
+                    updateQuery = updateQuery.eq('usuario_id', loggedInUserId);
                 }
-                await clientUpdateQuery;
+                await updateQuery;
+
+                if (oldOrder.clientId === clientId) {
+                    const client = state.clients.find(c => c.id === clientId);
+                    if (client) {
+                        clientQuery1 = supabaseClient.from('clientes').update({ total_spent: client.totalSpent }).eq('id', clientId);
+                    }
+                } else {
+                    const oldClient = state.clients.find(c => c.id === oldOrder.clientId);
+                    if (oldClient) {
+                        clientQuery1 = supabaseClient.from('clientes').update({ order_count: oldClient.orderCount, total_spent: oldClient.totalSpent }).eq('id', oldOrder.clientId);
+                    }
+                    const newClient = state.clients.find(c => c.id === clientId);
+                    if (newClient) {
+                        clientQuery2 = supabaseClient.from('clientes').update({ order_count: newClient.orderCount, total_spent: newClient.totalSpent }).eq('id', clientId);
+                    }
+                }
+            } else {
+                orderPayload.id = targetId;
+                await supabaseClient.from('pedidos').insert([orderPayload]);
+                
+                const client = state.clients.find(c => c.id === clientId);
+                if (client) {
+                    clientQuery1 = supabaseClient.from('clientes').update({ order_count: client.orderCount, total_spent: client.totalSpent }).eq('id', clientId);
+                }
             }
+
+            if (clientQuery1) {
+                if (loggedInUserId) clientQuery1 = clientQuery1.eq('usuario_id', loggedInUserId);
+                await clientQuery1;
+            }
+            if (clientQuery2) {
+                if (loggedInUserId) clientQuery2 = clientQuery2.eq('usuario_id', loggedInUserId);
+                await clientQuery2;
+            }
+
             console.log("Pedido sincronizado com Supabase no plano de fundo.");
         } catch (err) {
             console.error("Erro ao sincronizar pedido:", err);
         }
     }
+}
+
+function editOrder(id) {
+    const o = state.orders.find(o => o.id === id);
+    if (!o) return;
+
+    const idField = document.getElementById("ord-id");
+    if (idField) idField.value = o.id;
+
+    document.getElementById("ord-client").value = o.clientId;
+    document.getElementById("ord-product").value = o.productId;
+    document.getElementById("ord-qty").value = o.qty;
+    document.getElementById("ord-price").value = o.val;
+    document.getElementById("ord-date").value = o.date;
+    if (document.getElementById("ord-time")) {
+        document.getElementById("ord-time").value = o.time || "12:00";
+    }
+    document.getElementById("ord-notes").value = o.notes || "";
+    if (document.getElementById("ord-tag")) {
+        document.getElementById("ord-tag").value = o.tag || "";
+    }
+
+    document.getElementById("order-modal-title").innerText = "Editar Pedido";
+    openModal("modal-order");
 }
 
 async function deleteOrder(id) {
@@ -4539,11 +4796,7 @@ function calculateRecipeCostsInRealTime() {
         if (ingId) {
             const ing = state.ingredients.find(i => i.id === ingId);
             if (ing) {
-                if (ing.unit === "un") {
-                    ingredientsCost += ing.price * amt;
-                } else {
-                    ingredientsCost += (ing.price / 1000) * amt;
-                }
+                ingredientsCost += getIngredientUnitCost(ing) * amt;
             }
         }
     });
@@ -4657,6 +4910,7 @@ function renderRecipeChart(ingCost, packCost, laborCost, gasCost, fixedCost, pro
 
 async function handleRecipeSubmit(e) {
     e.preventDefault();
+    const id = document.getElementById("rec-id").value;
     const name = document.getElementById("rec-name").value;
     const yieldCount = parseInt(document.getElementById("rec-yield").value) || 10;
     const margin = parseFloat(document.getElementById("rec-margin").value) || 200;
@@ -4678,9 +4932,10 @@ async function handleRecipeSubmit(e) {
         }
     });
 
-    const newId = "r_" + Date.now();
-    const newRecipe = {
-        id: newId,
+    const isEdit = !!id;
+    const recipeId = isEdit ? id : "r_" + Date.now();
+    const recipeData = {
+        id: recipeId,
         name,
         yield: yieldCount,
         ingredients,
@@ -4693,11 +4948,20 @@ async function handleRecipeSubmit(e) {
     };
 
     // 1. Update locally instantly
-    state.recipes.push(newRecipe);
+    if (isEdit) {
+        const idx = state.recipes.findIndex(r => r.id === id);
+        if (idx !== -1) {
+            state.recipes[idx] = recipeData;
+        }
+    } else {
+        state.recipes.push(recipeData);
+    }
     saveToLocalStorage();
 
     // 2. Clear UI instantly
     closeModal("modal-recipe");
+    document.getElementById("form-recipe").reset();
+    document.getElementById("rec-id").value = "";
     renderActiveTab();
 
     // 3. Background sync
@@ -4705,7 +4969,7 @@ async function handleRecipeSubmit(e) {
         try {
             const loggedInUserId = getLoggedInUserId();
             const payload = {
-                id: newId,
+                id: recipeId,
                 name,
                 yield: yieldCount,
                 ingredients,
@@ -4719,13 +4983,61 @@ async function handleRecipeSubmit(e) {
             if (loggedInUserId) {
                 payload.usuario_id = loggedInUserId;
             }
-            await supabaseClient.from('receitas').insert([payload]);
+            
+            if (isEdit) {
+                let query = supabaseClient.from('receitas').update(payload).eq('id', recipeId);
+                if (loggedInUserId) query = query.eq('usuario_id', loggedInUserId);
+                await query;
+            } else {
+                await supabaseClient.from('receitas').insert([payload]);
+            }
             console.log("Receita sincronizada com Supabase no plano de fundo.");
         } catch (err) {
             console.error("Erro ao sincronizar receita:", err);
         }
     }
 }
+
+function editRecipe(id) {
+    const r = state.recipes.find(rec => rec.id === id);
+    if (!r) return;
+
+    document.getElementById("rec-id").value = r.id;
+    document.getElementById("rec-name").value = r.name;
+    document.getElementById("rec-yield").value = r.yield;
+    document.getElementById("rec-margin").value = r.margin !== undefined ? r.margin : DEFAULT_MARKUP;
+    document.getElementById("rec-prep-time").value = r.prep_time !== undefined ? r.prep_time : "1.0";
+    document.getElementById("rec-labor-rate").value = r.labor_rate !== undefined ? r.labor_rate : DEFAULT_HOURLY_RATE.toFixed(2);
+    document.getElementById("rec-gas-cost").value = r.gas_cost !== undefined ? r.gas_cost : "2.00";
+    document.getElementById("rec-packaging-cost").value = r.packaging_cost !== undefined ? r.packaging_cost : DEFAULT_PACKAGING.toFixed(2);
+    document.getElementById("rec-fixed-overhead").value = r.fixed_overhead !== undefined ? r.fixed_overhead : "1.00";
+
+    // Populate ingredient rows
+    const listDiv = document.getElementById("recipe-ingredients-list-inputs");
+    listDiv.innerHTML = "";
+
+    if (r.ingredients && r.ingredients.length > 0) {
+        r.ingredients.forEach(ri => {
+            addRecipeIngredientRow();
+            const lastRow = listDiv.lastElementChild;
+            if (lastRow) {
+                const select = lastRow.querySelector(".recipe-ing-select");
+                const qtyInput = lastRow.querySelector(".recipe-ing-qty");
+                if (select) select.value = ri.ingId;
+                if (qtyInput) qtyInput.value = ri.amount;
+            }
+        });
+    } else {
+        addRecipeIngredientRow();
+        addRecipeIngredientRow();
+    }
+
+    calculateRecipeCostsInRealTime();
+
+    document.getElementById("recipe-modal-title").innerText = "Editar Ficha Técnica de Receita";
+    openModal("modal-recipe");
+}
+window.editRecipe = editRecipe;
 
 async function deleteRecipe(id) {
     if (confirm("Excluir esta ficha técnica de receita?")) {
