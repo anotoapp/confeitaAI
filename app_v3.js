@@ -7631,6 +7631,7 @@ function renderUsersTable() {
                         ${plan !== 'PRO' ? `<button class="btn btn-purple btn-sm" onclick="adminUpgradeToPro('${u.id}')" style="padding:4px 8px;font-size:11px;">→ PRO</button>` : `<button class="btn btn-outline btn-sm" onclick="adminDowngradeToTrial('${u.id}')" style="padding:4px 8px;font-size:11px;color:#f59e0b;">↓ Trial</button>`}
                         <button class="btn btn-outline btn-sm" onclick="toggleUserStatus('${u.id}')" style="padding:4px 8px;font-size:11px;">${u.status === 'Ativo' ? 'Suspender' : 'Ativar'}</button>
                         ${u.role !== 'Super Admin' ? `<button class="btn btn-purple btn-sm" onclick="startImpersonation('${u.id}', '${u.name.replace(/'/g, "\\'")}')" style="padding:4px 8px;font-size:11px;background-color:#10b981;border-color:#10b981;color:white;">Acessar Painel ⚙️</button>` : ''}
+                        ${u.email?.toLowerCase() !== 'naturamixrepresentacoes@gmail.com' ? `<button class="btn btn-outline btn-sm" onclick="deleteUser('${u.id}')" style="padding:4px 8px;font-size:11px;color:var(--color-danger);border-color:var(--color-danger);" title="Excluir Usuário">Excluir ❌</button>` : ''}
                     </div>
                 </td>`;
             listEl.appendChild(row);
@@ -7870,6 +7871,18 @@ async function deleteUser(id) {
     try {
         if (isSupabaseActive) {
             showLoadingIndicator();
+            // Delete all associated tenant data to prevent orphans
+            await Promise.all([
+                supabaseClient.from('pedidos').delete().eq('usuario_id', id),
+                supabaseClient.from('transacoes').delete().eq('usuario_id', id),
+                supabaseClient.from('receitas').delete().eq('usuario_id', id),
+                supabaseClient.from('mensagens_cacau').delete().eq('usuario_id', id),
+                supabaseClient.from('produtos').delete().eq('usuario_id', id),
+                supabaseClient.from('clientes').delete().eq('usuario_id', id),
+                supabaseClient.from('estoque').delete().eq('usuario_id', id),
+                supabaseClient.from('configuracoes').delete().eq('usuario_id', id),
+                supabaseClient.from('fiados').delete().eq('usuario_id', id)
+            ]);
             const { error } = await supabaseClient.from('usuarios').delete().eq('id', id);
             if (error) throw error;
         } else {
