@@ -368,7 +368,8 @@ body:not(.landing-body) {
     color: var(--color-text-main);
     position: relative;
     box-shadow: var(--shadow-soft);
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    will-change: transform, box-shadow;
 }
 
 .cacau-shortcut-btn:hover {
@@ -713,8 +714,8 @@ body.theme-dark .top-bar {
     align-items: center;
     gap: 20px;
     box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(12px);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, box-shadow;
 }
 
 .metric-card:hover {
@@ -887,7 +888,8 @@ body.theme-dark .top-bar {
     border-radius: var(--border-radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-soft);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, box-shadow;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -1022,7 +1024,8 @@ body.theme-dark .top-bar {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
     border-left: 4px solid var(--color-primary);
     cursor: grab;
-    transition: all 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform, box-shadow;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1230,7 +1233,8 @@ body.theme-dark .top-bar {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    transition: all 0.25s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    will-change: transform, box-shadow;
 }
 
 .recipe-card:hover {
@@ -1549,6 +1553,10 @@ body.theme-dark .top-bar {
     font-size: 10px;
     color: var(--color-text-muted);
     margin-top: 4px;
+}
+
+.btn-download-chat-list:hover {
+    background-color: var(--color-primary-hover, #c77b6a) !important;
 }
 
 /* Suggestion quick prompts */
@@ -2713,6 +2721,7 @@ body.theme-dark .top-bar {
 .phone-product-card {
     border: 1px solid #f1f5f9;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform, box-shadow;
 }
 
 .phone-product-card:hover {
@@ -3158,7 +3167,8 @@ body.standalone-storefront-mode #modal-menu-preview .phone-screen {
     backdrop-filter: blur(12px);
     overflow: hidden;
     margin-bottom: 24px;
-    transition: all 0.3s ease;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    will-change: box-shadow;
 }
 
 #store-profile-showcase:hover {
@@ -3834,6 +3844,7 @@ html:not(.landing-html), body:not(.landing-body) {
 /* Cartão de Destaque */
 .phone-highlight-card {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    will-change: transform, box-shadow;
 }
 .phone-highlight-card:hover {
     transform: translateY(-2px);

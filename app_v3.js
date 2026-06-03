@@ -1020,17 +1020,18 @@ async function checkSession() {
                         flex: 1; padding: 12px; border-radius: 12px;
                         background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
                         color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer;
-                        transition: all 0.2s; font-weight: 500; font-family: inherit;
-                    " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.07)'">
+                        transition: background-color 0.2s ease; font-weight: 500; font-family: inherit;
+                    ">
                         Pular tutorial
                     </button>
                     <button id="btn-tour-next" onclick="nextTourStep('${userEmail}')" style="
                         flex: 2; padding: 12px; border-radius: 12px;
                         background: linear-gradient(135deg, #7c3aed, #a855f7);
                         border: none; color: white; font-size: 14px; font-weight: 700;
-                        cursor: pointer; transition: all 0.2s; font-family: inherit;
+                        cursor: pointer; transition: transform 0.2s ease; font-family: inherit;
                         box-shadow: 0 4px 20px rgba(139,92,246,0.4);
-                    " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                        will-change: transform;
+                    ">
                         Próximo →
                     </button>
                 </div>
@@ -1051,6 +1052,12 @@ async function checkSession() {
                     40%  { transform: scale(1.25) rotate(-6deg); }
                     70%  { transform: scale(0.95) rotate(4deg); }
                     100% { transform: scale(1) rotate(0deg); }
+                }
+                #btn-tour-skip:hover {
+                    background-color: rgba(255, 255, 255, 0.12) !important;
+                }
+                #btn-tour-next:hover {
+                    transform: scale(1.02);
                 }
             `;
             document.head.appendChild(style);
@@ -3508,13 +3515,6 @@ function renderCacauChat() {
             btn.style.alignItems = "center";
             btn.style.gap = "4px";
             btn.style.transition = "background-color 0.2s";
-            
-            btn.addEventListener("mouseover", () => {
-                btn.style.backgroundColor = "var(--color-primary-hover, #c77b6a)";
-            });
-            btn.addEventListener("mouseout", () => {
-                btn.style.backgroundColor = "var(--color-primary, #db8876)";
-            });
             
             btn.addEventListener("click", () => {
                 window.downloadShoppingList(m.text);
