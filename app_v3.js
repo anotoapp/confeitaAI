@@ -2377,7 +2377,7 @@ function initializeConfeitaAI() {
         uploadArea.addEventListener("click", () => fileInput.click());
         fileInput.addEventListener("change", (e) => {
             if (e.target.files.length > 0) {
-                simulateReceiptOCR();
+                processReceiptOCR(e.target.files[0]);
             }
         });
     }
@@ -3720,6 +3720,83 @@ async function handleIngredientSubmit(e) {
             console.error("Erro ao sincronizar ingrediente:", err);
         }
     }
+}
+
+// Real AI OCR processor using Serverless route
+async function processReceiptOCR(file) {
+    if (!file) return;
+
+    const uploadArea = document.getElementById("receipt-upload-area");
+    const loadingArea = document.getElementById("receipt-loading-area");
+    const fileInput = document.getElementById("receipt-file-input");
+
+    if (uploadArea) uploadArea.style.display = "none";
+    if (loadingArea) loadingArea.style.display = "block";
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        
+        try {
+            const response = await fetch("/api/scan-receipt", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    imageBase64: base64Data,
+                    mimeType: file.type
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erro desconhecido no processamento");
+            }
+
+            const data = await response.json();
+            
+            if (data && data.items && data.items.length > 0) {
+                const mainItem = data.items[0];
+
+                if (uploadArea) uploadArea.style.display = "block";
+                if (loadingArea) loadingArea.style.display = "none";
+                if (fileInput) fileInput.value = "";
+                closeModal("modal-receipt-scanner");
+
+                // Fill details into the modal
+                document.getElementById("ing-name").value = mainItem.name || "";
+                document.getElementById("ing-qty").value = mainItem.qty || "1";
+                document.getElementById("ing-unit").value = mainItem.unit || "un";
+                document.getElementById("ing-price").value = mainItem.price ? parseFloat(mainItem.price).toFixed(2) : "0.00";
+                document.getElementById("ing-min").value = "1";
+
+                openModal("modal-ingredient");
+
+                setTimeout(() => {
+                    alert(`Nota lida com sucesso via IA! Identificamos o item "${mainItem.name}". Verifique os dados e clique em Salvar.`);
+                }, 300);
+
+            } else {
+                throw new Error("Nenhum ingrediente foi extraído da nota fiscal.");
+            }
+
+        } catch (err) {
+            console.warn("Erro ao usar o scanner de IA real, ativando fallback simulado:", err);
+            if (uploadArea) uploadArea.style.display = "block";
+            if (loadingArea) loadingArea.style.display = "none";
+            if (fileInput) fileInput.value = "";
+            
+            alert("A IA do leitor de notas não pôde processar este cupom agora (API Key ausente ou limite excedido). Usando simulação local...");
+            simulateReceiptOCR();
+        }
+    };
+    reader.onerror = () => {
+        alert("Falha ao ler o arquivo de imagem local.");
+        if (uploadArea) uploadArea.style.display = "block";
+        if (loadingArea) loadingArea.style.display = "none";
+    };
+    reader.readAsDataURL(file);
 }
 
 // Simulate AI OCR for Receipt Scanner
@@ -6530,23 +6607,10 @@ async function sendCacauCommand(commandText) {
 async function processCacauMessage(userText, timeStr) {
     let reply = "";
     const lowerText = userText.toLowerCase();
+    let handledLocally = false;
 
-    // A. INTENT: Financial / Faturamento / Lucro / Saldo
-    if (lowerText.includes("fatur") || lowerText.includes("lucro") || lowerText.includes("saldo") || lowerText.includes("financeiro")) {
-        const income = state.transactions.filter(t => t.type === "Entrada").reduce((sum, t) => sum + t.val, 0);
-        const expense = state.transactions.filter(t => t.type === "Saída").reduce((sum, t) => sum + t.val, 0);
-        const profit = income - expense;
-        
-        reply = `Com certeza! Aqui está o resumo das suas finanças da confeitaria para este mês:
-
-• **Faturamento total (Entradas):** R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-• **Gastos operacionais (Saídas):** R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-• **Lucro Líquido:** **R$ ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}**
-
-${profit >= 0 ? "Você está operando no azul! Parabéns pelas vendas! 💵🍰" : "Atenção: seus custos superaram as vendas neste mês. Recomendo rever a Ficha Técnica das receitas!"}`;
-    
-    // B. INTENT: Register / Add Client
-    } else if (lowerText.includes("cliente") && (lowerText.includes("cadastra") || lowerText.includes("adiciona"))) {
+    // Check for write commands to execute them locally and sync with DB
+    if (lowerText.includes("cliente") && (lowerText.includes("cadastra") || lowerText.includes("adiciona"))) {
         const nameMatch = userText.match(/(?:cliente|cliente\s+)([A-ZÀ-Úa-zà-ú]+(?:\s+[A-ZÀ-Úa-zà-ú]+)*)/);
         const phoneMatch = userText.match(/(?:whatsapp|telefone|celular\s+)(\d+)/);
 
@@ -6571,25 +6635,8 @@ ${profit >= 0 ? "Você está operando no azul! Parabéns pelas vendas! 💵🍰"
         } else {
             reply = `Gostaria de cadastrar uma cliente? Diga no formato: *"Cacau, adicione a cliente Amanda Lima com WhatsApp 11988887777"*`;
         }
+        handledLocally = true;
 
-    // C. INTENT: Inventory Low alerts list
-    } else if (lowerText.includes("estoque") || lowerText.includes("ingrediente") || lowerText.includes("compras")) {
-        const lows = state.ingredients.filter(i => i.qty <= i.min);
-        
-        if (lows.length === 0) {
-            reply = `Excelente notícia! Todos os seus ingredientes estão em quantidades adequadas de estoque. Nenhuma compra imediata necessária! 🧁🎉`;
-        } else {
-            let listStr = "";
-            lows.forEach(l => {
-                listStr += `\n• **${l.name}**: Restam apenas ${l.qty}${l.unit} (mínimo exigido: ${l.min}${l.unit})`;
-            });
-            reply = `Atenção! Você possui **${lows.length} ingrediente(s)** em quantidade crítica no estoque:
-${listStr}
-
-Deseja que eu gere uma lista de compras formatada para você enviar ao seu fornecedor? ⚠️🛒`;
-        }
-
-    // D. INTENT: Add Order
     } else if (lowerText.includes("pedido") || lowerText.includes("encomenda")) {
         const priceMatch = userText.match(/(?:valor|preço\s+de\s+|de\s+)?(\d+)(?:\s+reais|\s+R\$)/i);
         const dateMatch = userText.match(/(\d{2}\/\d{2})/);
@@ -6653,11 +6700,9 @@ Deseja que eu gere uma lista de compras formatada para você enviar ao seu forne
             })();
         }
 
-        reply = `Maravilha! Cadastrei a encomenda de **1x ${foundProduct.name}** para o dia **${dateMatch ? dateMatch[1] : 'próximo sábado'}** no valor de **R$ ${val.toFixed(2)}** para a cliente **${foundClient.name}**. 
+        reply = `Maravilha! Cadastrei a encomenda de **1x ${foundProduct.name}** para o dia **${dateMatch ? dateMatch[1] : 'próximo sábado'}** no valor de **R$ ${val.toFixed(2)}** para a cliente **${foundClient.name}**. \n\nO pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
+        handledLocally = true;
 
-O pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
-
-    // E. INTENT: Add Product / Doce
     } else if (lowerText.includes("produto") && (lowerText.includes("cadastra") || lowerText.includes("cria") || lowerText.includes("adiciona"))) {
         const nameMatch = userText.match(/(?:produto|doce\s+)([A-ZÀ-Úa-zà-ú]+(?:\s+[A-ZÀ-Úa-zà-ú]+)*)/i);
         const priceMatch = userText.match(/(?:por|de|valor\s+)?(\d+)/);
@@ -6674,7 +6719,7 @@ O pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
                 price: price,
                 category: "Outros",
                 desc: "Novo produto cadastrado rapidamente via Cacau AI.",
-                description: "Novo produto cadastrado rapidamente via Cacau AI.", // compatibility
+                description: "Novo produto cadastrado rapidamente via Cacau AI.",
                 emoji: "🧁"
             };
             
@@ -6698,29 +6743,75 @@ O pedido já foi inserido no Kanban de Encomendas! 🎂🚚`;
         } else {
             reply = `Não consegui captar o nome do doce. Pode me pedir assim: *"Cacau, cadastra o produto Bolo de Nozes por R$ 120"*`;
         }
+        handledLocally = true;
+    }
 
-    // F. FALLBACK: Normal friendly chat
-    } else {
-        reply = `Desculpe, ainda estou aprendendo comandos complexos! Mas eu posso te ajudar a gerenciar a confeitaria de forma muito simples.
+    if (!handledLocally) {
+        try {
+            const lowIngredients = state.ingredients.filter(i => i.qty <= i.min).map(i => i.name);
+            const income = state.transactions.filter(t => t.type === "Entrada").reduce((sum, t) => sum + t.val, 0);
+            const expense = state.transactions.filter(t => t.type === "Saída").reduce((sum, t) => sum + t.val, 0);
+            const profit = income - expense;
+            const ordersCount = state.orders.length;
 
-Tente me pedir algo como:
-• *"Quais ingredientes estão em estoque baixo?"*
-• *"Cadastre a cliente Amanda com celular 11988887777"*
-• *"Quanto eu lucrei este mês?"*
+            const response = await fetch("/api/cacau", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    message: userText,
+                    contextState: {
+                        lowIngredients,
+                        income,
+                        expense,
+                        profit,
+                        ordersCount
+                    }
+                })
+            });
 
-O que deseja fazer agora? 🍰😊`;
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Erro na resposta do backend.");
+            }
+
+            const data = await response.json();
+            reply = data.reply;
+
+        } catch (err) {
+            console.warn("Erro ao usar chat inteligente real, executando fallback local:", err);
+            
+            if (lowerText.includes("fatur") || lowerText.includes("lucro") || lowerText.includes("saldo") || lowerText.includes("financeiro")) {
+                const income = state.transactions.filter(t => t.type === "Entrada").reduce((sum, t) => sum + t.val, 0);
+                const expense = state.transactions.filter(t => t.type === "Saída").reduce((sum, t) => sum + t.val, 0);
+                const profit = income - expense;
+                reply = `Com certeza! Aqui está o resumo das suas finanças da confeitaria para este mês:\n\n• **Faturamento total (Entradas):** R$ ${income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n• **Gastos operacionais (Saídas):** R$ ${expense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}\n• **Lucro Líquido:** **R$ ${profit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}**\n\n${profit >= 0 ? "Você está operando no azul! Parabéns pelas vendas! 💵🍰" : "Atenção: seus custos superaram as vendas neste mês. Recomendo rever a Ficha Técnica das receitas!"}`;
+            } else if (lowerText.includes("estoque") || lowerText.includes("ingrediente") || lowerText.includes("compras")) {
+                const lows = state.ingredients.filter(i => i.qty <= i.min);
+                if (lows.length === 0) {
+                    reply = `Excelente notícia! Todos os seus ingredientes estão em quantidades adequadas de estoque. Nenhuma compra imediata necessária! 🧁🎉`;
+                } else {
+                    let listStr = "";
+                    lows.forEach(l => {
+                        listStr += `\n• **${l.name}**: Restam apenas ${l.qty}${l.unit} (mínimo exigido: ${l.min}${l.unit})`;
+                    });
+                    reply = `Atenção! Você possui **${lows.length} ingrediente(s)** em quantidade crítica no estoque:\n${listStr}\n\nDeseja que eu gere uma lista de compras formatada para você enviar ao seu fornecedor? ⚠️🛒`;
+                }
+            } else {
+                reply = `Desculpe, a conexão com a IA da Cacau está temporariamente instável ou a chave de API não foi configurada. \n\nTente me pedir algo simples como: \n• *"Quais ingredientes estão em estoque baixo?"* \n• *"Quanto eu lucrei este mês?"* 🍰😊`;
+            }
+        }
     }
 
     const cacauMsgId = "m_" + Date.now();
     const newCacauMsg = { sender: "cacau", text: reply, time: timeStr };
 
-    // 1. Update locally instantly
     state.cacauMessages.push(newCacauMsg);
     saveToLocalStorage();
     renderCacauChat();
     renderActiveTab();
 
-    // 2. Background sync
     if (isSupabaseActive) {
         Promise.resolve(supabaseClient.from('mensagens_cacau').insert([{ id: cacauMsgId, sender: "cacau", text: reply, time: timeStr }])).catch(err => {
             console.error("Erro ao sincronizar mensagem da Cacau:", err);
