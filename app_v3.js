@@ -3231,6 +3231,7 @@ function renderClientes(searchQuery = "") {
                 <td><span style="color: var(--color-text-muted); font-size: 13px;">${lastOrderStr}</span></td>
                 <td><strong>R$ ${c.totalSpent.toFixed(2)}</strong></td>
                 <td>
+                    <button class="btn btn-purple btn-sm" onclick="openClientHistoryModal('${c.id}')" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">📋 Histórico</button>
                     <button class="btn btn-outline btn-sm" onclick="deleteClient('${c.id}')" style="color:var(--color-danger)">Excluir</button>
                 </td>
             </tr>
@@ -3945,6 +3946,100 @@ async function handleClientSubmit(e) {
     }
 }
 
+window.openClientHistoryModal = function(clientId) {
+    const client = state.clients.find(c => c.id === clientId);
+    if (!client) {
+        alert("Cliente não encontrado.");
+        return;
+    }
+
+    const titleEl = document.getElementById("client-history-title");
+    if (titleEl) {
+        titleEl.innerText = `Histórico de Pedidos - ${client.name}`;
+    }
+
+    const contentEl = document.getElementById("client-history-content");
+    if (!contentEl) return;
+
+    // Filter client orders
+    const clientOrders = state.orders.filter(o => o.clientId === clientId || o.client_id === clientId)
+        .sort((a, b) => new Date(b.date + "T" + (b.time || "00:00")) - new Date(a.date + "T" + (a.time || "00:00")));
+
+    if (clientOrders.length === 0) {
+        contentEl.innerHTML = `
+            <div class="empty-state">
+                <span style="font-size: 32px;">📦</span>
+                <p style="margin-top: 10px;">Nenhum pedido registrado para este cliente ainda.</p>
+            </div>
+        `;
+    } else {
+        let rowsHtml = "";
+        clientOrders.forEach(o => {
+            const product = state.products.find(p => p.id === o.productId);
+            let productName = "Bolo Personalizado 🎂";
+            if (o.productId !== "custom_cake") {
+                productName = product ? product.name : "Doce / Outro";
+            }
+            
+            // Format Date
+            let dateFormatted = o.date;
+            try {
+                const parts = o.date.split('-');
+                if (parts.length === 3) {
+                    dateFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                }
+            } catch (e) {}
+
+            // Format status badge styles
+            let badgeStyle = "padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block;";
+            if (o.status === "Recebido") {
+                badgeStyle += " background-color: #e0f2fe; color: #0369a1;";
+            } else if (o.status === "Em Produção") {
+                badgeStyle += " background-color: #fef3c7; color: #b45309;";
+            } else if (o.status === "Pronto") {
+                badgeStyle += " background-color: #dcfce7; color: #15803d;";
+            } else if (o.status === "Entregue") {
+                badgeStyle += " background-color: #f1f5f9; color: #475569;";
+            } else {
+                badgeStyle += " background-color: #f1f5f9; color: #475569;";
+            }
+
+            rowsHtml += `
+                <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                    <td style="padding: 12px 8px; font-size: 13px;">${dateFormatted} ${o.time || ''}</td>
+                    <td style="padding: 12px 8px; font-size: 13px;"><strong>${productName}</strong><br><small style="color: var(--color-text-muted);">${o.notes || ''}</small></td>
+                    <td style="padding: 12px 8px; text-align: center; font-size: 13px;">${o.qty}</td>
+                    <td style="padding: 12px 8px; text-align: right; font-size: 13px;"><strong>R$ ${parseFloat(o.val).toFixed(2)}</strong></td>
+                    <td style="padding: 12px 8px; text-align: center;">
+                        <span style="${badgeStyle}">${o.status}</span>
+                    </td>
+                </tr>
+            `;
+        });
+
+        contentEl.innerHTML = `
+            <div class="table-container">
+                <table class="table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--color-border); text-align: left;">
+                            <th style="padding: 8px; font-size: 11px;">Data/Hora</th>
+                            <th style="padding: 8px; font-size: 11px;">Produto / Detalhes</th>
+                            <th style="padding: 8px; font-size: 11px; text-align: center;">Qtd</th>
+                            <th style="padding: 8px; font-size: 11px; text-align: right;">Valor</th>
+                            <th style="padding: 8px; font-size: 11px; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    openModal("modal-client-history");
+};
+
 async function deleteClient(id) {
     if (confirm("Deseja realmente excluir este cliente?")) {
         // 1. Update locally instantly
@@ -4095,6 +4190,7 @@ async function deleteOrder(id) {
 
         // 1. Update locally instantly
         state.orders = state.orders.filter(o => o.id !== id);
+        state.transactions = state.transactions.filter(t => !(t.desc && t.desc.includes(`Pedido: ${id}`)));
         saveToLocalStorage();
         renderActiveTab();
 
@@ -4107,6 +4203,13 @@ async function deleteOrder(id) {
                     deleteOrderQuery = deleteOrderQuery.eq('usuario_id', loggedInUserId);
                 }
                 const promises = [deleteOrderQuery];
+
+                let deleteTransQuery = supabaseClient.from('transacoes').delete().like('desc', `%Pedido: ${id}%`);
+                if (loggedInUserId) {
+                    deleteTransQuery = deleteTransQuery.eq('usuario_id', loggedInUserId);
+                }
+                promises.push(deleteTransQuery);
+
                 if (clientId) {
                     let clientUpdateQuery = supabaseClient.from('clientes').update({ order_count: newCount, total_spent: newSpent }).eq('id', clientId);
                     if (loggedInUserId) {
