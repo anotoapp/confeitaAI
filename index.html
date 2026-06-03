@@ -222,6 +222,12 @@
                     </svg>
                     Grupo Whatsapp
                 </a>
+                <a href="#" class="menu-item" data-tab="referral" style="margin-top: 15px; background: linear-gradient(135deg, #fce7f3, #fff); border: 1px solid rgba(236,72,153,0.3); border-left: 4px solid #ec4899; color: #db2777; font-weight: 700; border-radius: var(--border-radius-sm); box-shadow: 0 4px 12px rgba(236,72,153,0.1);">
+                    <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                    </svg>
+                    Indique e Ganhe
+                </a>
                 <a href="#" class="menu-item" data-tab="adm" style="margin-top: 15px; background: linear-gradient(135deg, var(--color-purple-light), #fff); border: 1px solid rgba(139,92,246,0.3); border-left: 4px solid var(--color-purple); color: var(--color-purple); font-weight: 700; border-radius: var(--border-radius-sm); box-shadow: 0 4px 12px rgba(139,92,246,0.1);">
                     <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -1126,6 +1132,37 @@
                         </div>
                     </div>
 
+                    <div class="panel-card glass" style="margin-bottom: 24px;">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div class="panel-title-area" style="display: flex; align-items: center;">
+                                <span style="font-size: 24px; margin-right: 8px;">🤝</span>
+                                <h3 style="display: inline-block; font-size: 18px;">Gestão de Afiliados (Indique e Ganhe)</h3>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 15px;">
+                                Acompanhe os saques pendentes de confeiteiras que trouxeram assinantes PRO para a plataforma.
+                            </p>
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Afiliada</th>
+                                            <th>Cadastros Gerados</th>
+                                            <th>Conversões PRO</th>
+                                            <th>Saldo Pendente (R$)</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-referrals-list">
+                                        <!-- Will be dynamically populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+
 
 
                 </section>
@@ -1232,6 +1269,64 @@
                         <p class="text-muted" style="max-width: 550px; margin: 0 auto 30px auto; font-size: 15px; line-height: 1.6;">
                             Facilite as entregas para suas clientes e gerencie a logística dos seus doces com a tecnologia do ConfeitaAI. Fique atenta às novidades! ✨
                         </p>
+                    </div>
+                </section>
+
+                <section id="section-referral" class="tab-content">
+                    <div class="header-flex">
+                        <div>
+                            <h2 style="font-size: 24px; color: var(--color-text); margin-bottom: 5px; display: flex; align-items: center; gap: 8px;">
+                                🎁 Indique e Ganhe
+                            </h2>
+                            <p class="text-muted">Ganhe R$ 20,00 por cada amiga confeiteira que você indicar e assinar o plano PRO!</p>
+                        </div>
+                    </div>
+
+                    <div id="referral-locked" style="display: none; background: #fff5f5; border: 1px solid #fed7d7; padding: 30px; border-radius: 12px; text-align: center; margin-top: 20px;">
+                        <h3 style="color: #e53e3e; margin-bottom: 10px;">🔒 Recurso Exclusivo PRO</h3>
+                        <p style="color: #718096; margin-bottom: 20px; font-size: 15px;">Assine o Plano PRO para liberar seu link exclusivo, começar a indicar amigas e faturar comissões diretas na sua conta!</p>
+                        <button class="btn btn-purple" onclick="openModal('modal-upgrade')">Fazer Upgrade Agora</button>
+                    </div>
+
+                    <div id="referral-unlocked" style="display: none;">
+                        <div class="dashboard-cards" style="margin-top: 20px;">
+                            <div class="card glass">
+                                <h3>Seu Link de Indicação</h3>
+                                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                    <input type="text" id="ref-link-input" readonly style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 14px; color: #475569;">
+                                    <button class="btn btn-primary" onclick="copyRefLink()" style="background: #ec4899; color: white; border: none;">Copiar</button>
+                                </div>
+                            </div>
+                            <div class="card glass">
+                                <h3>Saldo a Receber</h3>
+                                <p class="card-value" id="ref-saldo" style="color: #ec4899;">R$ 0,00</p>
+                                <p class="card-desc" style="font-size: 12px; margin-top: 5px; color: var(--color-text-muted);">Comissões já liberadas</p>
+                            </div>
+                            <div class="card glass">
+                                <h3>Cadastros / Conversões</h3>
+                                <p class="card-value"><span id="ref-count-total">0</span> / <span id="ref-count-pro" style="color: #10b981;">0</span></p>
+                                <p class="card-desc" style="font-size: 12px; margin-top: 5px; color: var(--color-text-muted);">Total Indicados / Assinaram PRO</p>
+                            </div>
+                        </div>
+
+                        <div class="card glass" style="margin-top: 20px;">
+                            <h3>Quem você indicou</h3>
+                            <div class="table-responsive" style="margin-top: 15px;">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Status da Conta</th>
+                                            <th>Data de Cadastro</th>
+                                            <th>Comissão Gerada</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-referrals-body">
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

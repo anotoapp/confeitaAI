@@ -1183,6 +1183,12 @@ async function checkSession() {
                     plan_expires_at: trialExpires.toISOString(),
                     last_login: new Date().toISOString()
                 };
+                
+                const savedRefCode = localStorage.getItem("confeitaai_ref_code");
+                if (savedRefCode) {
+                    newProfile.referred_by = savedRefCode;
+                    localStorage.removeItem("confeitaai_ref_code");
+                }
                 const { data: created } = await supabaseClient.from('usuarios').insert([newProfile]).select().maybeSingle();
                 profile = created || newProfile;
             }
@@ -1616,6 +1622,16 @@ async function handleSetupSubmit(e) {
         if (authErr) throw authErr;
 
         if (authData.user) {
+            const savedRefCode = localStorage.getItem("confeitaai_ref_code");
+            let updatePayloadBase = {
+                status: 'Ativo',
+                phone: finalPhone
+            };
+            if (savedRefCode) {
+                updatePayloadBase.referred_by = savedRefCode;
+                localStorage.removeItem("confeitaai_ref_code");
+            }
+
             // Verifica se pagou antes de criar a conta
             const { data: pendingPayments } = await supabaseClient
                 .from('pagamentos_pendentes')
@@ -1625,10 +1641,9 @@ async function handleSetupSubmit(e) {
             if (pendingPayments && pendingPayments.length > 0) {
                 // Pagou antes! Virar PRO direto
                 await supabaseClient.from('usuarios').update({
+                    ...updatePayloadBase,
                     plan: 'PRO',
-                    plan_expires_at: null,
-                    status: 'Ativo',
-                    phone: finalPhone
+                    plan_expires_at: null
                 }).eq('id', authData.user.id);
 
                 // Remove da fila de pendentes
@@ -1638,10 +1653,9 @@ async function handleSetupSubmit(e) {
                 const expireDate = new Date();
                 expireDate.setDate(expireDate.getDate() + 7);
                 await supabaseClient.from('usuarios').update({
+                    ...updatePayloadBase,
                     plan: 'Trial',
-                    plan_expires_at: expireDate.toISOString(),
-                    status: 'Ativo',
-                    phone: finalPhone
+                    plan_expires_at: expireDate.toISOString()
                 }).eq('id', authData.user.id);
             }
         }
@@ -1907,6 +1921,15 @@ function switchTab(tabId) {
             if (headerTitle) headerTitle.innerText = "Networking e Apoio";
             if (headerSubtitle) headerSubtitle.innerText = "Nossa comunidade exclusiva no WhatsApp";
             break;
+        case "referral":
+            if (headerTitle) headerTitle.innerText = "Indique e Ganhe";
+            if (headerSubtitle) headerSubtitle.innerText = "Ganhe recompensas ajudando nossa comunidade a crescer";
+            try {
+                if (typeof renderReferralTab === "function") renderReferralTab();
+            } catch (e) {
+                console.error("Erro ao renderizar Indique e Ganhe:", e);
+            }
+            break;
         case "adm":
             if (headerTitle) headerTitle.innerText = "Painel ADM";
             if (headerSubtitle) headerSubtitle.innerText = "Controle suas credenciais, dados do sistema e parâmetros de custos";
@@ -1932,6 +1955,12 @@ function safeBind(id, event, handler) {
 function initializeConfeitaAI() {
     // Standalone Storefront Client Mode Detection
     const urlParams = new URLSearchParams(window.location.search);
+
+    // Capture Referral Code
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+        localStorage.setItem("confeitaai_ref_code", refCode);
+    }
     let lojaSlug = urlParams.get('loja');
     if (!lojaSlug) {
         const path = window.location.pathname;
@@ -7497,6 +7526,98 @@ function showCalendarDayDetails(dateStr, day, month, year) {
 }
 
 // ==========================================================================
+// 9.5 PROGRAMA INDIQUE E GANHE
+// ==========================================================================
+
+async function renderReferralTab() {
+    if (!state) return;
+    const session = localStorage.getItem("confeitaai_session");
+    if (!session) return;
+    const profile = JSON.parse(session);
+
+    const isPro = profile.plan === "PRO" || profile.role === "Super Admin";
+
+    const lockedEl = document.getElementById("referral-locked");
+    const unlockedEl = document.getElementById("referral-unlocked");
+
+    if (isPro) {
+        lockedEl.style.display = "none";
+        unlockedEl.style.display = "block";
+        
+        // Build Referral Link
+        const refLink = window.location.origin + "/index.html?ref=" + profile.id;
+        document.getElementById("ref-link-input").value = refLink;
+
+        // Fetch Data from Supabase if online
+        if (isSupabaseActive) {
+            try {
+                const { data: indicados, error } = await supabaseClient
+                    .from("usuarios")
+                    .select("*")
+                    .eq("referred_by", profile.id);
+
+                if (!error && indicados) {
+                    const totalIndicados = indicados.length;
+                    const pros = indicados.filter(i => i.plan === "PRO").length;
+                    const saldoGerado = pros * 20.00;
+                    
+                    // Comissao recebida needs to be pulled from current user, 
+                    // but we can query it quickly or get from state
+                    let comissao_recebida = 0;
+                    const { data: me } = await supabaseClient.from("usuarios").select("comissao_recebida").eq("id", profile.id).single();
+                    if (me && me.comissao_recebida) comissao_recebida = Number(me.comissao_recebida);
+
+                    const saldoReceber = Math.max(0, saldoGerado - comissao_recebida);
+
+                    document.getElementById("ref-count-total").innerText = totalIndicados;
+                    document.getElementById("ref-count-pro").innerText = pros;
+                    document.getElementById("ref-saldo").innerText = `R$ ${saldoReceber.toFixed(2).replace('.', ',')}`;
+
+                    // Render table
+                    const tbody = document.getElementById("table-referrals-body");
+                    tbody.innerHTML = indicados.map(ind => {
+                        const date = new Date(ind.last_login).toLocaleDateString('pt-BR'); // aproximado para data de cadastro
+                        const isIndPro = ind.plan === "PRO";
+                        const statusBadge = isIndPro 
+                            ? `<span class="badge badge-success">PRO</span>` 
+                            : `<span class="badge badge-warning">Trial</span>`;
+                        const comissao = isIndPro ? "R$ 20,00" : "R$ 0,00";
+                        return `
+                            <tr>
+                                <td>${ind.name}</td>
+                                <td>${statusBadge}</td>
+                                <td>${date}</td>
+                                <td><span style="font-weight: 600; color: ${isIndPro ? '#10b981' : '#718096'};">${comissao}</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    if (indicados.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--color-text-muted);">Nenhuma indicação ainda. Divulgue seu link!</td></tr>`;
+                    }
+                }
+            } catch(e) {
+                console.error("Erro ao buscar indicados:", e);
+            }
+        } else {
+            // Local fallback
+            document.getElementById("table-referrals-body").innerHTML = `<tr><td colspan="4" style="text-align: center;">Reconecte a internet para ver seus indicados.</td></tr>`;
+        }
+
+    } else {
+        lockedEl.style.display = "block";
+        unlockedEl.style.display = "none";
+    }
+}
+
+function copyRefLink() {
+    const input = document.getElementById("ref-link-input");
+    input.select();
+    input.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(input.value);
+    showToast("Link copiado com sucesso! 🚀", "success");
+}
+
 // 10. PAINEL ADM LOGIC & MAINTENANCE OPERATIONS
 // ==========================================================================
 
@@ -7556,9 +7677,92 @@ async function renderAdm() {
     // Render SVG category chart
     renderAdmCategoryChart();
 
+    // Render Admin Referrals
+    renderAdminReferrals();
+
     // Render collaborators table
     renderUsersTable();
 }
+
+async function renderAdminReferrals() {
+    const referralsTbody = document.getElementById("admin-referrals-list");
+    if (referralsTbody && isSupabaseActive) {
+        try {
+            // Find all users who are PRO and have a referred_by
+            const { data: conv, error } = await supabaseClient
+                .from("usuarios")
+                .select("referred_by")
+                .eq("plan", "PRO")
+                .not("referred_by", "is", null);
+                
+            if (!error && conv && conv.length > 0) {
+                // Group by referrer
+                const counts = {};
+                conv.forEach(u => {
+                    counts[u.referred_by] = (counts[u.referred_by] || 0) + 1;
+                });
+                
+                // Get those referrers' data
+                const referrersIds = Object.keys(counts);
+                if (referrersIds.length > 0) {
+                    const { data: referrers } = await supabaseClient
+                        .from("usuarios")
+                        .select("id, name, comissao_recebida")
+                        .in("id", referrersIds);
+                    
+                    if (referrers) {
+                        referralsTbody.innerHTML = referrers.map(ref => {
+                            const conversoes = counts[ref.id];
+                            const saldoTotal = conversoes * 20;
+                            const recebido = Number(ref.comissao_recebida || 0);
+                            const saldoPendente = Math.max(0, saldoTotal - recebido);
+                            
+                            if (saldoPendente <= 0) return '';
+                            
+                            return `
+                                <tr>
+                                    <td>${ref.name}</td>
+                                    <td>-</td>
+                                    <td><span class="badge badge-success">${conversoes}</span></td>
+                                    <td style="color: #ec4899; font-weight: bold;">R$ ${saldoPendente.toFixed(2).replace('.',',')}</td>
+                                    <td>
+                                        <button class="btn btn-primary btn-sm" onclick="payReferral('${ref.id}', ${saldoPendente})">Pagar PIX</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                        
+                        if (referralsTbody.innerHTML.trim() === '') {
+                            referralsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Nenhuma comissão pendente no momento.</td></tr>`;
+                        }
+                    }
+                }
+            } else {
+                referralsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">Nenhuma comissão pendente.</td></tr>`;
+            }
+        } catch(e) {
+            console.error("Erro renderAdminReferrals:", e);
+        }
+    }
+}
+
+window.payReferral = async function(userId, amount) {
+    if (!confirm(`Confirma que já realizou o PIX no valor de R$ ${amount.toFixed(2).replace('.',',')} para esta afiliada?`)) return;
+    
+    try {
+        const { data: user } = await supabaseClient.from("usuarios").select("comissao_recebida").eq("id", userId).single();
+        const current = Number(user?.comissao_recebida || 0);
+        const nextVal = current + amount;
+        
+        await supabaseClient.from("usuarios").update({ comissao_recebida: nextVal }).eq("id", userId);
+        showToast("Comissão baixada com sucesso!", "success");
+        renderAdminReferrals();
+    } catch (e) {
+        console.error(e);
+        showToast("Erro ao dar baixa", "error");
+    }
+}
+
 
 function renderAdmCategoryChart() {
     const chartBox = document.getElementById("category-chart-box");
