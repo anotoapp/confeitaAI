@@ -20,6 +20,7 @@ let currentView = 'mes';
 // Global Pricing Parameters
 let DEFAULT_MARKUP = parseFloat(localStorage.getItem("confeitaai_default_markup")) || 200;
 let DEFAULT_PACKAGING = parseFloat(localStorage.getItem("confeitaai_default_packaging")) || 5.00;
+let DEFAULT_HOURLY_RATE = parseFloat(localStorage.getItem("confeitaai_default_hourly_rate")) || 15.00;
 function getLocalDateStr(dateObj = new Date()) {
     const yyyy = dateObj.getFullYear();
     const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
